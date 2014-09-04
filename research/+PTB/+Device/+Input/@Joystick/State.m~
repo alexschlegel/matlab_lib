@@ -1,0 +1,23 @@
+function [b,t] = State(joy)
+% PTB.Device.Input.Joystick.State
+% 
+% Description:	get the current state of the joystick
+% 
+% Syntax:	[b,t] = joy.State
+% 
+% Out:
+%	b	- a 128x1 logical array indicating which buttons are down
+%	t	- the time associated with the query
+%
+% Updated: 2011-12-14
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+global PTBIFO;
+
+t	= PTB.Now;
+
+[sAxes,bState]	= JoyMEX(1);
+bState			= logical(reshape(bState,[],1));
+
+b	= bState & ~PTBIFO.input.joystick.basestate;

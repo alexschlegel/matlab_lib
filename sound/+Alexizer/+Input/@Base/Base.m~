@@ -1,0 +1,71 @@
+classdef Base < dynamicprops
+% Alexizer.Input.Base
+% 
+% Description:	base input device object
+% 
+% Syntax:	inp = Alexizer.Input.Base
+% 
+% 			subfunctions:
+% 				Prepare(sRate,sDur)
+%				Close
+%				GetSample
+% 
+% 			properties:
+%				sample_rate:		sample rate, in Hz
+% 				sample_duration:	sample duration, in seconds
+% 
+% Updated: 2012-06-08
+% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	properties
+		sample_rate;
+		sample_duration;
+	end
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	
+	
+	%PRIVATE PROPERTIES--------------------------------------------------------%
+	properties (SetAccess=private, GetAccess=private)
+		
+	end
+	%PRIVATE PROPERTIES--------------------------------------------------------%
+	
+	
+	%PROPERTY GET/SET----------------------------------------------------------%
+	methods
+		
+	end
+	%PROPERTY GET/SET----------------------------------------------------------%
+	
+	
+	%PUBLIC METHODS------------------------------------------------------------%
+	methods
+		function obj = Base()
+			
+		end
+	end
+	%--------------------------------------------------------------------------%
+	function b = Prepare(
+	%--------------------------------------------------------------------------%
+	%--------------------------------------------------------------------------%
+	%--------------------------------------------------------------------------%
+	%PUBLIC METHODS------------------------------------------------------------%
+	
+	
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	methods
+		
+	end
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	
+	
+	%PRIVATE METHODS-----------------------------------------------------------%
+	methods (Access=private)
+		
+	end
+	%PRIVATE METHODS-----------------------------------------------------------%
+	
+end

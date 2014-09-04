@@ -1,0 +1,48 @@
+# generated <creation_time> by svr.m
+
+import sys
+import numpy
+from sklearn import svm, cross_validation
+from scipy.io import loadmat, savemat
+
+# script parameters
+classifier = svm.SVR()
+path_data  = '<path_data>'
+path_out   = '<path_out>'
+
+def init_results():
+	res = {
+			'W':	[]
+	}
+	
+	return res
+def save_results(res,path_out):
+	savemat(path_out,res)
+def load_data(path_data):
+	data = loadmat(path_data)
+	
+	if len(data['X']) == 0:
+		save_results(res)
+		sys.exit()
+	
+	return data
+def predict(X, Y):
+	N   = len(X)
+	loo = cross_validation.LeaveOneOut(N)
+	
+	def predict_variable(X,y):
+		return [classifier.fit(X[train],y[train]).predict(X[test]) for train,test in loo] 
+	
+	return [predict_variable(X,y) for y in Y]
+
+# load the data
+data = load_data(path_data)
+
+# initialize the results
+res = init_results()
+
+# train and predict
+res['W'] = predict(data['X'],data['Y'])
+
+# save the results
+save_results(res,path_out)

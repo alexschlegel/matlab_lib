@@ -1,0 +1,21 @@
+function [b,t] = State(key)
+% PTB.Device.Input.Keyboard.State
+% 
+% Description:	get the current state of the keyboard
+% 
+% Syntax:	[b,t] = key.State
+% 
+% Out:
+%	b	- a 255x1 logical array indicating which keys are down
+%	t	- the time associated with the query
+%
+% Updated: 2011-12-14
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+global PTBIFO;
+
+[dummy,tGS,bState]	= KbCheck;
+
+t	= getsecs2ms(tGS);
+b	= bState & ~PTBIFO.input.keyboard.basestate;

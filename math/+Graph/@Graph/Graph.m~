@@ -1,0 +1,73 @@
+classdef Graph < handle
+% Graph.Graph
+% 
+% Description:	a graph object, created indirectly by creating nodes and edges
+% 
+% Syntax:	<created indirectly by Graph.Nodes>
+% 
+%			methods:
+%				Render:	render an image of the graph
+%
+% 			properties:
+%				node:	an array of the Graph.Nodes in the graph
+%				edge:	an array of the Graph.Edges in the graph
+% 
+% Updated: 2012-01-01
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	properties
+		node	= Graph.Node.empty;
+		edge	= Graph.Edge.empty;
+	end
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	
+	
+	%PROPERTY GET/SET----------------------------------------------------------%
+	methods
+		
+	end
+	%PROPERTY GET/SET----------------------------------------------------------%
+	
+	
+	%PUBLIC METHODS------------------------------------------------------------%
+	methods
+		%----------------------------------------------------------------------%
+		function g = Graph(nd)
+			g.node	= nd;
+		end
+		%----------------------------------------------------------------------%
+		function Merge(g,g2)
+		%Graph.Graph.Merge
+		%
+		%merge g with g2, and delete g2
+		%
+		%g.Merge(g2)
+			g.node	= [g.node g2.node];
+			g.edge	= [g.edge g2.edge];
+			
+			[g2.node.graph]	= deal(g);
+			
+			delete(g2);
+		end
+		%----------------------------------------------------------------------%
+	end
+	%PUBLIC METHODS------------------------------------------------------------%
+	
+	
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	methods
+		
+	end
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	
+	
+	%PRIVATE METHODS-----------------------------------------------------------%
+	methods (Access=private)
+		
+	end
+	%PRIVATE METHODS-----------------------------------------------------------%
+	
+end

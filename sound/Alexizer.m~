@@ -1,0 +1,111 @@
+function varargout = Alexizer(varargin)
+% Alexizer
+% 
+% Description:	alexize the world
+% 
+% Syntax:	Alexizer
+% 
+% Updated: 2012-06-10
+% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @Alexizer_OpeningFcn, ...
+                   'gui_OutputFcn',  @Alexizer_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+%------------------------------------------------------------------------------%
+
+%------------------------------------------------------------------------------%
+function Alexizer_OpeningFcn(hObject, eventdata, handles, varargin)
+	global Alexizer;
+	
+	handles.output = hObject;
+	
+	%set the gui position
+		pS		= get(0,'ScreenSize');
+		p		= get(hObject,'Position');
+		p(2)	= (pS(4)-p(4))/2;
+		set(hObject,'Position',p);
+	
+	%prepare the input device
+		handles.input		= Alexizer.Input.PsychMic;
+		handles.timer.input	= timer(...
+								'Name'			, 'alexizer_input'						, ...
+								'TimerFcn'		, @(varargin) Alexizer_Input(handles)	, ...
+								'Period'		, handles.input.rate					, ...
+								'ExecutionMode'	, 'fixedRate'							  ...
+								);
+	
+	% Update handles structure
+	guidata(hObject, handles);
+	Alexizer.handles	= handles;
+	
+	% UIWAIT makes Alexizer wait for user response (see UIRESUME)
+	uiwait(handles.figMain);
+%------------------------------------------------------------------------------%
+function varargout = Alexizer_OutputFcn(hObject, eventdata, handles) 
+	varargout{1} = handles.output;
+	
+	stop(handles.timer.input);
+	delete(handles.timer.input);
+	handles.input.Close;
+%------------------------------------------------------------------------------%
+
+%------------------------------------------------------------------------------%
+function togAnalyze_Callback(hObject, eventdata, handles)
+	bOn	= toggleOnOff(hObject);
+	
+	if bOn
+		start(handles.timer.input);
+	else
+		stop(handles.timer.input);
+	end
+%------------------------------------------------------------------------------%
+function togSynthesize_Callback(hObject, eventdata, handles)
+	bOn	= toggleOnOff(hObject);
+%------------------------------------------------------------------------------%
+
+%------------------------------------------------------------------------------%
+function bOn = toggleOnOff(hObject)
+	switch get(hObject,'String')
+		case 'Off'
+			bOn	= true;
+			
+			set(hObject,'String','On','BackgroundColor',[0 0.5 0],'ForegroundColor',[0 1 0]);
+		case 'On'
+			bOff	= true;
+			
+			set(hObject,'String','Off','BackgroundColor',[0.5 0 0],'ForegroundColor',[1 0 0]);
+	end
+%------------------------------------------------------------------------------%
+
+
+%------------------------------------------------------------------------------%
+function mnuFile_Callback(hObject, eventdata, handles)
+%------------------------------------------------------------------------------%
+function mnuDevices_Callback(hObject, eventdata, handles)
+%------------------------------------------------------------------------------%
+function mnuInput_Callback(hObject, eventdata, handles)
+	Alexizer.InputDevice;
+%------------------------------------------------------------------------------%
+function mnuOutput_Callback(hObject, eventdata, handles)
+%------------------------------------------------------------------------------%
+
+%------------------------------------------------------------------------------%
+function Alexizer_Input(handles)
+	[t,x]	= handles.input.Read;
+	
+	handles
+%------------------------------------------------------------------------------%

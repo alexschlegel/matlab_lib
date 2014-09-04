@@ -1,0 +1,82 @@
+classdef Group < Group.Object
+% Group
+% 
+% Description:	the base root Group object
+% 
+% Syntax:	grp = Group(strType,[cAttachClass]={'Info','File','Scheduler','Status','Prompt','Log'},[cAttachName]=cAttachClass,<options>)
+%
+% 			subclasses:
+% 				Info:		stores info
+%				File:		read/write files
+%				Scheduler:	schedule execution of tasks
+%				Status:		show status messages
+%				Prompt:		prompt for information
+%				Log:		log events
+%
+% 			methods:
+%				<see Group.Object>
+%
+%			properties:
+%				<see Group.Object>
+%
+% In:
+%	strType			- a fieldname-compatible description of the group type
+%	[cAttachClass]	- a cell of class names of objects to attach to the group.
+%					  the package path for classes in the Group package and the
+%					  same as the object do not need to be specified.
+%	[cAttachName]	- the property names to give to the objects specified in
+%					  cAttachClass
+%	<options>:
+%		start:	(true) true to autostart all objects in the group
+%		debug:	(0) the debug level.  0==none, 1==test run, 2==development
+% 
+% Updated: 2011-12-27
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+	%PUBLIC METHODS------------------------------------------------------------%
+	methods
+		%----------------------------------------------------------------------%
+		function grp = Group(strType,varargin)
+			[cAttachClass,cAttachName]	= ParseArgs(varargin,{'Info','File','Scheduler','Status','Prompt','Log'},{});
+			grp							= grp@Group.Object([],strType,cAttachClass,cAttachName);
+			
+			opt	= ParseArgsOpt(varargin,...
+					'start'	, true	  ...
+					);
+			
+			grp.argin	= varargin;
+			
+			if opt.start
+				grp.Start;
+			end
+		end
+		%----------------------------------------------------------------------%
+		function Start(grp,varargin)
+			opt	= ParseArgsOpt(varargin,...
+					'debug'	, 0	  ...
+					);
+			
+			%start the Info object first
+				if ~grp.Info.started
+					grp.Info.Start(grp.argin{:},varargin{:});
+				end
+			
+			%set some info
+				grp.Info.Set({'t','start'},Group.Now,false);
+				grp.Info.Set('debug',opt.debug,false);
+			
+			
+			Start@Group.Object(grp,varargin{:});
+		end
+		%----------------------------------------------------------------------%
+		function Abort(grp,varargin)
+			Abort@Group.Object(grp,varargin{:});
+			
+			error([grp.type ' aborted.']);
+		end
+		%----------------------------------------------------------------------%
+	end
+	%PUBLIC METHODS------------------------------------------------------------%
+end

@@ -1,0 +1,83 @@
+classdef Node < handle
+% Graph.Node
+% 
+% Description:	a graph node
+% 
+% Syntax:	nd = Graph.Node
+% 
+%			methods:
+%				path:	find a path to another node
+%
+% 			properties:
+%				name:	the node name
+% 				weight:	the node weight
+%				color:	the node color ([r g b])
+%				x:		the node x-position
+%				y:		the node y-position
+%				edge:	an array of Graph.Edges to other nodes
+%				graph:	the structure of the graph to which the node is connected
+% 
+% In:
+% 	[strName]	- the node name
+%	[weight]	- the node weight
+% 
+% Updated: 2012-01-01
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	properties
+		name		= '';
+		weight		= 1;
+		color		= [0 0 0];
+		x			= NaN;
+		y			= NaN;
+		
+		edge	= Graph.Edge.empty;
+		graph	= Graph.Graph.empty;
+	end
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	
+	
+	%PROPERTY GET/SET----------------------------------------------------------%
+	methods
+		
+	end
+	%PROPERTY GET/SET----------------------------------------------------------%
+	
+	
+	%PUBLIC METHODS------------------------------------------------------------%
+	methods
+		function nd = Node(varargin)
+			nd.graph	= Graph.Graph(nd);
+		end
+	end
+	%PUBLIC METHODS------------------------------------------------------------%
+	
+	
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	methods
+		%----------------------------------------------------------------------%
+		function delete(nd)
+		%Graph.Node destructor function
+		%
+		%delete(nd)
+			objfun(@delete,nd.edge);
+			
+			nd.graph.node(nd.graph.node==nd)	= [];
+			
+			delete@handle(nd);
+		end
+		%----------------------------------------------------------------------%
+	end
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	
+	
+	%PRIVATE METHODS-----------------------------------------------------------%
+	methods (Access=private)
+		
+	end
+	%PRIVATE METHODS-----------------------------------------------------------%
+	
+end

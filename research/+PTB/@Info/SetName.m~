@@ -1,0 +1,43 @@
+function bLoaded = SetName(ifo,strName)
+% PTB.Info.SetName
+% 
+% Description:	set the name of the info struct (determines the output path)
+% 
+% Syntax:	bLoaded = ifo.SetName(strName)
+%
+% Out:
+%	bLoaded	- true if existing data were loaded
+% 
+% Updated: 2011-12-10
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+bLoaded	= false;
+
+%get the new file path
+	ifo.p_Name	= strName;
+	
+	ifo.parent.File.Set('session','data',[strName '.mat']);
+		
+	ifo.p_Path	= ifo.parent.File.Get('session');
+%check to see if the info path already exists
+	if FileExists(ifo.p_Path)
+		strDefault	= conditional(ifo.parent.Info.Get('experiment','debug')==2,'overwrite','load');
+		
+		res	= ifo.parent.Prompt.Ask(['Session data for ' ifo.p_Name ' already exist in "' ifo.p_Path '".  What should we do?'],'choice',{'load','abort','overwrite'},'default',strDefault);
+		switch res
+			case 'load'
+				bLoaded	= true;
+				
+				ifo.Load;
+			case 'abort'
+				error('Experiment aborted.');
+			case 'overwrite'
+				delete(ifo.p_Path);
+		end
+	end
+%save the struct
+	strStatus	= ['session info struct saving to: "' ifo.p_Path '"'];
+	ifo.parent.Status.Show(strStatus,'time',false);
+	
+	ifo.Save;

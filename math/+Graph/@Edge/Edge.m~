@@ -1,0 +1,116 @@
+classdef Edge < handle
+% Graph.Edge
+% 
+% Description:	a graph edge
+% 
+% Syntax:	ed = Graph.Edge(nd1,nd2,[direction]=0,[strName]='',[weight]=1)
+% 
+% 			properties:
+%				node (get):	a two-element Graph.Node array of the nodes
+%							joined by the edge
+%				direction:	the edge direction:
+%								-1:	node 2 to node 1
+%								0:	undirected
+%								1:	node 1 to node 2
+%				name:		the edge name
+% 				weight:		the edge weight
+%				color:		the edge color ([r g b])
+% 
+% In:
+%	nd1			- the first Graph.Node connected by the edge
+%	nd2			- the second Graph.Node connected by the edge
+%	[direction]	- the edge direction (see properties)
+% 	[strName]	- the edge name
+%	[weight]	- the edge weight
+% 
+% Updated: 2012-01-01
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	properties
+		direction	= 0;
+		name		= '';
+		weight		= 1;
+		color		= [0 0 0];
+	end
+	properties (SetAccess=protected)
+		node;
+	end
+	%PUBLIC PROPERTIES---------------------------------------------------------%
+	
+	
+	%PROPERTY GET/SET----------------------------------------------------------%
+	methods
+		
+	end
+	%PROPERTY GET/SET----------------------------------------------------------%
+	
+	
+	%PUBLIC METHODS------------------------------------------------------------%
+	methods
+		function ed = Edge(nd1,nd2,varargin)
+			
+			%make sure the edge doesn't already exist
+				bSameGraph	= nd1.graph==nd2.graph;
+				
+				if bSameGraph
+					[bExist,kEdge]	= ismember(nd1.edge,nd2.edge);
+					bExist	= any(bExist);
+					
+					if bExist
+						kEdge	= kEdge(kEdge~=0);
+					end
+				else
+					bExist	= false;
+				end
+			
+			if bExist
+			%edge exists, just return that
+				ed	= nd2.edge(kEdge);
+			else
+			%edge doesn't exist, create it
+				ed.node			= [nd1 nd2];
+				nd1.edge(end+1)	= ed;
+				nd2.edge(end+1)	= ed;
+				
+				if ~bSameGraph
+					nd1.graph.Merge(nd2.graph);
+				end
+				
+				nd1.graph.edge(end+1)	= ed;
+			end
+		end
+	end
+	%PUBLIC METHODS------------------------------------------------------------%
+	
+	
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	methods
+		%----------------------------------------------------------------------%
+		function delete(ed)
+		%Graph.Edge destructor function
+		%
+		%delete(ed)
+			ed.node(1).edge(find(ed.node(1).edge==ed,1))				= [];
+			ed.node(2).edge(find(ed.node(2).edge==ed,1))				= [];
+			ed.node(1).graph.edge(find(ed.node(1).graph.edge==ed,1))	= [];
+			
+			%did we just split the graph?
+				
+			
+			delete@handle(ed);
+		end
+		%----------------------------------------------------------------------%
+	end
+	%OVERLOADED FUNCTIONS------------------------------------------------------%
+	
+	
+	%PRIVATE METHODS-----------------------------------------------------------%
+	methods (Access=private)
+		
+	end
+	%PRIVATE METHODS-----------------------------------------------------------%
+	
+end

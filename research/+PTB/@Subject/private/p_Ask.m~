@@ -1,0 +1,38 @@
+function p_Ask(sub,strName,strPrompt,varargin)
+% p_Ask
+% 
+% Description:	ask a question about the subject and store the result
+% 
+% Syntax:	p_Ask(sub,strName,strPrompt,[cChoice]=<none>,[strType]='char',<options>)
+% 
+% In:
+% 	strName		- the name of of the piece of info, must be field name compatible
+%	strPrompt	- the prompt for info
+%	[cChoice]	- a cell of choices (first one default)
+%	[strType]	- the output type, or one of the following:
+%					time:	store as a time
+%	<options>:
+%		replace:	(true) true to replace existing values.  if false and info
+%					already exists, doesn't ask.
+% 
+% Updated: 2011-12-10
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+[cChoice,strType,opt]	= ParseArgsOpt(varargin,[],'char',...
+							'replace'	, true	  ...
+							);
+
+if opt.replace || isempty(sub.Get(strName))
+	%prompt
+		res	= sub.parent.Prompt.Ask(strPrompt,'choice',cChoice);
+	%format the response
+		switch strType
+			case 'time'
+				res	= FormatTime(res);
+			otherwise
+				res	= cast(res,strType);
+		end
+	%store it
+		sub.Set(strName,res);
+end

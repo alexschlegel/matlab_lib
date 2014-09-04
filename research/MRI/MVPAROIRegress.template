@@ -1,0 +1,130 @@
+# generated <creation_time> by MVPARegress.m
+
+import numpy
+import nibabel
+from mvpa2.suite import *
+from scipy.io import savemat
+
+np.seterr(divide='ignore');
+np.seterr(invalid='ignore');
+
+#script parameters
+do_zscore             = <do_zscore>
+do_custom_zscore      = <do_custom_zscore>
+do_target_subset      = <do_target_subset>
+zscore_attr           = '<zscore_attr>'
+zscore_attr_val       = [<zscore_attr_val>]
+target_subset         = [<target_subset>]
+target_blank          = '<target_blank>'
+classifier            = <classifier>(<classifier_param>)
+nfold_leaveout        = <nfold_leaveout>
+time_lag              = <time_lag>
+path_result           = '<path_result>'
+path_attribute        = '<path_attribute>'
+path_data             = '<path_data>'
+path_mask             = [<path_mask>]
+
+#***
+path_attribute = '/home/alex/temp/roiregress/attr.txt'
+path_data      = '/home/alex/temp/roiregress/data_01-pp.nii.gz'
+path_mask      = ['/home/alex/temp/roiregress/mask-dlpfc-merged-2func.nii.gz', '/home/alex/temp/roiregress/mask-ppc-merged-2func.nii.gz']
+
+
+def RegressOne(mskSrc,mskDst):
+	"""predict mskDst from mskSrc"""
+	#apply the masks
+	dsSrc = ds[:,ds.a.mapper.forward1(mskSrc)!=0]
+	dsDst = ds[:,ds.a.mapper.forward1(mskDst)!=0]
+	
+	#unique targets without blank
+	targets = [trg for trg in dsSrc.uniquetargets if trg!=target_blank]
+	#number of non-blank chunks
+	n_chunk = len([chunk for chunk in dsSrc.uniquechunks if chunk!=0])
+	#number of voxels in the destination mask
+	n_feature = dsDst.shape[1]
+	
+	#initialize the output
+	result = numpy.zeros((n_chunk,1), dtype=[
+			('target',numpy.object),
+			('actual',numpy.object),
+			('predicted',numpy.object),
+	])
+	
+	#z-score
+	if do_zscore:
+		#define our own zscore attribute
+		if do_custom_zscore:
+			dsSrc.sa[zscore_attr] = array(zscore_attr_val)
+			dsDst.sa[zscore_attr] = array(zscore_attr_val)
+		
+		zscore(dsSrc, chunks_attr=zscore_attr)
+		zscore(dsDst, chunks_attr=zscore_attr)
+	
+	#classifier
+	clf = classifier
+	
+	#partitioner
+	partitioner = NFoldPartitioner(cvtype=nfold_leaveout)
+	
+	#cross validator
+	#cvte = CrossValidation(clf,partitioner,postproc=mean_sample(),errorfx=corr_error,enable_ca=['training_stats','stats'])
+	cvte = CrossValidation(clf,partitioner,errorfx=lambda p,t:p,enable_ca=['training_stats','stats'])
+	
+	#predict for each target
+	for target in targets:
+		src_idx = numpy.where(ds.targets==target)[0]
+		dst_idx = src_idx + time_lag
+		dsSrcTarget = dsSrc[src_idx]
+		dsDstTarget = dsDst[dst_idx]
+		
+		#chunks for the current target
+		chunks = dsSrcTarget.uniquechunks
+		#number of samples per chunk
+		n_sample = min([sum(dsSrcTarget.sa.chunks==chunk) for chunk in chunks])
+		
+		#time indices within chunk
+		time_chunk = numpy.zeros_like(dsSrcTarget.sa.time_indices) - 1
+		for chunk in chunks:
+			chunk_idx = numpy.where(dsSrcTarget.sa.chunks==chunk)[0]
+			time_chunk[chunk_idx] = range(len(chunk_idx))
+		
+		#predict for each timepoint within each target
+		for sample_idx in range(n_sample):
+			time_idx = time_chunk==sample_idx
+			dsSrcSample = dsSrcTarget[time_idx]
+			dsDstSample = dsDstTarget[time_idx]
+			
+			for chunk in chunks:
+				result[chunk]['actual'] += dsDstSample
+			
+			#predict for each voxel in the destination mask
+			for feature_idx in range(n_feature):
+				dsSrcSample.targets = dsDstSample[:,feature_idx].squeeze()
+				
+				res = cvte(dsSrcSample)
+
+#load the attribute file
+attr = SampleAttributes(path_attribute)
+
+#load the data
+ds = fmri_dataset(samples=path_data, chunks=attr.chunks, targets=attr.targets)
+
+#keep only the targets we're interested in
+if do_target_subset:
+	ds = ds[array([ trg in target_subset or trg==target_blank for trg in ds.sa.targets ])]
+
+#load the masks
+masks  = [nibabel.load(f).get_data() for f in path_mask]
+n_mask = len(masks)
+
+#initialize the output
+	out    = numpy.zeros((n_mask,n_mask), dtype=numpy.object)
+
+#do each analysis
+for m1 in range(n_mask):
+	for m2 in range(n_mask):
+		if m1 != m2:
+			out[m1,m2] = RegressOne(masks[m1],masks[m2])
+
+#save the output
+savemat(path_result,out,oned_as='column')

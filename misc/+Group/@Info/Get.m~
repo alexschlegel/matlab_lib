@@ -1,0 +1,42 @@
+function x = Get(ifo,varargin)
+% Group.Info.Get
+% 
+% Description:	get info
+% 
+% Syntax:	x = ifo.Get(p1,...,pN)
+%
+% In:
+%	pK	- the Kth step in the info path
+%
+% Out:
+%	x	- the info stored in the specified path, or [] if the path did not exist
+% 
+% Updated: 2011-12-26
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+if nargin>1
+	x	= DoGet(ifo.root.info,varargin(1:end));
+else
+	x	= [];
+end
+
+%------------------------------------------------------------------------------%
+function x = DoGet(s,c)
+	if numel(c)>1
+		if isfield(s,c{1}) && isstruct(s.(c{1}))
+			x	= DoGet(s.(c{1}),c(2:end));
+		else
+			x	= [];
+		end
+	else
+		if isfield(s,c{1})
+			x	= s.(c{1});
+		else
+			x	= [];
+		end
+	end
+end
+%------------------------------------------------------------------------------%
+
+end

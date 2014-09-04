@@ -1,0 +1,69 @@
+function bvVOICombineHemispheres(voi,varargin)
+% bvVOICombineHemispheres
+% 
+% Description:	combine clusters in a VOI that correspond to the same area in
+%				different hemispheres
+% 
+% Syntax:	bvVOICombineHemispheres(voi,<options>)
+% 
+% In:
+% 	voi	- a BVQXfile VOI object with multiple clusters named as:
+%			<cluster_name><lh/rh_suffix> (e.g. V1-lh)
+%	<options>:
+%		'suffixlh':	('-lh') suffix added to left hemisphere clusters
+%		'suffixrh': ('-rh') suffix added to right hemisphere clusters
+% 
+% Updated:	2009-08-11
+% Copyright 2009 Alex Schlegel (alex@roguecheddar.com).  All Rights Reserved.
+opt	= ParseArgsOpt(varargin,...
+		'suffixlh'	, '-lh'	, ...
+		'suffixrh'	, '-rh'	  ...
+		);
+nVOI	= numel(voi.VOI);
+
+%regexp stuff
+	reLH		= [StringForRegExp(opt.suffixlh) '$'];
+	reRH		= [StringForRegExp(opt.suffixrh) '$'];
+	reSuffix	= ['(?<base>.+)(?<suffix>(' reLH ')|(' reRH '))'];
+
+%get each pair
+	mVOIName	= mapping;
+	
+	for kVOI=1:nVOI
+		sMatch	= regexp(voi.VOI(kVOI).Name,reSuffix,'names');
+		if ~isempty(sMatch)
+			strName	= sMatch.base;
+		else
+			strName	= voi.VOI(kVOI).Name;
+		end
+		
+		mVOIName(strName)	= [mVOIName(strName) kVOI];
+	end
+%combine!
+	cName	= domain(mVOIName);
+	nVOINew	= numel(cName);
+	
+	voi.NrOfVOIs	= nVOINew;
+	
+	kVOIDelete	= [];
+	for kVN=1:nVOINew
+		%VOIs to combine
+			kVOIOld	= mVOIName(cName{kVN});
+			nVOIOld	= numel(kVOIOld);
+			kBase	= kVOIOld(1);
+		%set the new name
+			voi.VOI(kBase).Name	= cName{kVN};
+		for kVO=2:nVOIOld
+			kVOIDelete	= [kVOIDelete; kVOIOld(kVO)];
+			
+			voi.VOI(kBase).Voxels	= [voi.VOI(kBase).Voxels; voi.VOI(kVOIOld(kVO)).Voxels];
+		end
+		voi.VOI(kBase).NrOfVoxels	= size(voi.VOI(kBase).Voxels,1);
+	end
+%delete the old guys
+	kVOIDelete	= sort(kVOIDelete);
+	nVOIDelete	= numel(kVOIDelete);
+	for kVOI=1:nVOIDelete
+		voi.VOI(kVOIDelete(kVOI))	= [];
+		kVOIDelete(kVOI+1:end)		= kVOIDelete(kVOI+1:end) - 1;
+	end

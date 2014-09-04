@@ -1,0 +1,241 @@
+function srf = bvFreeSurfer2SRF(strSession,varargin)
+% bvFreeSurfer2SRF
+% 
+% Description:	convert a FreeSurfer surface to a BVQX SRF object
+% 
+% Syntax:	srf = bvFreeSurfer2SRF(strSession,<options>)
+% 
+% In:
+% 	strSession	- the FreeSurfer subject name/session code
+%	<options>:
+%		'surface':		({'gmcenter','inflated'}) a string or cell of strings
+%						specifying the surface(s) to convert.  can be:
+%							'gmcenter':	the center of the gray matter,
+%										calculated as the mid-point between the
+%										'white' and 'pial' surfaces
+%							'inflated':	the inflated cortical surface
+%							'orig':		the original reconstructed cortical
+%										surface
+%							'pial':		the gray matter/pia mater boundary
+%							'sphere':	the cortical surface mapped onto a
+%										sphere
+%							'white':	the white matter/gray matter boundary
+%		'hemisphere':	('all') specify 'lh', 'rh', 'm', 'both', or 'all' to
+%						convert left, right, merged, left+right, or
+%						left+right+merged hemispheres
+%		'padding':		(25 for inflated meshes, 0 for all others) amount of
+%						padding, in coordinate units, along the left-right axis,
+%						by which to separate the lh and rh in merged meshes
+%		'spread':		(15 for inflated meshes, 0 for all others) angle, in
+%						degrees, by which to spread the occipital lobes of
+%						merged meshes outward from the medial plane
+%		'translate':	(true) true to translate the surface by the mesh center
+%		'reorder':		(true) true to reorder the coordinates from the space
+%						used by FreeSurfer to that used by BVQX
+%		'insideout':	(false) true to reverse the order of triangle vertices
+%						so BVQX correctly identifies the exterior of the surface
+%		'outdir':		(<don't save>) output directory for saving .srf files
+% 
+% Out:
+% 	srf	- a struct of SRFs, depending on what was specified through the
+%		  'surface' and 'hemisphere' options
+% 
+% Assumptions:	assumes FreeSurfer is installed at
+%					/usr/local/freesurfer
+%				the FreeSurfer subjects directory is
+%					/mnt/vision/Macknik/studies/_fmri_anatomical/_freesurfer/
+%				and cortex reconstruction has already been performed for the
+%				specified subject
+% 
+% Updated:	2009-07-29
+% Copyright 2009 Alex Schlegel (alex@roguecheddar.com).  All Rights Reserved.
+opt	= ParseArgsOpt(varargin, ...
+		'surface'		, {'gmcenter','inflated'}	, ...
+		'padding'		, []						, ...
+		'spread'		, []						, ...
+		'hemisphere'	, 'all'						, ...
+		'translate'		, true						, ...
+		'reorder'		, true						, ...
+		'insideout'		, false						, ...
+		'outdir'		, []						  ...
+		);
+%get the padding/spread values
+	cSurface	= {'inflated','gmcenter','orig','pial','sphere','white'};
+	
+	%padding
+		padding	= mapping;
+		if isempty(opt.padding)
+			padding(cSurface(1))		= 25;
+			padding(cSurface(2:end))	= 0;
+		else
+			padding(cSurface)	= opt.padding;
+		end
+		
+	%spread
+		spread	= mapping;
+		if isempty(opt.spread)
+			spread(cSurface(1))		= 15;
+			spread(cSurface(2:end))	= 0;
+		else
+			spread(cSurface)	= opt.spread;
+		end
+
+%path info
+	strDirFreeSurfer		= '/usr/local/freesurfer/';
+	strDirFreeSurferBin		= [strDirFreeSurfer 'bin/'];
+	strDirFreeSurferData	= '/mnt/vision/Macknik/studies/_fmri_anatomical/_freesurfer/';
+	
+	setenv('FREESURFER_HOME',strDirFreeSurfer);
+
+%the surfaces on which overlap should be fixed
+	cFixOverlap	= {'inflated','sphere'};
+%axis coordinate position and occipital lobe direction
+	if opt.reorder
+		cs	= CoordinateSpace.BVQX_Internal;	%SRF space
+	else
+		cs	= CoordinateSpace.NIfTI;	%GIfTI space
+	end
+
+%determine which surfaces to convert
+	opt.surface	= lower(reshape(ForceCell(opt.surface),[],1));
+	if ismember('gmcenter',opt.surface)
+		bKeepWhite	= ismember('white',opt.surface);
+		bKeepPial	= ismember('pial',opt.surface);
+		
+		opt.surface	= unique([opt.surface; 'white'; 'pial']);
+		
+		bDoGMCenter	= true;
+		opt.surface	= setdiff(opt.surface,'gmcenter');
+	else
+		bDoGMCenter	= false;
+	end
+	nSurface	= numel(opt.surface);
+
+%determine which hemispheres to convert
+	[bDoLeft,bDoRight,bDoMerged]	= deal(false);
+	switch lower(opt.hemisphere)
+		case {'m','all'}
+			[bDoLeft,bDoRight,bDoMerged]	= deal(true);
+		case 'both'
+			[bDoLeft,bDoRight]	= deal(true);
+		case 'lh'
+			bDoLeft	= true;
+		case 'rh'
+			bDoRight	= true;
+		otherwise
+			error(['"' opt.hemisphere '" is an invalid ''hemisphere'' option']);
+	end
+	
+%convert!
+	cH	= {'lh' 'rh'};
+	cH	= cH([bDoLeft bDoRight]);
+	nH	= numel(cH);
+	
+	strDirSurf	= [strDirFreeSurferData strSession '/surf/'];
+	
+	for kS=1:nSurface
+		for kH=1:nH
+			%convert from FreeSurfer to GIfTI
+				strFileSurf	= [cH{kH} '.' opt.surface{kS}];
+				strPathSurf	= [strDirSurf strFileSurf];
+				
+				strOutPre	= GetOutputPre(strSession,opt.surface{kS},cH{kH});
+				strFileOut	= [strOutPre '.gii'];
+				strPathOut	= [strDirSurf strFileOut];
+				
+				status(['Converting ' strFileSurf ' to GIfTI for session ' strSession]);
+				
+				system([strDirFreeSurferBin 'mris_convert ' strPathSurf ' ' strFileOut]);
+				
+			%convert GIfTI to SRF
+				status(['Converting ' strFileOut ' to SRF for session ' strSession]);
+				
+				srf.(opt.surface{kS}).(cH{kH})	= bvGIfTI2SRF(strPathOut,opt.translate,opt.reorder,opt.insideout);
+		end
+		
+		%merge the hemispheres
+		if bDoMerged
+			bFixOverlap	= ismember(opt.surface{kS},cFixOverlap);
+			
+			srf.(opt.surface{kS}).m	= bvSRFMerge(srf.(opt.surface{kS}).lh,srf.(opt.surface{kS}).rh,'fixoverlap',bFixOverlap,'space',cs,'padding',padding(opt.surface{kS}),'spread',spread(opt.surface{kS}));
+		end
+		
+		%get rid of hemispheres we don't want
+			switch lower(opt.hemisphere)
+				case 'm'
+					srf.(opt.surface{kS})	= ClearSRF(srf.(opt.surface{kS}),{'lh','rh'});
+			end
+	end
+	
+%construct gmcenter if specified
+	if bDoGMCenter
+		%calculate the gmcenter SRF
+			cSurf	= fieldnames(srf.white);
+			nSurf	= numel(cSurf);
+			for kS=1:nSurf
+				srf.gmcenter.(cSurf{kS})					= srf.white.(cSurf{kS}).CopyObject;
+				srf.gmcenter.(cSurf{kS}).VertexCoordinate	= (srf.white.(cSurf{kS}).VertexCoordinate + srf.pial.(cSurf{kS}).VertexCoordinate)/2;
+			end
+		%
+		
+		%discard white and pial if only gmcenter was specified
+			if ~bKeepWhite
+				srf	= ClearSRF(srf,'white');
+			end
+			
+			if ~bKeepPial
+				srf	= ClearSRF(srf,'pial');
+			end
+	end
+
+%save the hemispheres
+	if ~isempty(opt.outdir)
+		opt.surface	= fieldnames(srf);
+		nSurface	= numel(opt.surface);
+		
+		opt.outdir	= AddSlash(opt.outdir);
+		
+		for kS=1:nSurface
+			status(['Saving ' opt.surface{kS} ' surfaces to ' opt.outdir]);
+			
+			cSurf	= fieldnames(srf.(opt.surface{kS}));
+			nSave	= numel(cSurf);
+			
+			for kSave=1:nSave
+				strOutPre	= GetOutputPre(strSession,opt.surface{kS},cSurf{kSave});
+				strPathOut	= [opt.outdir strOutPre '.srf'];
+				
+				status(strOutPre);
+				
+				srf.(opt.surface{kS}).(cSurf{kSave}).SaveAs(strPathOut);
+			end
+		end
+	end
+
+	
+%------------------------------------------------------------------------------%
+function strPre = GetOutputPre(strSession,strSurface,strHemisphere)
+	strPre	= [strSession '-' strSurface '-' strHemisphere];
+%------------------------------------------------------------------------------%
+function srf = ClearSRF(srf,varargin)
+	cSurf	= ParseArgs(varargin,[]);
+	
+	%remove everything if no SRFs were specified
+		if isempty(cSurf)
+			cSurf	= fieldnames(srf);
+		end
+	
+	%clear the SRFs
+		cSurf	= ForceCell(cSurf);
+		nSurf	= numel(cSurf);
+		for kS=1:nSurf
+			if isa(srf.(cSurf{kS}),'BVQXfile')
+				srf.(cSurf{kS}).ClearObject;
+			else
+				srf.(cSurf{kS})	= ClearSRF(srf.(cSurf{kS}));
+			end
+		end
+	
+	%remove them
+		srf	= rmfield(srf,cSurf);
+%------------------------------------------------------------------------------%

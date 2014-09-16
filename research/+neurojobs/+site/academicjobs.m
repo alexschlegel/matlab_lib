@@ -1,4 +1,4 @@
-function [s,extra] = academicjobs(queryzz)
+function [s,extra] = academicjobs(query)
 % neurojobs.site.academicjobs
 % 
 % Syntax:	[s,extra] = neurojobs.site.academicjobs(query)

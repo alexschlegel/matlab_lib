@@ -199,7 +199,7 @@ classdef CausalSimulator < handle
 			disp([Sf zeros(size(Sf,1),1) Sp]);
 			obj.showRatios(data);
 			maxWStarRowsAndCols = 7;
-			disp('Granger causality scores among top components:');
+			disp('Granger Causality scores among top components:');
 			disp(CausalSimulator.clipmat(data.wStar,...
 				maxWStarRowsAndCols,maxWStarRowsAndCols));
 		end

@@ -115,7 +115,7 @@ classdef CausalSimulator < handle
 			noise = noiseWeights .* randn(size(noiseWeights));
 		end
 		function F = massageFunctionalSigs(obj,F) %#ok
-			% (Action specalized in subclasses)
+			% (Action specialized in subclasses)
 			%
 			%F = obj.makeColumnMeansZero(F);
 		end
@@ -125,8 +125,20 @@ classdef CausalSimulator < handle
 			obj.performFunctionalSynthesis(data);
 			obj.performVoxelSynthesis(data);
 			obj.performPCA(data);
+			obj.performCausalityComputation(data);
 			if obj.autoShowResults
 				obj.showResults(data);
+			end
+		end
+		function performCausalityComputation(obj,data)
+			nc = obj.numTopComponents;
+			data.wStar = zeros(nc,nc);
+			for i = 1:nc
+				for j = 1:nc
+					srcP = data.source.pcaSigs(:,i);
+					dstP = data.dest.pcaSigs(:,j);
+					data.wStar(i,j) = GrangerCausality(srcP,dstP);
+				end
 			end
 		end
 		function performFunctionalSynthesis(obj,data)
@@ -161,6 +173,14 @@ classdef CausalSimulator < handle
 			fprintf('Num voxel sigs = %d\nNum top components = %d\n',...
 				obj.numVoxelSigs, obj.numTopComponents);
 		end
+		function showRatios(obj,data)
+			ratios = data.source.pcaSigs(:,1:obj.numFuncSigs) ...
+				./ data.source.funcSigs;
+			CausalSimulator.showUpperLeftAndMeanAndVariance(ratios,...
+				{'Ratios of pcaSigs to funcSigs:',...
+				'Means of ratios:',...
+				'Variances of ratios:'});
+		end
 		function showResults(obj,data)
 			disp(repmat('=',1,70));
 			disp(class(obj));
@@ -169,24 +189,28 @@ classdef CausalSimulator < handle
 			maxDisplayRows = 10;
 			maxDisplayCols = 3;
 			fprintf(...
-				'Matrices below may be truncated for readability.\n\n');
+				'Matrices below are clipped for readability.\n\n');
 			disp(['Source funcSigs vs. source pcaSigs ' ...
 				'(with zero column as separator):']);
-			Sf = CausalSimulator.truncmat(data.source.funcSigs,...
+			Sf = CausalSimulator.clipmat(data.source.funcSigs,...
 				maxDisplayRows,maxDisplayCols);
-			Sp = CausalSimulator.truncmat(data.source.pcaSigs,...
+			Sp = CausalSimulator.clipmat(data.source.pcaSigs,...
 				maxDisplayRows,maxDisplayCols);
 			disp([Sf zeros(size(Sf,1),1) Sp]);
-			ratios = data.source.pcaSigs(:,1:obj.numFuncSigs) ...
-				./ data.source.funcSigs;
-			CausalSimulator.showUpperLeftAndMeanAndVariance(ratios,...
-				{'Ratios of pcaSigs to funcSigs:',...
-				'Means of ratios:',...
-				'Variances of ratios:'});
+			obj.showRatios(data);
+			maxWStarRowsAndCols = 7;
+			disp('Granger causality scores among top components:');
+			disp(CausalSimulator.clipmat(data.wStar,...
+				maxWStarRowsAndCols,maxWStarRowsAndCols));
 		end
 	end
 
 	methods (Static)
+		function M = clipmat(M,maxrows,maxcols)
+			nrows = min(size(M,1),maxrows);
+			ncols = min(size(M,2),maxcols);
+			M = M(1:nrows,1:ncols);
+		end
 		function runExampleSuite
 			AltCausalSimulator1_Mean().runTest;
 			AltCausalSimulator2_Ortho().runTest;
@@ -197,17 +221,12 @@ classdef CausalSimulator < handle
 			disp(headings{1});
 			maxDisplayRows = 12;
 			maxDisplayCols = 5;
-			disp(CausalSimulator.truncmat(M,...
+			disp(CausalSimulator.clipmat(M,...
 				maxDisplayRows,maxDisplayCols));
 			disp(headings{2});
-			disp(CausalSimulator.truncmat(mean(M),1,maxDisplayCols));
+			disp(CausalSimulator.clipmat(mean(M),1,maxDisplayCols));
 			disp(headings{3});
-			disp(CausalSimulator.truncmat(var(M),1,maxDisplayCols));
-		end
-		function M = truncmat(M,maxrows,maxcols)
-			nrows = min(size(M,1),maxrows);
-			ncols = min(size(M,2),maxcols);
-			M = M(1:nrows,1:ncols);
+			disp(CausalSimulator.clipmat(var(M),1,maxDisplayCols));
 		end
 	end
 

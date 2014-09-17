@@ -44,6 +44,19 @@ classdef AltCausalSimulator3_Descend < CausalSimulator
 			fprintf('Column shrink factor = %d\n',...
 				obj.columnShrinkFactor);
 		end
+		function showRatios(obj,data)
+			showRatios@CausalSimulator(obj,data);
+			if obj.columnShrinkFactor < 1
+				Sf = data.source.funcSigs;
+				Sp = data.source.pcaSigs;
+				numCols = size(Sf,2);
+				revRatios = Sp(:,1:numCols) ./ Sf(:,numCols:-1:1);
+				CausalSimulator.showUpperLeftAndMeanAndVariance(revRatios,...
+					{'Ratios of pcaSigs to column-reversed funcSigs:',...
+					'Means of column-reversed ratios:',...
+					'Variances of column-reversed ratios:'});
+			end
+		end
 	end
 
 	methods (Static)
@@ -56,14 +69,6 @@ classdef AltCausalSimulator3_Descend < CausalSimulator
 		function [sim,data] = runUnshrink(numTimeSteps)
 			[sim,data] = ...
 				AltCausalSimulator3_Descend.runShrink(numTimeSteps,0.1);
-			Sf = data.source.funcSigs;
-			Sp = data.source.pcaSigs;
-			numCols = size(Sf,2);
-			revRatios = Sp(:,1:numCols) ./ Sf(:,numCols:-1:1);
-			CausalSimulator.showUpperLeftAndMeanAndVariance(revRatios,...
-				{'Ratios of pcaSigs to column-reversed funcSigs:',...
-				'Means of column-reversed ratios:',...
-				'Variances of column-reversed ratios:'});
 		end
 	end
 

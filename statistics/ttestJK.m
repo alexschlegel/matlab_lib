@@ -1,13 +1,14 @@
 function [h,p,ci,stats] = ttestJK(x,varargin)
 % ttestJK
 % 
-% Description:	perform a one-sample t-test on jackknifed data
+% Description:	perform a one-sample or paired t-test on jackknifed data
 % 
 % Syntax:	[h,p,ci,stats] = ttestJK(x,[m]=0,[alpha]=0.05,[tail]='both',[dim]='')
 % 
 % In:
 % 	x		- the jackknifed sample data
-%	m		- null-hypothesis is that x comes from a population with mean m
+%	m		- null-hypothesis is that x comes from a population with mean m. for
+%			  a paired t-test, m should be an array the same size as x.
 %	alpha	- significance level for the test (0->1)
 %	tail	- one of the following:
 %				'both':		two-tailed test (i.e. sig if x~=m)
@@ -18,7 +19,7 @@ function [h,p,ci,stats] = ttestJK(x,varargin)
 % Out:
 % 	h		- a boolean value indicating whether the test rejected the null
 %			  hypothesis
-%	p		- the the significance level
+%	p		- the significance level
 %	ci		- the 100*(1-alpha)% confidence interval of the mean
 %	stats	- a struct of the following statistics:
 %				tstat:	the t-statistic
@@ -26,12 +27,18 @@ function [h,p,ci,stats] = ttestJK(x,varargin)
 %				sd:		the jackknife-adjusted estimate of the population
 %						standard deviation
 % 
-% Updated: 2014-07-24
+% Updated: 2014-09-25
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [m,alpha,tail,dim]	= ParseArgs(varargin,0,0.05,'both','');
 tail				= CheckInput(tail,'tail',{'both','right','left'});
+
+%check for paired t-test
+if isequal(size(x),size(m))
+	x	= x - m;
+	m	= 0;
+end
 
 if isempty(dim)
 	dim	= unless(find(size(x)~=1,1),1);

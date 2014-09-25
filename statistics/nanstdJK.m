@@ -1,5 +1,5 @@
 function sd = nanstdJK(x,varargin)
-% nnastdJK
+% nanstdJK
 % 
 % Description:	calculate the standard deviation of jackknifed values, ignoring
 %				NaNs

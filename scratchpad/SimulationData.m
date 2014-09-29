@@ -5,22 +5,20 @@ classdef SimulationData < handle
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
+		simulator
 		source
 		dest
 	end
 	properties
-		weights
 		wStar
 	end
 
 	methods
-		function obj = SimulationData
+		function obj = SimulationData(simulator)
+			obj.simulator = simulator;
 			obj.source = RegionData;
 			obj.dest = RegionData;
-			obj.weights = [];
 			obj.wStar = [];
 		end
 	end
-
 end
-

@@ -5,8 +5,8 @@ classdef AltCausalSimulator1_Mean < CausalSimulator
 	%   TODO: Add detailed comments
 
 	methods
-		function obj = AltCausalSimulator1_Mean
-			obj = obj@CausalSimulator;
+		function obj = AltCausalSimulator1_Mean(baseParams)
+			obj = obj@CausalSimulator(baseParams);
 		end
 		function F = massageFunctionalSigs(obj,F)
 			F = obj.makeColumnMeansZero(F);

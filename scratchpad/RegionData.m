@@ -13,6 +13,4 @@ classdef RegionData < handle
 
 	methods
 	end
-
 end
-

@@ -5,8 +5,8 @@ classdef AltCausalSimulator2_Ortho < CausalSimulator
 	%   TODO: Add detailed comments
 
 	methods
-		function obj = AltCausalSimulator2_Ortho
-			obj = obj@CausalSimulator;
+		function obj = AltCausalSimulator2_Ortho(baseParams)
+			obj = obj@CausalSimulator(baseParams);
 		end
 		function M = makeColumnsOrthogonal(~,M)
 			cols = size(M,2);

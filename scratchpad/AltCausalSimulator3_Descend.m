@@ -15,11 +15,8 @@ classdef AltCausalSimulator3_Descend < CausalSimulator
 	end
 
 	methods
-		function obj = AltCausalSimulator3_Descend
-			obj = obj@CausalSimulator;
-		end
-		function defineInitialParams(obj)
-			obj.defineTinyTestParams;
+		function obj = AltCausalSimulator3_Descend(baseParams)
+			obj = obj@CausalSimulator(baseParams);
 		end
 		function M = makeColumnVariancesDescend(obj,M)
 			% First, column means are forced to zero.
@@ -61,10 +58,11 @@ classdef AltCausalSimulator3_Descend < CausalSimulator
 
 	methods (Static)
 		function [sim,data] = runShrink(numTimeSteps,columnShrinkFactor)
-			sim = AltCausalSimulator3_Descend;
-			sim.numTimeSteps = numTimeSteps;
+			params = CausalBaseParams;
+			params.numTimeSteps = numTimeSteps;
+			sim = AltCausalSimulator3_Descend(params);
 			sim.columnShrinkFactor = columnShrinkFactor;
-			data = sim.performAll;
+			data = sim.runTest;
 		end
 		function [sim,data] = runUnshrink(numTimeSteps)
 			[sim,data] = ...

@@ -8,6 +8,7 @@ classdef CausalBaseParams
 		numTimeSteps
 	end
 	properties (SetAccess = private)
+		noisiness
 		numFuncSigs
 		numVoxelSigs
 		numTopComponents
@@ -15,7 +16,8 @@ classdef CausalBaseParams
 	end
 
 	methods
-		function obj = CausalBaseParams
+		function obj = CausalBaseParams(noisiness)
+			obj.noisiness = noisiness;
 			obj = obj.defineInitialParams;
 		end
 		function obj = defineInitialParams(obj)

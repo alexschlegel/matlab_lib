@@ -139,7 +139,7 @@ classdef CausalSimulator < handle
 	methods (Static)
 		function runExampleSuite
 			rng('default');
-			params = CausalBaseParams;
+			params = CausalBaseParams(1);
 			AltCausalSimulator1_Mean(params).runTest;
 			AltCausalSimulator2_Ortho(params).runTest;
 			AltCausalSimulator3_Descend.runShrink(100,50);

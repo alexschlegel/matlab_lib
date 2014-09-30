@@ -23,11 +23,10 @@ classdef CausalRegionParams
 		function obj = initTrialParams(obj)
 			nf = obj.baseParams.numFuncSigs;
 			nv = obj.baseParams.numVoxelSigs;
-			%---*** Commented out: omitting coeffSums parameter for now ***
-			%---|% Generate error if coeffSums has wrong shape:
-			%---|coeffSums = zeros(nf,1) + coeffSums;
-			[obj.recurDiagonal, obj.noiseWeights] = ...
-				SimStatic.generateRandomAddends(ones(nf,1));
+			noisiness = obj.baseParams.noisiness;
+			[alpha, beta] = SimStatic.generateRandomAddends(ones(nf,1));
+			obj.recurDiagonal = (1 - noisiness) + (noisiness * alpha);
+			obj.noiseWeights = noisiness * beta;
 			obj.voxelMixer = randn(nf,nv);
 		end
 		function [obj,splitoff] = splitRecurDiagonal(obj)

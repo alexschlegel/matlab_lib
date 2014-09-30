@@ -58,7 +58,7 @@ classdef AltCausalSimulator3_Descend < CausalSimulator
 
 	methods (Static)
 		function [sim,data] = runShrink(numTimeSteps,columnShrinkFactor)
-			params = CausalBaseParams;
+			params = CausalBaseParams(1);
 			params.numTimeSteps = numTimeSteps;
 			sim = AltCausalSimulator3_Descend(params);
 			sim.columnShrinkFactor = columnShrinkFactor;

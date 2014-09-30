@@ -11,10 +11,12 @@ classdef WClassifier < handle
 	end
 
 	methods
-		function obj = WClassifier(numTrialsPerW)
+		function obj = WClassifier(noisiness,numTrialsPerW)
 			obj.numTrialsPerW = numTrialsPerW;
-			obj.trialSetA = WTrialSet(CausalBaseParams,numTrialsPerW);
-			obj.trialSetB = WTrialSet(CausalBaseParams,numTrialsPerW);
+			obj.trialSetA = ...
+				WTrialSet(CausalBaseParams(noisiness),numTrialsPerW);
+			obj.trialSetB = ...
+				WTrialSet(CausalBaseParams(noisiness),numTrialsPerW);
 		end
 		function netScore = computeNetScore(obj)
 			totScore = 0;
@@ -43,9 +45,13 @@ classdef WClassifier < handle
 	end
 
 	methods (Static)
-		function testClassification(numTrialsPerW)
+		function graphClassificationAgainstNoisiness
+			%TODO
+			display('Not yet implemented');
+		end
+		function testClassification(noisiness,numTrialsPerW)
 			rng('default');
-			classifier = WClassifier(numTrialsPerW);
+			classifier = WClassifier(noisiness,numTrialsPerW);
 			netScore = classifier.computeNetScore;
 			fprintf('Net score is %g\n', netScore);
 		end

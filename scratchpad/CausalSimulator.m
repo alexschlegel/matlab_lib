@@ -24,8 +24,13 @@ classdef CausalSimulator < handle
 		function generateRegionParams(obj)
 			obj.sourceParams = CausalRegionParams(obj.baseParams);
 			obj.destParams = CausalRegionParams(obj.baseParams);
-			[obj.destParams,obj.sourceToDestRescaling] = ...
-				obj.destParams.splitRecurDiagonal;
+			%[obj.destParams,obj.sourceToDestRescaling] = ...
+			%	obj.destParams.splitRecurDiagonal;
+			%TODO: Add parameter to control following:
+			obj.sourceToDestRescaling = ...
+				0.5 * ones(size(obj.destParams.recurDiagonal));
+			obj.destParams.recurDiagonal = ...
+				0.5 * obj.destParams.recurDiagonal;
 		end
 		function M = makeColumnMeansZero(~,M)
 			M = M - repmat(mean(M),size(M,1),1);

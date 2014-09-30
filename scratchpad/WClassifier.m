@@ -6,17 +6,19 @@ classdef WClassifier < handle
 
 	properties
 		numTrialsPerW
+		paramsA
+		paramsB
 		trialSetA
 		trialSetB
 	end
 
 	methods
-		function obj = WClassifier(noisiness,numTrialsPerW)
+		function obj = WClassifier(numTrialsPerW,paramsA,paramsB)
 			obj.numTrialsPerW = numTrialsPerW;
-			obj.trialSetA = ...
-				WTrialSet(CausalBaseParams(noisiness),numTrialsPerW);
-			obj.trialSetB = ...
-				WTrialSet(CausalBaseParams(noisiness),numTrialsPerW);
+			obj.paramsA = paramsA;
+			obj.paramsB = paramsB;
+			obj.trialSetA = WTrialSet(paramsA,numTrialsPerW);
+			obj.trialSetB = WTrialSet(paramsB,numTrialsPerW);
 		end
 		function netScore = computeNetScore(obj)
 			totScore = 0;
@@ -49,11 +51,22 @@ classdef WClassifier < handle
 			%TODO
 			display('Not yet implemented');
 		end
-		function testClassification(noisiness,numTrialsPerW)
+		function testClassification(noisiness,numWs,numTrialsPerW)
 			rng('default');
-			classifier = WClassifier(noisiness,numTrialsPerW);
-			netScore = classifier.computeNetScore;
-			fprintf('Net score is %g\n', netScore);
+			for i = 1:numWs
+				paramSets{i} = CausalBaseParams(noisiness);
+			end
+			for i = 1:(numWs-1)
+				for j = (i+1):numWs
+					classifier = WClassifier(numTrialsPerW,...
+						paramSets{i},paramSets{j});
+					netScores(i,j) = classifier.computeNetScore;
+				end
+			end
+			display('Net scores:');
+			disp(netScores);
+			%TODO:
+			%fprintf('Mean net score is %g\n', meanScore);
 		end
 	end
 

@@ -16,10 +16,8 @@ classdef CausalSimulator < handle
 
 	methods
 		function obj = CausalSimulator(baseParams)
-			if nargin > 0
-				obj.baseParams = baseParams;
-				obj.generateRegionParams;
-			end
+			obj.baseParams = baseParams;
+			obj.generateRegionParams;
 		end
 		function generateRegionParams(obj)
 			obj.sourceParams = CausalRegionParams(obj.baseParams);

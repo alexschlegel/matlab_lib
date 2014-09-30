@@ -15,10 +15,12 @@ classdef SimulationData < handle
 
 	methods
 		function obj = SimulationData(simulator)
-			obj.simulator = simulator;
-			obj.source = RegionData;
-			obj.dest = RegionData;
-			obj.wStar = [];
+			if nargin > 0
+				obj.simulator = simulator;
+				obj.source = RegionData;
+				obj.dest = RegionData;
+				obj.wStar = [];
+			end
 		end
 	end
 end

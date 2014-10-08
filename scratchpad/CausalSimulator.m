@@ -4,55 +4,26 @@ classdef CausalSimulator < handle
 	% CausalSimulator:  Parent class for study of causal flows
 	%   TODO: Add detailed comments
 
-	properties (SetAccess = protected)
+	properties (SetAccess = private)
 		baseParams
-		sourceParams
-		destParams
-		sourceToDestRescaling
+		sigGen
+		voxelPolicy
 	end
 	properties
 		autoShowResults = true
 	end
 
 	methods
-		function obj = CausalSimulator(baseParams)
-			obj.baseParams = baseParams;
-			obj.generateRegionParams;
-		end
-		function generateRegionParams(obj)
-			obj.sourceParams = CausalRegionParams(obj.baseParams);
-			obj.destParams = CausalRegionParams(obj.baseParams);
-			%[obj.destParams,obj.sourceToDestRescaling] = ...
-			%	obj.destParams.splitRecurDiagonal;
-			%TODO: Add parameter to control following:
-			obj.sourceToDestRescaling = ...
-				0.5 * ones(size(obj.destParams.recurDiagonal));
-			obj.destParams.recurDiagonal = ...
-				0.5 * obj.destParams.recurDiagonal;
+		function obj = CausalSimulator(sigGen,voxelPolicy)
+			if sigGen.baseParams ~= voxelPolicy.baseParams
+				error('Arguments have incompatible baseParams.');
+			end
+			obj.baseParams = sigGen.baseParams;
+			obj.sigGen = sigGen;
+			obj.voxelPolicy = voxelPolicy;
 		end
 		function M = makeColumnMeansZero(~,M)
 			M = M - repmat(mean(M),size(M,1),1);
-		end
-		function [srcF,dstF] = makeFunctionalSigs(obj)
-			preW = obj.baseParams.sourceToDestWeights;
-			W = preW * diag(obj.sourceToDestRescaling);
-			nt = obj.baseParams.numTimeSteps;
-			nf = obj.baseParams.numFuncSigs;
-			srcF = zeros(nt,nf);
-			dstF = zeros(nt,nf);
-			prevSrc = zeros(nf,1);
-			prevDst = zeros(nf,1);
-			for i = 1:nt
-				currSrc = obj.sourceParams.applyRecurrence(prevSrc);
-				currDst = obj.destParams.applyRecurrence(prevDst) + ...
-					W * prevSrc;
-				srcF(i,:) = currSrc';
-				dstF(i,:) = currDst';
-				prevSrc = currSrc;
-				prevDst = currDst;
-			end
-			srcF = obj.massageFunctionalSigs(srcF);
-			dstF = obj.massageFunctionalSigs(dstF);
 		end
 		function F = massageFunctionalSigs(obj,F) %#ok
 			% (Action specialized in subclasses)
@@ -71,6 +42,7 @@ classdef CausalSimulator < handle
 			data.wStar = zeros(nc,nc);
 			for i = 1:nc
 				for j = 1:nc
+					%fprintf('Granger for (%d,%d)\n',i,j);
 					srcP = data.source.pcaSigs(:,i);
 					dstP = data.dest.pcaSigs(:,j);
 					data.wStar(i,j) = GrangerCausality(srcP,dstP);
@@ -79,7 +51,7 @@ classdef CausalSimulator < handle
 		end
 		function performFunctionalSynthesis(obj,data)
 			[data.source.funcSigs, data.dest.funcSigs] = ...
-				obj.makeFunctionalSigs;
+				obj.sigGen.genSigs;
 		end
 		function performPCA(obj,data)
 			obj.performRegionPCA(data.source);
@@ -89,10 +61,10 @@ classdef CausalSimulator < handle
 			[region.pcaCoeff, region.pcaSigs] = pca(region.voxelSigs);
 		end
 		function performVoxelSynthesis(obj,data)
-			Vs = obj.sourceParams.voxelMixer;
-			Vd = obj.destParams.voxelMixer;
-			data.source.voxelSigs = data.source.funcSigs * Vs;
-			data.dest.voxelSigs = data.dest.funcSigs * Vd;
+			data.source.voxelSigs = obj.voxelPolicy.mixFuncSigs(...
+				data.source.funcSigs,1);
+			data.dest.voxelSigs = obj.voxelPolicy.mixFuncSigs(...
+				data.dest.funcSigs,2);
 		end
 		function data = runTest(obj)
 			data = obj.performAll;
@@ -106,6 +78,8 @@ classdef CausalSimulator < handle
 			fprintf('Num voxel sigs = %d\nNum top components = %d\n',...
 				obj.baseParams.numVoxelSigs,...
 				obj.baseParams.numTopComponents);
+			fprintf('Noisiness = %d\n', obj.baseParams.noisiness);
+			fprintf('Voxel-mixing freedom = %d\n', obj.voxelPolicy.freedom);
 		end
 		function showRatios(obj,data)
 			ratios = data.source.pcaSigs(:,1:obj.baseParams.numFuncSigs) ...
@@ -124,6 +98,7 @@ classdef CausalSimulator < handle
 			maxDisplayCols = 3;
 			fprintf(...
 				'Matrices below are clipped for readability.\n\n');
+			%{
 			disp(['Source funcSigs vs. source pcaSigs ' ...
 				'(with zero column as separator):']);
 			Sf = SimStatic.clipmat(data.source.funcSigs,...
@@ -132,21 +107,34 @@ classdef CausalSimulator < handle
 				maxDisplayRows,maxDisplayCols);
 			disp([Sf zeros(size(Sf,1),1) Sp]);
 			obj.showRatios(data);
-			maxWStarRowsAndCols = 7;
+			%}
+			maxDispDim = 7;
+			disp('W:');
+			disp(SimStatic.clipmat(obj.sigGen.W,maxDispDim,maxDispDim));
 			disp('Granger Causality scores among top components:');
-			disp(SimStatic.clipmat(data.wStar,...
-				maxWStarRowsAndCols,maxWStarRowsAndCols));
+			disp(SimStatic.clipmat(data.wStar,maxDispDim,maxDispDim));
+			colsums = sum(data.wStar,1);
+			rowsums = sum(data.wStar,2);
+			disp('Granger Causality column and (transposed) row sums:');
+			disp(SimStatic.clipmat([colsums;rowsums'],2,maxDispDim));
 		end
 	end
 
 	methods (Static)
-		function runExampleSuite
+		function runExample(baseParams)
+			if nargin > 0
+				bp = baseParams;
+			else
+				bp = CausalBaseParams;
+				bp.noisiness = 1000;
+			end
+			sigGen = SigGenTrigBased(bp,diag(ones(1,bp.numFuncSigs)));
 			rng('default');
-			params = CausalBaseParams(1);
-			AltCausalSimulator1_Mean(params).runTest;
-			AltCausalSimulator2_Ortho(params).runTest;
-			AltCausalSimulator3_Descend.runShrink(100,50);
-			AltCausalSimulator3_Descend.runUnshrink(100);
+			voxPol = VoxelPolicy(bp,0.000);
+			CausalSimulator(sigGen,voxPol).runTest;
+			rng('default');
+			voxPol = VoxelPolicy(bp,1.000);
+			CausalSimulator(sigGen,voxPol).runTest;
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

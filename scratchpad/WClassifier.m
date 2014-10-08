@@ -5,20 +5,23 @@ classdef WClassifier < handle
 	%   TODO: Add detailed comments
 
 	properties
+		wPairedTrialConfig
+		voxelFreedom
 		numTrialsPerW
-		paramsA
-		paramsB
 		trialSetA
 		trialSetB
 	end
 
 	methods
-		function obj = WClassifier(numTrialsPerW,paramsA,paramsB)
+		function obj = WClassifier(wPairedTrialConfig,voxelFreedom,...
+				numTrialsPerW)
+			obj.wPairedTrialConfig = wPairedTrialConfig;
+			obj.voxelFreedom = voxelFreedom;
 			obj.numTrialsPerW = numTrialsPerW;
-			obj.paramsA = paramsA;
-			obj.paramsB = paramsB;
-			obj.trialSetA = WTrialSet(paramsA,numTrialsPerW);
-			obj.trialSetB = WTrialSet(paramsB,numTrialsPerW);
+			obj.trialSetA = WTrialSet(wPairedTrialConfig.sigGenA,...
+				voxelFreedom,numTrialsPerW);
+			obj.trialSetB = WTrialSet(wPairedTrialConfig.sigGenB,...
+				voxelFreedom,numTrialsPerW);
 		end
 		function netScore = computeNetScore(obj)
 			totScore = 0;
@@ -51,22 +54,32 @@ classdef WClassifier < handle
 			%TODO
 			display('Not yet implemented');
 		end
-		function testClassification(noisiness,numWs,numTrialsPerW)
+		function runExample
 			rng('default');
-			for i = 1:numWs
-				paramSets{i} = CausalBaseParams(noisiness);
+			scores = zeros(1,10);
+			for i = 1:numel(scores)
+				scores(i) = ...
+					WClassifier.testClassification(1000,0.1,0,20,true);
 			end
-			for i = 1:(numWs-1)
-				for j = (i+1):numWs
-					classifier = WClassifier(numTrialsPerW,...
-						paramSets{i},paramSets{j});
-					netScores(i,j) = classifier.computeNetScore;
-				end
+			disp('Scores:');
+			disp(scores);
+			fprintf('Mean = %g\n', mean(scores));
+		end
+		function netScore = testClassification(...
+				noisiness,wDensity,voxelFreedom,numTrialsPerW,showWs)
+			bp = CausalBaseParams;
+			bp.noisiness = noisiness;
+			wPairConfig = WPairedTrialConfig(bp,wDensity);
+			if showWs
+				disp('W1:');
+				disp(SimStatic.clipmat(wPairConfig.sigGenA.W,10,10));
+				disp('W2:');
+				disp(SimStatic.clipmat(wPairConfig.sigGenB.W,10,10));
 			end
-			display('Net scores:');
-			disp(netScores);
-			%TODO:
-			%fprintf('Mean net score is %g\n', meanScore);
+			classifier = WClassifier(wPairConfig,...
+				voxelFreedom,numTrialsPerW);
+			netScore = classifier.computeNetScore;
+			fprintf('Net score = %g\n\n', netScore);
 		end
 	end
 

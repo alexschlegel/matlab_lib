@@ -5,21 +5,25 @@ classdef WTrialSet < handle
 	%   TODO: Add detailed comments
 
 	properties
-		params
+		sigGen
+		voxelFreedom
 		sims
 		dataSet
 		wStarSet
 	end
 
 	methods
-		function obj = WTrialSet(params,numTrials)
-			numFeatures = params.numTopComponents ^ 2;
-			obj.params = params;
+		function obj = WTrialSet(sigGen,voxelFreedom,numTrials)
+			baseParams = sigGen.baseParams;
+			numFeatures = baseParams.numTopComponents ^ 2;
+			obj.sigGen = sigGen;
+			obj.voxelFreedom = voxelFreedom;
 			obj.sims = cell(1,numTrials);
 			obj.dataSet = cell(1,numTrials);
 			obj.wStarSet = zeros(numTrials,numFeatures);
 			for i = 1:numTrials
-				obj.sims{i} = CausalSimulator(params);
+				voxPol = VoxelPolicy(baseParams,voxelFreedom);
+				obj.sims{i} = CausalSimulator(sigGen,voxPol);
 				obj.dataSet{i} = obj.sims{i}.performAll;
 				wStar = obj.dataSet{i}.wStar;
 				obj.wStarSet(i,:) = reshape(wStar,1,numFeatures);

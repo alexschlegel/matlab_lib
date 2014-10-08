@@ -5,30 +5,26 @@ classdef CausalBaseParams
 	%   TODO: Add detailed comments
 
 	properties
-		numTimeSteps
-	end
-	properties (SetAccess = private)
 		noisiness
+		numTimeSteps
 		numFuncSigs
 		numVoxelSigs
 		numTopComponents
-		sourceToDestWeights
 	end
-
 	methods
-		function obj = CausalBaseParams(noisiness)
-			obj.noisiness = noisiness;
+		function obj = CausalBaseParams
 			obj = obj.defineInitialParams;
+			obj.validate;
 		end
 		function obj = defineInitialParams(obj)
+			obj.noisiness = 1.0e-6;
 			obj = obj.defineSizeParams;
-			obj.sourceToDestWeights = obj.generateSourceToDestWeights;
 		end
 		function obj = defineSizeParams(obj)
 			obj = obj.defineStandardSizeParams;
 		end
 		function obj = defineStandardSizeParams(obj)
-			obj.numTimeSteps = 100;
+			obj.numTimeSteps = 1000;
 			obj.numFuncSigs = 10;
 			obj.numVoxelSigs = 500;
 			obj.numTopComponents = 10;
@@ -39,20 +35,17 @@ classdef CausalBaseParams
 			obj.numVoxelSigs = 5;
 			obj.numTopComponents = 3;
 		end
-		function W = generateSourceToDestWeights(obj)
-			nf = obj.numFuncSigs;
-			W = zeros(nf);
-			for i = 1:nf
-				rawRow = randn(1,nf);
-				% Normalize rawRow so absolute sum across row equals 1
-				absSum = sum(abs(rawRow));
-				if absSum > 0
-					W(i,:) = rawRow / absSum;
-				else
-					% Sum of raw row is zero (extremely unlikely under
-					% current assumptions, but better safe than sorry)
-					W(i,:) = ones(1,nf) / nf;
-				end
+		function b = eq(obj1,obj2)
+			b = isequal(obj1,obj2);
+		end
+		function b = ne(obj1,obj2)
+			b = ~eq(obj1,obj2);
+		end
+		function validate(obj)
+			%TODO: Automatically validate on assignment to
+			% numTopComponents or numFuncSigs?
+			if obj.numTopComponents > obj.numFuncSigs
+				error('Num top components exceeds num func sigs.');
 			end
 		end
 	end

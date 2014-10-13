@@ -11,15 +11,12 @@ classdef SigGenTrigBased < handle
 	end
 	methods
 		function obj = SigGenTrigBased(baseParams,W)
-			baseParams.validate;
-			nf = baseParams.numFuncSigs;
-			if size(W) ~= [nf nf]
-				error('W size is incompatible with baseParams.');
-			end
+			baseParams.validateW(W);
 			obj.baseParams = baseParams;
 			obj.W = W;
 		end
 		function [src,dst] = genSigs(obj)
+			wTrans = obj.W.';
 			nt = obj.baseParams.numTimeSteps;
 			nf = obj.baseParams.numFuncSigs;
 			src = zeros(nt,nf);
@@ -28,7 +25,7 @@ classdef SigGenTrigBased < handle
 			prevSrc = zeros(nf,1);
 			for i = 1:nt
 				currSrc = obj.makeSines(i,evenFreqs-1);
-				currDst = obj.makeSines(i,evenFreqs) + obj.W * prevSrc;
+				currDst = obj.makeSines(i,evenFreqs) + wTrans * prevSrc;
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
 				prevSrc = currSrc;

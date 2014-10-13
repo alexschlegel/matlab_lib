@@ -18,5 +18,10 @@ classdef SimStatic
 		function noise = makeNoise(noiseWeights)
 			noise = noiseWeights .* randn(size(noiseWeights));
 		end
+		function showMatrixGrayscale(M)
+			figure;
+			colormap('gray');
+			imagesc(M);
+		end
 	end
 end

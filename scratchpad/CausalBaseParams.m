@@ -48,5 +48,12 @@ classdef CausalBaseParams
 				error('Num top components exceeds num func sigs.');
 			end
 		end
+		function validateW(obj,W)
+			obj.validate;
+			nf = obj.numFuncSigs;
+			if size(W) ~= [nf nf]
+				error('W size is incompatible with CausalBaseParams.');
+			end
+		end
 	end
 end

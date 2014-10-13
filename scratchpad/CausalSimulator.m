@@ -121,20 +121,47 @@ classdef CausalSimulator < handle
 	end
 
 	methods (Static)
-		function runExample(baseParams)
-			if nargin > 0
-				bp = baseParams;
-			else
-				bp = CausalBaseParams;
-				bp.noisiness = 1000;
+		function runNineSourceGraphs
+			for i = 1:9
+				srcDstIndexPairs = {[i (i+1)]};
+				CausalSimulator.runSparse(srcDstIndexPairs,0.000);
 			end
-			sigGen = SigGenTrigBased(bp,diag(ones(1,bp.numFuncSigs)));
+		end
+		function runPolicyContrast
+			srcDstIndexPairs = {[3 4],[6 7]};
+			%srcDstIndexPairs = {[7 10]};
+			%srcDstIndexPairs = {[3 9],[7 10]};
+			%srcDstIndexPairs = {[3 4],[6 7],[9 10]};
+			CausalSimulator.runSparse(srcDstIndexPairs,0.000);
+			CausalSimulator.runSparse(srcDstIndexPairs,1.000);
+		end
+		function data = runSparse(srcDstIndexPairs,voxelFreedom)
+			if ~isvector(srcDstIndexPairs)
+				error('First argument is not a vector.');
+			end
+			bp = CausalBaseParams;
+			bp.noisiness = 1000;
+			nf = bp.numFuncSigs;
+			W = zeros(nf);
+			for i = 1:numel(srcDstIndexPairs)
+				srcDst = srcDstIndexPairs{i};
+				if numel(srcDst) ~= 2
+					error('Source-dest pair must be 2-element array.');
+				end
+				if min(srcDst) < 1 || max(srcDst) > nf
+					error('Source or dest index out of range.');
+				end
+				W(srcDst(1),srcDst(2)) = 1;
+			end
+			data = CausalSimulator.runW(bp,W,voxelFreedom);
+		end
+		function data = runW(baseParams,W,voxelFreedom)
+			baseParams.validateW(W);  % (redundant, but not harmful)
+			sigGen = SigGenTrigBased(baseParams,W);
 			rng('default');
-			voxPol = VoxelPolicy(bp,0.000);
-			CausalSimulator(sigGen,voxPol).runTest;
-			rng('default');
-			voxPol = VoxelPolicy(bp,1.000);
-			CausalSimulator(sigGen,voxPol).runTest;
+			voxPol = VoxelPolicy(baseParams,voxelFreedom);
+			data = CausalSimulator(sigGen,voxPol).runTest;
+			SimStatic.showMatrixGrayscale(data.wStar);
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

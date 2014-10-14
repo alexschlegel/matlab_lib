@@ -28,8 +28,8 @@ classdef WPairedTrialConfig < handle
 			wA = reshape(flatWs(:,1),wShape);
 			wB = reshape(flatWs(:,2),wShape);
 			obj.baseParams = baseParams;
-			obj.sigGenA = SigGenTrigBased(baseParams,wA);
-			obj.sigGenB = SigGenTrigBased(baseParams,wB);
+			obj.sigGenA = SigGenTrigBased(baseParams,wA,false);
+			obj.sigGenB = SigGenTrigBased(baseParams,wB,false);
 		end
 	end
 	methods (Static)

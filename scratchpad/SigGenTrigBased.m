@@ -8,12 +8,14 @@ classdef SigGenTrigBased < handle
 	properties (SetAccess = private)
 		baseParams
 		W
+		isDestBalancing
 	end
 	methods
-		function obj = SigGenTrigBased(baseParams,W)
+		function obj = SigGenTrigBased(baseParams,W,isDestBalancing)
 			baseParams.validateW(W);
 			obj.baseParams = baseParams;
 			obj.W = W;
+			obj.isDestBalancing = isDestBalancing;
 		end
 		function [src,dst] = genSigs(obj)
 			wTrans = obj.W.';
@@ -26,6 +28,10 @@ classdef SigGenTrigBased < handle
 			for i = 1:nt
 				currSrc = obj.makeSines(i,evenFreqs-1);
 				currDst = obj.makeSines(i,evenFreqs) + wTrans * prevSrc;
+				if obj.isDestBalancing
+					fakeSrc = obj.makeSines(i,evenFreqs-1);
+					currDst = currDst + (1 - wTrans) * fakeSrc;
+				end
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
 				prevSrc = currSrc;

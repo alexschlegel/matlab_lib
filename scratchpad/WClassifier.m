@@ -50,10 +50,12 @@ classdef WClassifier < handle
 	end
 
 	methods (Static)
+		%{
 		function graphClassificationAgainstNoisiness
 			%TODO
 			display('Not yet implemented');
 		end
+		%}
 		function runExample
 			rng('default');
 			scores = zeros(1,10);

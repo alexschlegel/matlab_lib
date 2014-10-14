@@ -80,6 +80,9 @@ classdef CausalSimulator < handle
 				obj.baseParams.numTopComponents);
 			fprintf('Noisiness = %d\n', obj.baseParams.noisiness);
 			fprintf('Voxel-mixing freedom = %d\n', obj.voxelPolicy.freedom);
+			falseTrue = {'false','true'};
+			fprintf('Is destination balanced = %s\n',...
+				falseTrue{obj.sigGen.isDestBalancing+1});
 		end
 		function showRatios(obj,data)
 			ratios = data.source.pcaSigs(:,1:obj.baseParams.numFuncSigs) ...
@@ -124,7 +127,7 @@ classdef CausalSimulator < handle
 		function runNineSourceGraphs
 			for i = 1:9
 				srcDstIndexPairs = {[i (i+1)]};
-				CausalSimulator.runSparse(srcDstIndexPairs,0.000);
+				CausalSimulator.runSparse(srcDstIndexPairs,0.000,true);
 			end
 		end
 		function runPolicyContrast
@@ -132,12 +135,17 @@ classdef CausalSimulator < handle
 			%srcDstIndexPairs = {[7 10]};
 			%srcDstIndexPairs = {[3 9],[7 10]};
 			%srcDstIndexPairs = {[3 4],[6 7],[9 10]};
-			CausalSimulator.runSparse(srcDstIndexPairs,0.000);
-			CausalSimulator.runSparse(srcDstIndexPairs,1.000);
+			for destBalancing = 0:1
+				for voxelFreedom = 0.000:1.000
+					CausalSimulator.runSparse(srcDstIndexPairs,...
+						voxelFreedom,destBalancing);
+				end
+			end
 		end
-		function data = runSparse(srcDstIndexPairs,voxelFreedom)
-			if ~isvector(srcDstIndexPairs)
-				error('First argument is not a vector.');
+		function data = runSparse(srcDstIndexPairs,voxelFreedom,...
+				isDestBalancing)
+			if ~iscell(srcDstIndexPairs) || ~isvector(srcDstIndexPairs)
+				error('First argument is not a cell vector.');
 			end
 			bp = CausalBaseParams;
 			bp.noisiness = 1000;
@@ -153,11 +161,11 @@ classdef CausalSimulator < handle
 				end
 				W(srcDst(1),srcDst(2)) = 1;
 			end
-			data = CausalSimulator.runW(bp,W,voxelFreedom);
+			data = CausalSimulator.runW(bp,W,voxelFreedom,isDestBalancing);
 		end
-		function data = runW(baseParams,W,voxelFreedom)
+		function data = runW(baseParams,W,voxelFreedom,isDestBalancing)
 			baseParams.validateW(W);  % (redundant, but not harmful)
-			sigGen = SigGenTrigBased(baseParams,W);
+			sigGen = SigGenTrigBased(baseParams,W,isDestBalancing);
 			rng('default');
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;

@@ -126,6 +126,7 @@ classdef CausalSimulator < handle
 	methods (Static)
 		function runNineSourceGraphs
 			for i = 1:9
+				rng('default');
 				srcDstIndexPairs = {[i (i+1)]};
 				CausalSimulator.runSparse(srcDstIndexPairs,0.000,true);
 			end
@@ -137,6 +138,7 @@ classdef CausalSimulator < handle
 			%srcDstIndexPairs = {[3 4],[6 7],[9 10]};
 			for destBalancing = 0:1
 				for voxelFreedom = 0.000:1.000
+					rng('default');
 					CausalSimulator.runSparse(srcDstIndexPairs,...
 						voxelFreedom,destBalancing);
 				end
@@ -166,7 +168,6 @@ classdef CausalSimulator < handle
 		function data = runW(baseParams,W,voxelFreedom,isDestBalancing)
 			baseParams.validateW(W);  % (redundant, but not harmful)
 			sigGen = SigGenTrigBased(baseParams,W,isDestBalancing);
-			rng('default');
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;
 			SimStatic.showMatrixGrayscale(data.wStar);

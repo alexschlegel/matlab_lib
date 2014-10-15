@@ -4,7 +4,7 @@ classdef WClassifier < handle
 	% WClassifier:  Program to test classification of recovered W matrices
 	%   TODO: Add detailed comments
 
-	properties
+	properties (SetAccess = private)
 		wPairedTrialConfig
 		voxelFreedom
 		numTrialsPerW

@@ -4,7 +4,7 @@ classdef WTrialSet < handle
 	% WTrialSet:  Data pertaining to a set of trials for a given W
 	%   TODO: Add detailed comments
 
-	properties
+	properties (SetAccess = private)
 		sigGen
 		voxelFreedom
 		sims

@@ -7,6 +7,8 @@ classdef VoxelPolicy < handle
 	properties (SetAccess = private)
 		baseParams
 		freedom
+	end
+	properties (Access = private)
 		regionMixers
 	end
 	methods
@@ -14,8 +16,13 @@ classdef VoxelPolicy < handle
 			baseParams.validate;
 			obj.baseParams = baseParams;
 			obj.freedom = freedom;
-			obj.regionMixers = {obj.createMixer,obj.createMixer};
+			obj.regionMixers = cell(1,2);
 		end
+		function voxels = mixFuncSigs(obj,funcSigs,regionIndex)
+			voxels = funcSigs * obj.getMixer(regionIndex);
+		end
+	end
+	methods (Access = private)
 		function mixer = createMixer(obj)
 			nf = obj.baseParams.numFuncSigs;
 			nv = obj.baseParams.numVoxelSigs;
@@ -29,8 +36,11 @@ classdef VoxelPolicy < handle
 			%disp('Mixer:');
 			%disp(SimStatic.clipmat(mixer,7,7));
 		end
-		function voxels = mixFuncSigs(obj,funcSigs,regionIndex)
-			voxels = funcSigs * obj.regionMixers{regionIndex};
+		function mixer = getMixer(obj,regionIndex)
+			if isempty(obj.regionMixers{regionIndex})
+				obj.regionMixers{regionIndex} = obj.createMixer;
+			end
+			mixer = obj.regionMixers{regionIndex};
 		end
 	end
 end

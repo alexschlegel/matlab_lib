@@ -50,7 +50,7 @@ if isempty(optDefault)
 end
 
 if numel(varargin)>0
-	[re,opt]	= ParseArgsOpt(varargin,reDefault,cOptDefault{:});
+	[re,opt]	= ParseArgs(varargin,reDefault,cOptDefault{:});
 else
 	re		= reDefault;
 	opt		= optDefault;

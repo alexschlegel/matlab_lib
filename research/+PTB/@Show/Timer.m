@@ -40,7 +40,7 @@ persistent optDefault cOptDefault;
 		
 		[r,p]	= ParseArgs(varargin,1,[0 0]);
 	else
-		[r,p,opt]	= ParseArgsOpt(varargin,1,[0 0],cOptDefault{:});
+		[r,p,opt]	= ParseArgs(varargin,1,[0 0],cOptDefault{:});
 	end
 
 [h,sz]	= shw.parent.Window.Get(opt.window);

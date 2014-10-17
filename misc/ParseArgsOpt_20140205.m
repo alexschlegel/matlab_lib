@@ -1,5 +1,5 @@
-function varargout = ParseArgsOpt(vargin,varargin)
-% ParseArgsOpt
+function varargout = ParseArgs(vargin,varargin)
+% ParseArgs
 % 
 % Description:	parse a varargin cell of optional arguments and options.
 %				optional arguments are arguments that do not need to be included
@@ -7,7 +7,7 @@ function varargout = ParseArgsOpt(vargin,varargin)
 %				options are 'key'/value pairs that come at the end of a function
 %				call argument list.
 % 
-% Syntax:	[v1,v2,...,vn,opt] = ParseArgsOpt(vargin,d1,...,dn,opt1,opt1def,...,optM,optMdef)
+% Syntax:	[v1,v2,...,vn,opt] = ParseArgs(vargin,d1,...,dn,opt1,opt1def,...,optM,optMdef)
 %
 % In:
 %	vargin	- the varargin cell

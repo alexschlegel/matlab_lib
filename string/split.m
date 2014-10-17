@@ -40,7 +40,7 @@ end
 if numel(varargin)==0
 	opt	= optD;
 else
-	opt	= ParseArgsOpt(varargin,cOptD{:});
+	opt	= ParseArgs(varargin,cOptD{:});
 end
 
 n	= numel(str);

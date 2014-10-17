@@ -45,7 +45,7 @@ persistent optDefault cOptDefault;
 		
 		[rect,s,a]	= ParseArgs(varargin,[],[],0);
 	else
-		[rect,s,a,opt]	= ParseArgsOpt(varargin,[],[],0,cOptDefault{:});
+		[rect,s,a,opt]	= ParseArgs(varargin,[],[],0,cOptDefault{:});
 	end
 
 if iscell(hT)

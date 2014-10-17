@@ -49,7 +49,7 @@ persistent optDefault cOptDefault;
 		
 		[t,lHead1,lHead2]	= ParseArgs(varargin,1/6,0,1);
 	else
-		[t,lHead1,lHead2,opt]	= ParseArgsOpt(varargin,1/6,0,1,cOptDefault{:});
+		[t,lHead1,lHead2,opt]	= ParseArgs(varargin,1/6,0,1,cOptDefault{:});
 		cOpt	= Opt2Cell(opt);
 	end
 

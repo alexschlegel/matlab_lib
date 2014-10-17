@@ -49,7 +49,7 @@ classdef Material < Yafaray.Element
 	methods
 		%----------------------------------------------------------------------%
 		function mat = Material(strName,varargin)
-			%opt	= ParseArgsOpt(varargin,'',[],struct);
+			%opt	= ParseArgs(varargin,'',[],struct);
 			
 			mat	= mat@Yafaray.Element('material',strName);
 		end

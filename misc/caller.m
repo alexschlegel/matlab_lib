@@ -28,7 +28,7 @@ if isempty(optDefault)
 end
 
 if nargin>0
-	[nLevel,opt]	= ParseArgsOpt(varargin,nLevelDefault,cOptDefault{:});
+	[nLevel,opt]	= ParseArgs(varargin,nLevelDefault,cOptDefault{:});
 else
 	nLevel	= nLevelDefault;
 	opt		= optDefault;

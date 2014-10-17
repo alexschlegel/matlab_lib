@@ -53,7 +53,7 @@ persistent optDefault cOptDefault;
 		
 		[s,a]	= ParseArgs(varargin,[],0);
 	else
-		[s,a,opt]	= ParseArgsOpt(varargin,[],0,cOptDefault{:});
+		[s,a,opt]	= ParseArgs(varargin,[],0,cOptDefault{:});
 	end
 
 sIm	= size(cIm);

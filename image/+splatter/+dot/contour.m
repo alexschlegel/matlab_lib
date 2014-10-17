@@ -53,14 +53,14 @@ if isempty(presets)
 						));
 end
 
-opt	= ParseArgsOpt(varargin,'preset',[]);
+opt	= ParseArgs(varargin,'preset',[]);
 if ~isempty(opt.preset)
 	sPreset	= presets.(opt.preset);
 else
 	sPreset	= struct;
 end
 
-opt	= StructMerge(sPreset,ParseArgsOpt(varargin,...
+opt	= StructMerge(sPreset,ParseArgs(varargin,...
 		'radius'		, []	, ...
 		'orientation'	, []	, ...
 		'speed'			, []	, ...

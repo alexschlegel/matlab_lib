@@ -46,7 +46,7 @@ persistent optDefault cOptDefault;
 		
 		t	= ParseArgs(varargin,1/6);
 	else
-		[t,opt]	= ParseArgsOpt(varargin,1/6,cOptDefault{:});
+		[t,opt]	= ParseArgs(varargin,1/6,cOptDefault{:});
 		cOpt	= Opt2Cell(opt);
 	end
 

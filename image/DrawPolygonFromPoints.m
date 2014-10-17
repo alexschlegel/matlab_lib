@@ -16,7 +16,7 @@ function im = DrawPolygonFromPoints(p,varargin)
 % 
 % Updated:	2009-04-02
 % Copyright 2009 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-opt	= ParseArgsOpt(varargin,'ppu',1,'w',1);
+opt	= ParseArgs(varargin,'ppu',1,'w',1);
 
 n	= size(p,1);
 

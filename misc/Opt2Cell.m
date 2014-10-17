@@ -7,7 +7,7 @@ function cOpt = Opt2Cell(opt)
 % Syntax:	cOpt = Opt2Cell(opt)
 % 
 % In:
-% 	opt	- an options struct returned by ParseArgsOpt
+% 	opt	- an options struct returned by ParseArgs
 % 
 % Out:
 % 	cOpt	- opt as a cell

@@ -29,7 +29,7 @@ end
 if numel(varargin)==0
 	opt	= optDefault;
 else
-	opt	= ParseArgsOpt(varargin,cOptDefault{:});
+	opt	= ParseArgs(varargin,cOptDefault{:});
 end
 
 switch class(x)

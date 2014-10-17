@@ -31,7 +31,7 @@ function [cPath,cDir,nPath] = FindFilesByExtension(strDir,varargin)
 % 
 % Updated:	2011-03-01
 % Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[cExt,opt]	= ParseArgsOpt(varargin,{},'casei',[]);
+[cExt,opt]	= ParseArgs(varargin,{},'casei',[]);
 
 if isempty(opt.casei)
 	varargin	= [varargin {'casei' 'true'}];

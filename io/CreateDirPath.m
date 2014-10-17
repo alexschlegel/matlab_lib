@@ -26,7 +26,7 @@ if isempty(optDefault)
 end
 
 if numel(varargin)>0
-	opt	= ParseArgsOpt(varargin,cOptDefault{:});
+	opt	= ParseArgs(varargin,cOptDefault{:});
 else
 	opt	= optDefault;
 end

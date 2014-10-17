@@ -48,7 +48,7 @@ else
 			
 			[rect,p,s,a]	= ParseArgs(varargin,[],[0 0],[],0);
 		else
-			[rect,p,s,a,opt]	= ParseArgsOpt(varargin,[],[0 0],[],0,cOptDefault{:});
+			[rect,p,s,a,opt]	= ParseArgs(varargin,[],[0 0],[],0,cOptDefault{:});
 		end
 		
 		if ischar(hTexture)

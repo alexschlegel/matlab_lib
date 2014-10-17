@@ -34,7 +34,7 @@ persistent optDefault cOptDefault;
 	if nargin<2
 		opt	= optDefault;
 	else
-		opt	= ParseArgsOpt(varargin,cOptDefault{:});
+		opt	= ParseArgs(varargin,cOptDefault{:});
 	end
 
 bPlaying	= false;

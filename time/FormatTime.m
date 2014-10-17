@@ -48,11 +48,7 @@ if ischar(y)
 			x	= FormatTime(FormatTime(nowms,'yyyy-mm-dd'))+86400000;
 		otherwise
 			if numel(varargin)>0
-				try
-					x	= datenum(y,varargin{:})*86400000;
-				catch
-					x	= NaN;
-				end
+				x	= String2Date(y);
 			else
 				sAgo	= regexp(y,'(?<time>\d+) (?<unit>.*[^s])[s]? ago','names');
 				
@@ -85,11 +81,7 @@ if ischar(y)
 					x		= addtodate(tSerial, -tRel, strUnit);
 					x		= serial2ms(x);
 				else
-					try
-						x	= datenum(y,varargin{:})*86400000;
-					catch
-						x	= NaN;
-					end
+					x	= String2Date(y);
 				end
 			end
 	end
@@ -193,4 +185,35 @@ else
 				x	= regexprep(x,'\w','?');
 			end
 		end
+end
+
+%------------------------------------------------------------------------------%
+function t = String2Date(str)
+	%first test whether we have a weird YYYY:MM:DD date
+		str	= regexprep(str,'(\d{4}):(\d{2}):(\d{2})','$1-$2-$3');
+	
+	try
+		t	= datenum(str,varargin{:})*86400000;
+	catch
+		cREOdd	= {
+			'([0-2]\d{3})([01]\d)([0-3]\d)([01]\d)([0-5]\d)([0-5]\d)$'	'$1-$2-$3 $4:$5:$6'	%YYYYMMDDHHMMSS
+			'^([0-2]\d{3})([01]\d)([0-3]\d)$'							'$1-$2-$3'			%YYYYMMDD
+		};
+		nREOdd	= size(cREOdd,1);
+		
+		for kRE=1:nREOdd
+			strNew	= regexprep(str,cREOdd{kRE,:});
+			if ~strcmp(str,strNew)
+				t	= String2Date(strNew);
+				if ~isnan(t)
+					return;
+				end
+			end
+		end
+		
+		t	= NaN;
+	end
+end
+%------------------------------------------------------------------------------%
+
 end

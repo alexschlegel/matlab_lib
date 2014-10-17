@@ -20,7 +20,7 @@ function [bSuccess,cPathOut] = FSLBet(cPathIn,varargin)
 %		propagate:	(true) true to propagate thresholds to subsequent calls to
 %					FSLBet
 %		nthread:	(1) the number of threads to use
-%		force:		(false) true to force bet to run even if the output already
+%		force:		(true) true to force bet to run even if the output already
 %					exists
 %		silent:		(false) true to suppress status messages
 % 
@@ -28,7 +28,7 @@ function [bSuccess,cPathOut] = FSLBet(cPathIn,varargin)
 % 	bSuccess	- true if the bet and fslview ran successfully
 %	strPathOut	- the path to the output volume
 % 
-% Updated: 2014-02-21
+% Updated: 2014-10-09
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 persistent fThresh;
 
@@ -39,7 +39,7 @@ opt	= ParseArgsOpt(varargin,...
 		'binarize'	, false	, ...
 		'propagate'	, true	, ...
 		'nthread'	, 1		, ...
-		'force'		, false	, ...
+		'force'		, true	, ...
 		'silent'	, false	  ...
 		);
 opt.prompt	= unless(opt.prompt,isempty(opt.thresh));

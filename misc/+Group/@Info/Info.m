@@ -81,7 +81,7 @@ classdef Info < Group.Object
 								'attach_name'	, []		, ...
 								'attach_arg'	, []		  ...
 								);
-			cOpt			= Opt2Cell(opt);
+			cOpt			= opt2cell(opt);
 			
 			ifo	= ifo@Group.Object(parent,strType,cOpt{:});
 		end

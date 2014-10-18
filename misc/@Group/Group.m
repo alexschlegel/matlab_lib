@@ -40,7 +40,7 @@ classdef Group < Group.Object
 					'attach_arg'	, []													, ...
 					'start'			, true													  ...
 					);
-			cOpt	= Opt2Cell(opt);
+			cOpt	= opt2cell(opt);
 			
 			grp	= grp@Group.Object([],strType,cOpt{:});
 			

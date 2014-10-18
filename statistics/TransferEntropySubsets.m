@@ -43,7 +43,7 @@ opt	= ParseArgs(varargin,...
 		'silent'			, false	  ...
 		);
 
-cOptTE	= Opt2Cell(structsub(opt,{'history','kraskov_k','sample_variables','samples','signal_block','silent'}));
+cOptTE	= opt2cell(structsub(opt,{'history','kraskov_k','sample_variables','samples','signal_block','silent'}));
 
 nVariableSrc	= size(src,2);
 nVariableDst	= size(dst,2);

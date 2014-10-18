@@ -1,10 +1,10 @@
-function cOpt = Opt2Cell(opt)
-% Opt2Cell
+function cOpt = opt2cell(opt)
+% opt2cell
 % 
-% Description:	convert an options struct to a varargin-type cell of
-%				option name/option value pairs
+% Description:	convert an options struct to a varargin-type cell of option
+%				name/option value pairs
 % 
-% Syntax:	cOpt = Opt2Cell(opt)
+% Syntax:	cOpt = opt2cell(opt)
 % 
 % In:
 % 	opt	- an options struct returned by ParseArgs
@@ -12,8 +12,8 @@ function cOpt = Opt2Cell(opt)
 % Out:
 % 	cOpt	- opt as a cell
 % 
-% Updated:	2010-07-06
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2014-10-18
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 if isstruct(opt)
 	cField	= fieldnames(opt);
 	nField	= numel(cField);

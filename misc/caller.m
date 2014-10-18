@@ -24,7 +24,7 @@ if isempty(optDefault)
 	optDefault		= struct(...
 						'all'	, false	  ...
 						);
-	cOptDefault		= Opt2Cell(optDefault);
+	cOptDefault		= opt2cell(optDefault);
 end
 
 if nargin>0

@@ -39,7 +39,7 @@ classdef File < Group.Object
 								'attach_name'	, []	, ...
 								'attach_arg'	, []	  ...
 								);
-			cOpt			= Opt2Cell(opt);
+			cOpt			= opt2cell(opt);
 			
 			f	= f@Group.Object(parent,strType,cOpt{:});
 		end

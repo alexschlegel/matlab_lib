@@ -44,7 +44,7 @@ classdef Prompt < Group.Object
 								'attach_name'	, []	, ...
 								'attach_arg'	, []	  ...
 								);
-			cOpt			= Opt2Cell(opt);
+			cOpt			= opt2cell(opt);
 			
 			pmt	= pmt@Group.Object(parent,strType,cOpt{:});
 		end

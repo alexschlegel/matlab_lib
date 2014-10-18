@@ -12,8 +12,8 @@ function varargout = cellfunprogress(f,varargin)
 %				an input argument index if each element of that input should be
 %				displayed as a status as that element is processed
 % 
-% Updated: 2011-03-03
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2014-10-18
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 
 %find the last of the first continuous block of cell inputs
 	bCell		= cellfun(@(x) isa(x,'cell'),varargin);
@@ -22,21 +22,20 @@ function varargout = cellfunprogress(f,varargin)
 		kLastCell	= numel(varargin);
 	end
 
-opt	= ParseArgs(varargin(kLastCell+1:end),...
-		'status'	, false	, ...
-		'noffset'	, []	  ...
-		);
+cOpt	= varargin(kLastCell+1:end);
+opt		= ParseArgs(cOpt,...
+			'status'	, false	, ...
+			'noffset'	, []	  ...
+			);
 if ~isempty(opt.noffset)
 	opt.noffset	= opt.noffset-1;
 end
 
 %parse the arguments
-	%function iputs
+	%function inputs
 		cCell	= varargin(1:kLastCell);
 		s		= size(cCell{1});
 		n		= numel(cCell{1});
-	%option arguments
-		cOpt	= varargin(kLastCell+1:end);
 	%are we displaying statuses?
 		if ~islogical(opt.status)
 			cStatus		= cCell{opt.status};
@@ -46,13 +45,16 @@ end
 		end
 
 %open the progress bar
+	fName	= char(f);
+	cOpt	= optadd(cOpt,'label',sprintf('cellfun: %s',fName));
+	
 	[strProgName,nStatus,optExtra]	= progress(n,cOpt{:},'noffset',opt.noffset,'status',opt.status);
 
 %call cellfun
 	f			= repmat({f},s);
 	cProgName	= repmat({strProgName},s);
 	cNOffset	= repmat({nStatus+1},s);
-	cOptExtra	= Opt2Cell(optExtra);
+	cOptExtra	= opt2cell(optExtra);
 	[varargout{1:nargout}]	= cellfun(@cellfunfun,f,cProgName,cStatus,cNOffset,cCell{:},cOptExtra{:});
 	
 %------------------------------------------------------------------------------%

@@ -32,5 +32,5 @@ function [b,strPathFile] = FileExistsByExtension(strDir,varargin)
 
 reExt	= RegExpFileExtensions(cExt);
 
-cOpt			= Opt2Cell(opt);
+cOpt			= opt2cell(opt);
 [b,strPathFile]	= FileExists(strDir,reExt,cOpt{:});

@@ -25,7 +25,7 @@ function p = rgbWrite(rgb,strPath,varargin)
 	end
 %get the file format parameters
 	p	= GetParameters(PathGetExt(strPath),varargin{:});
-	cP	= Opt2Cell(p);
+	cP	= opt2cell(p);
 %write the file
 	imwrite(rgb,strPath,cP{:});
 

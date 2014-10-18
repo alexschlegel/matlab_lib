@@ -26,7 +26,7 @@ function strPath = PathRemoveSuffix(strPath,strSuffix,varargin)
 						'maxext'	, false	, ...
 						'favor'		, []	  ...
 						);
-cOpt	= Opt2Cell(opt);
+cOpt	= opt2cell(opt);
 					
 [strDir,strFile,strExt]	= PathSplit(strPath,cOpt{:});
 if ~isempty(strExtForce)

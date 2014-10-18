@@ -40,7 +40,7 @@ if ~isequal(opt.size,1)
 	error('"size" option must be 1.');
 end
 
-cOptGC	= Opt2Cell(structsub(opt,{'history','signal_block'}));
+cOptGC	= opt2cell(structsub(opt,{'history','signal_block'}));
 
 nVariableSrc	= size(src,2);
 nVariableDst	= size(dst,2);

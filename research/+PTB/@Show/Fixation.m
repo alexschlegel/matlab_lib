@@ -27,7 +27,7 @@ persistent optDefault cOptDefault;
 						'size'		, []			, ...
 						'color'		, 'fixation'	  ...
 						);
-		cOptDefault	= Opt2Cell(optDefault);
+		cOptDefault	= opt2cell(optDefault);
 	end
 	
 	if nargin<2

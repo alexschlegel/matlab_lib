@@ -29,7 +29,7 @@ classdef Status < Group.Object
 								'attach_name'	, []	, ...
 								'attach_arg'	, []	  ...
 								);
-			cOpt			= Opt2Cell(opt);
+			cOpt			= opt2cell(opt);
 			
 			stat	= stat@Group.Object(parent,strType,cOpt{:});
 		end

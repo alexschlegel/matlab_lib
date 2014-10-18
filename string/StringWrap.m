@@ -43,7 +43,7 @@ nLB	= numel(opt.linebreak);
 if ~isempty(regexp(str,reLineBreak))
 %wrap each non-broken substring
 	if bAux
-		cOpt	= Opt2Cell(rmfield(opt,'aux'));
+		cOpt	= opt2cell(rmfield(opt,'aux'));
 		
 		[cStr,cAux]	= split(str,reLineBreak,'withdelim',true,'aux',opt.aux);
 		bLastDelim	= ~isempty(cStr) && numel(cStr{end})>=nLB && ~isempty(regexp(cStr{end}(end-nLB+1:end),reLineBreak));
@@ -60,7 +60,7 @@ if ~isempty(regexp(str,reLineBreak))
 		end
 		aux		= append(cAux{:});
 	else
-		cOpt	= Opt2Cell(opt);
+		cOpt	= opt2cell(opt);
 		cStr	= split(str,reLineBreak);
 		cStr	= cellfun(@(s) StringWrap(s,n,cOpt{:}),cStr,'UniformOutput',false);
 		str		= join(cStr,opt.linebreak);

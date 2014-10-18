@@ -154,7 +154,7 @@ classdef Oscillator < Synth.Object
 								'interp'	, 'step'	, ...
 								'step_dur'	, 0			  ...
 								);
-			cOpt			= Opt2Cell(opt);
+			cOpt			= opt2cell(opt);
 			
 			osc	= osc@Synth.Object(parent,strName,cOpt{:});
 			

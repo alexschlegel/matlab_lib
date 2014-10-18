@@ -39,7 +39,7 @@ else
 							'window'	, 'main'	, ...
 							'center'	, true		  ...
 							);
-			cOptDefault	= Opt2Cell(optDefault);
+			cOptDefault	= opt2cell(optDefault);
 		end
 		
 		if nargin<3 || (isnumeric(varargin{1}) && (nargin<4 || (isnumeric(varargin{2}) && (nargin<5 || (isnumeric(varargin{3}) && (nargin<6 || (isnumeric(varargin{4}) && nargin<7)))))))

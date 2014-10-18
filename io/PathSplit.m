@@ -28,7 +28,7 @@ if isempty(optDefault)
 						'maxext'	, false	, ...
 						'favor'		, {{}}	  ...
 						);
-	cOptDefault		= Opt2Cell(optDefault);
+	cOptDefault		= opt2cell(optDefault);
 end
 
 if numel(varargin)>0

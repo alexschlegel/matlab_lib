@@ -34,7 +34,7 @@ if isempty(optD)
 				'delimpost'	, false	, ...
 				'splitend'	, false	  ...
 				);
-	cOptD	= Opt2Cell(optD);
+	cOptD	= opt2cell(optD);
 end
 
 if numel(varargin)==0

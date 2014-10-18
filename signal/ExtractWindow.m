@@ -47,7 +47,7 @@ opt	= ParseArgs(varargin,...
 		);
 
 %get the window indices
-	cOptSub	= Opt2Cell(rmfield(opt,{'baseline_type','baseline_start','baseline_end'}));
+	cOptSub	= opt2cell(rmfield(opt,{'baseline_type','baseline_start','baseline_end'}));
 	
 	[k,t]	= ExtractWindowIndices(size(x),tWin,cOptSub{:});
 	bNaN	= isnan(k);

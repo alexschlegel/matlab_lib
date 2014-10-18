@@ -36,7 +36,7 @@ persistent optDefault cOptDefault;
 						'border_color'	, 'black'	, ...
 						'border_size'	, 1/6		  ...
 						);
-		cOptDefault	= Opt2Cell(optDefault);
+		cOptDefault	= opt2cell(optDefault);
 	end
 	
 	if nargin<5 || (isnumeric(varargin{1}) && nargin<6)
@@ -47,7 +47,7 @@ persistent optDefault cOptDefault;
 		t	= ParseArgs(varargin,1/6);
 	else
 		[t,opt]	= ParseArgs(varargin,1/6,cOptDefault{:});
-		cOpt	= Opt2Cell(opt);
+		cOpt	= opt2cell(opt);
 	end
 
 [h,sz]	= shw.parent.Window.Get(opt.window);

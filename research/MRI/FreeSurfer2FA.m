@@ -44,7 +44,7 @@ end
 
 %calculate multiple transforms
 	if iscell(cDirFS)
-		cOpt	= Opt2Cell(rmfield(opt,'nthread'));
+		cOpt	= opt2cell(rmfield(opt,'nthread'));
 		
 		[bSuccess,cPathXFM,cPathXFMInv]	= MultiTask(@FreeSurfer2FA,{cDirFS cDirFA cOpt{:}},...
 												'description'	, 'Calculating FreeSurfer<-->FA transforms'	, ...

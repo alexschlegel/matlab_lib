@@ -275,7 +275,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		end
 
 %construct a cell of parameter structs, one for each analysis
-	cOpt	= Opt2Cell(opt);
+	cOpt	= opt2cell(opt);
 	param	= num2cell(struct(cOpt{:}));
 
 %run each classification analysis

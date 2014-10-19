@@ -124,11 +124,41 @@ classdef CausalSimulator < handle
 	end
 
 	methods (Static)
+		function runDensityExample
+			voxelFreedom = 1.000;
+			isDestBalancing = false;
+			rng('default'); CausalSimulator.runDensityTest(...
+				1,voxelFreedom,isDestBalancing);
+			rng('default'); CausalSimulator.runDensityTest(...
+				2,voxelFreedom,isDestBalancing);
+			rng('default'); CausalSimulator.runDensityTest(...
+				[1 2],voxelFreedom,isDestBalancing);
+		end
+		function data = runDensityTest(whichDims,voxelFreedom,...
+				isDestBalancing)
+			bp = CausalBaseParams;
+			bp.noisiness = 1000;
+			nf = bp.numFuncSigs;
+			for i = 1:5
+				W = zeros(nf);
+				if whichDims == 1
+					W(1:i,1) = ones(i,1);
+				elseif whichDims == 2
+					W(1,1:i) = ones(1,i);
+				elseif whichDims == [1 2]
+					W(1:i,1:i) = diag(ones(i,1));
+				else
+					error('Invalid dimensions.');
+				end
+				data(i) = CausalSimulator.runW(bp,W,...
+					voxelFreedom,isDestBalancing);
+			end
+		end
 		function runNineSourceGraphs
 			for i = 1:9
 				rng('default');
 				srcDstIndexPairs = {[i (i+1)]};
-				CausalSimulator.runSparse(srcDstIndexPairs,0.000,true);
+				CausalSimulator.runSparse(srcDstIndexPairs,0.000,false);
 			end
 		end
 		function runPolicyContrast
@@ -136,6 +166,7 @@ classdef CausalSimulator < handle
 			%srcDstIndexPairs = {[7 10]};
 			%srcDstIndexPairs = {[3 9],[7 10]};
 			%srcDstIndexPairs = {[3 4],[6 7],[9 10]};
+			%srcDstIndexPairs = {[1 2],[2 3],[3 4],[4 5],[5 6]};
 			for destBalancing = 0:1
 				for voxelFreedom = 0.000:1.000
 					rng('default');

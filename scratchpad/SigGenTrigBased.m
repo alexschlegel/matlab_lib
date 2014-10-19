@@ -30,12 +30,16 @@ classdef SigGenTrigBased < handle
 				currDst = obj.makeSines(i,evenFreqs) + wTrans * prevSrc;
 				if obj.isDestBalancing
 					fakeSrc = obj.makeSines(i,evenFreqs-1);
-					currDst = currDst + (1 - wTrans) * fakeSrc;
+					fakeWt = 1.0;
+					%fakeWt = 0.13;
+					currDst = currDst + fakeWt * (1 - wTrans) * fakeSrc;
 				end
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
 				prevSrc = currSrc;
 			end
+			src = zscore(src);
+			dst = zscore(dst);
 		end
 		function vals = makeSines(obj,i,freqs)
 			nt = obj.baseParams.numTimeSteps;

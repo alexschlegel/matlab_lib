@@ -15,12 +15,21 @@ function cOpt = opt2cell(opt)
 % Updated:	2014-10-18
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 if isstruct(opt)
-	cField	= fieldnames(opt);
+	cField	= reshape(fieldnames(opt),1,[]);
+	
+	[bExtra,kExtra]	= ismember('opt_extra',cField);
+	if bExtra
+		cField(kExtra)	= [];
+	end
+	
 	nField	= numel(cField);
 	
-	cOpt	= cell(1,2*nField);
-	for kF=1:nField
-		cOpt(2*(kF-1)+(1:2))	= {cField{kF} opt.(cField{kF})};
+	cVal	= cellfun(@(f) opt.(f),cField,'uni',false);
+	
+	cOpt	= reshape([cField;cVal],[],1);
+	
+	if bExtra
+		cOpt	= [cOpt; opt2cell(opt.opt_extra)];
 	end
 else
 	cOpt	= {};

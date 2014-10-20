@@ -55,7 +55,7 @@ nd	= numel(sz);
 	ssXY	= nansum((x-mXR).*(y-mYR),nd);
 
 %correlation coefficient
-	r	= min(1,max(-1,ssXY./sqrt(ssX.*ssY));
+	r	= min(1,max(-1,ssXY./sqrt(ssX.*ssY)));
 
 %stats
 	if nargout>0

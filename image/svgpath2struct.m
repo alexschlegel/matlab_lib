@@ -155,8 +155,8 @@ end
 %fill the space
 	if opt.fill
 		%get a list of all x and y coordinates
-			x	= cellfun(@(c,p) p(defXC{find(defCommand==lower(c))}),cCommand,cParam,'uni',false);
-			y	= cellfun(@(c,p) p(defYC{find(defCommand==lower(c))}),cCommand,cParam,'uni',false);
+			x	= cellfun(@(c,p) p(defKX{find(defCommand==lower(c))}),cCommand,cParam,'uni',false);
+			y	= cellfun(@(c,p) p(defKY{find(defCommand==lower(c))}),cCommand,cParam,'uni',false);
 			x	= cat(1,x{:});
 			y	= cat(1,y{:});
 			N	= numel(x);
@@ -169,9 +169,9 @@ end
 				xNorm	= x - xC;
 				yNorm	= y - yC;
 			%normalized second central moments
-				uxx	= sum(x.^2)/N;
-				uyy	= sum(y.^2)/N;
-				uxy	= sum(x.*y)/N;
+				uxx	= sum(xNorm.^2)/N;
+				uyy	= sum(yNorm.^2)/N;
+				uxy	= sum(xNorm.*yNorm)/N;
 			
 			%orientation
 				if uyy > uxx
@@ -190,18 +190,17 @@ end
 			for kO=1:nOp
 				kCommand	= find(defCommand==lower(cCommand{kO}));
 				
-				kX	= defXC{kCommand};
-				kY	= defYC{kCommand};
+				kX	= defKX{kCommand};
+				kY	= defKY{kCommand};
 				nP	= numel(kX);
 				
-				for kP=1:nP
-					x	= cParam{kO}(kX(kP)) - xC;
-					y	= cParam{kO}(kY(kP)) - yC;
-					p	= RotatePoints(p,45-a);
-					
-					cParam{kO}(kX(kP))	= p(1) + xC;
-					cParam{kO}(kY(kP))	= p(2) + yC;
-				end
+				x	= reshape(cParam{kO}(kX) - xC,[],1);
+				y	= reshape(cParam{kO}(kY) - yC,[],1);
+				
+				p	= RotatePoints([x y],d2r((180-a)-45));
+				
+				cParam{kO}(kX)	= p(:,1) + xC;
+				cParam{kO}(kY)	= p(:,2) + yC;
 			end
 	end
 

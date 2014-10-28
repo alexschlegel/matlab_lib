@@ -1,53 +1,57 @@
 % Copyright (c) 2014 Trustees of Dartmouth College. All rights reserved.
 
 classdef SigGen < handle
-	% SigGen:  Trig-based signal generator for set of like trials
+	% SigGen:  Signal generator for set of like trials
 	%   (Applies to functional signals only, not voxel signals.)
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
 		baseParams
-		W
-		isDestBalancing
+		W                % probably will be going away
+		isDestBalancing  % probably will be going away
+		recurrenceParams
 	end
 	methods
 		function obj = SigGen(baseParams,W,isDestBalancing)
 			baseParams.validateW(W);
 			obj.baseParams = baseParams;
-			obj.W = W;
 			obj.isDestBalancing = isDestBalancing;
+			obj.recurrenceParams = RecurrenceParams(baseParams,W,...
+				isDestBalancing);
+			obj.W = obj.recurrenceParams.W;
 		end
 		function [src,dst] = genSigs(obj)
-			wTrans = obj.W.';
+			bp = obj.baseParams;
+			rp = obj.recurrenceParams;
+			wTrans = rp.W.';
+			nsWTrans = rp.nonsourceW.';
 			nt = obj.baseParams.numTimeSteps;
 			nf = obj.baseParams.numFuncSigs;
 			src = zeros(nt,nf);
 			dst = zeros(nt,nf);
-			evenFreqs = 2*(1:nf)';
+			oth = zeros(nt,nf);
 			prevSrc = zeros(nf,1);
+			prevDst = zeros(nf,1);
+			prevOth = zeros(nf,1);
 			for i = 1:nt
-				currSrc = obj.makeSines(i,evenFreqs-1,...
-					obj.baseParams.sourceNoisiness);
-				currDst = obj.makeSines(i,evenFreqs,...
-					obj.baseParams.destNoisiness) + wTrans * prevSrc;
-				if obj.isDestBalancing
-					fakeSrc = obj.makeSines(i,evenFreqs-1,...
-						obj.baseParams.sourceNoisiness);
-					fakeWt = 1.0;
-					%fakeWt = 0.13;
-					currDst = currDst + fakeWt * (1 - wTrans) * fakeSrc;
-				end
+				currSrc = diag(rp.recurDiagonals{1}) * prevSrc;
+				currDst = diag(rp.recurDiagonals{2}) * prevDst;
+				currOth = diag(rp.recurDiagonals{3}) * prevOth;
+
+				currDst = currDst + wTrans * prevSrc + nsWTrans * prevOth;
+
+				currSrc = currSrc + bp.sourceNoisiness * randn(nf,1);
+				currDst = currDst + bp.destNoisiness * randn(nf,1);
+				currOth = currOth + bp.sourceNoisiness * randn(nf,1);
+
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
 				prevSrc = currSrc;
+				prevDst = currDst;
+				prevOth = currOth;
 			end
 			src = zscore(src);
 			dst = zscore(dst);
-		end
-		function vals = makeSines(obj,i,freqs,noisiness)
-			nt = obj.baseParams.numTimeSteps;
-			vals = sin(((i-1)/(nt-1) * 2*pi) * freqs) + ...
-				noisiness * randn(size(freqs));
 		end
 	end
 end

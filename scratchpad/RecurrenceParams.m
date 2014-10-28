@@ -24,7 +24,7 @@ classdef RecurrenceParams
 		function obj = RecurrenceParams(baseParams,W,isDestBalancing)
 			nf = baseParams.numFuncSigs;
 			obj.baseParams = baseParams;
-			obj.recurDiagonals = repmat({diag(ones(1,nf))},3,1);
+			obj.recurDiagonals = repmat({ones(1,nf)},3,1);
 			beta = isDestBalancing / 2;
 			alpha = 1 - beta;
 			obj.W = alpha * W;

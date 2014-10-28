@@ -26,10 +26,13 @@ classdef SigGenTrigBased < handle
 			evenFreqs = 2*(1:nf)';
 			prevSrc = zeros(nf,1);
 			for i = 1:nt
-				currSrc = obj.makeSines(i,evenFreqs-1);
-				currDst = obj.makeSines(i,evenFreqs) + wTrans * prevSrc;
+				currSrc = obj.makeSines(i,evenFreqs-1,...
+					obj.baseParams.sourceNoisiness);
+				currDst = obj.makeSines(i,evenFreqs,...
+					obj.baseParams.destNoisiness) + wTrans * prevSrc;
 				if obj.isDestBalancing
-					fakeSrc = obj.makeSines(i,evenFreqs-1);
+					fakeSrc = obj.makeSines(i,evenFreqs-1,...
+						obj.baseParams.sourceNoisiness);
 					fakeWt = 1.0;
 					%fakeWt = 0.13;
 					currDst = currDst + fakeWt * (1 - wTrans) * fakeSrc;
@@ -41,10 +44,10 @@ classdef SigGenTrigBased < handle
 			src = zscore(src);
 			dst = zscore(dst);
 		end
-		function vals = makeSines(obj,i,freqs)
+		function vals = makeSines(obj,i,freqs,noisiness)
 			nt = obj.baseParams.numTimeSteps;
 			vals = sin(((i-1)/(nt-1) * 2*pi) * freqs) + ...
-				obj.baseParams.noisiness * randn(size(freqs));
+				noisiness * randn(size(freqs));
 		end
 	end
 end

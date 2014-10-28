@@ -70,7 +70,8 @@ classdef WClassifier < handle
 		function netScore = testClassification(...
 				noisiness,wDensity,voxelFreedom,numTrialsPerW,showWs)
 			bp = CausalBaseParams;
-			bp.noisiness = noisiness;
+			bp.sourceNoisiness = noisiness;
+			bp.destNoisiness = noisiness;
 			wPairConfig = WPairedTrialConfig(bp,wDensity);
 			if showWs
 				disp('W1:');

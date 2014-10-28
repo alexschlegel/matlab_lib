@@ -78,7 +78,10 @@ classdef CausalSimulator < handle
 			fprintf('Num voxel sigs = %d\nNum top components = %d\n',...
 				obj.baseParams.numVoxelSigs,...
 				obj.baseParams.numTopComponents);
-			fprintf('Noisiness = %d\n', obj.baseParams.noisiness);
+			fprintf('Source noisiness = %d\n',...
+				obj.baseParams.sourceNoisiness);
+			fprintf('Destination noisiness = %d\n',...
+				obj.baseParams.destNoisiness);
 			fprintf('Voxel-mixing freedom = %d\n', obj.voxelPolicy.freedom);
 			falseTrue = {'false','true'};
 			fprintf('Is destination balanced = %s\n',...
@@ -127,17 +130,24 @@ classdef CausalSimulator < handle
 		function runDensityExample
 			voxelFreedom = 1.000;
 			isDestBalancing = false;
-			rng('default'); CausalSimulator.runDensityTest(...
-				1,voxelFreedom,isDestBalancing);
-			rng('default'); CausalSimulator.runDensityTest(...
-				2,voxelFreedom,isDestBalancing);
-			rng('default'); CausalSimulator.runDensityTest(...
-				[1 2],voxelFreedom,isDestBalancing);
+			dimsList = {1, 2, [1 2]};
+			for i = 1:numel(dimsList)
+				rng('default');
+				[data,figHandle] = CausalSimulator.runDensityTest(...
+					dimsList{i},voxelFreedom,isDestBalancing);
+				dataGrid(i,:) = data;
+				figGrid(i,:) = figHandle;
+			end
+			% (Can also use subplot to make a grid of plots in one figure)
+			set(figGrid, 'Position', [0 0 150 100]);
+			multiplot(figGrid);  %was: multiplot(reshape(1:15,5,3)');
+			colormap('gray');
 		end
-		function data = runDensityTest(whichDims,voxelFreedom,...
-				isDestBalancing)
+		function [data,figHandle] = runDensityTest(whichDims,...
+				voxelFreedom,isDestBalancing)
 			bp = CausalBaseParams;
-			bp.noisiness = 1000;
+			bp.sourceNoisiness = 1000;
+			bp.destNoisiness = 1000;
 			nf = bp.numFuncSigs;
 			for i = 1:5
 				W = zeros(nf);
@@ -150,7 +160,7 @@ classdef CausalSimulator < handle
 				else
 					error('Invalid dimensions.');
 				end
-				data(i) = CausalSimulator.runW(bp,W,...
+				[data(i),figHandle(i)] = CausalSimulator.runW(bp,W,...
 					voxelFreedom,isDestBalancing);
 			end
 		end
@@ -181,7 +191,8 @@ classdef CausalSimulator < handle
 				error('First argument is not a cell vector.');
 			end
 			bp = CausalBaseParams;
-			bp.noisiness = 1000;
+			bp.sourceNoisiness = 1000;
+			bp.destNoisiness = 1000;
 			nf = bp.numFuncSigs;
 			W = zeros(nf);
 			for i = 1:numel(srcDstIndexPairs)
@@ -194,14 +205,16 @@ classdef CausalSimulator < handle
 				end
 				W(srcDst(1),srcDst(2)) = 1;
 			end
-			data = CausalSimulator.runW(bp,W,voxelFreedom,isDestBalancing);
+			[data,figHandle] = CausalSimulator.runW(bp,W,voxelFreedom,...
+				isDestBalancing);
 		end
-		function data = runW(baseParams,W,voxelFreedom,isDestBalancing)
+		function [data,figHandle] = runW(baseParams,W,voxelFreedom,...
+				isDestBalancing)
 			baseParams.validateW(W);  % (redundant, but not harmful)
 			sigGen = SigGenTrigBased(baseParams,W,isDestBalancing);
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;
-			SimStatic.showMatrixGrayscale(data.wStar);
+			figHandle = SimStatic.showMatrixGrayscale(data.wStar);
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

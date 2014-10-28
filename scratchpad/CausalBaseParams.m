@@ -5,7 +5,8 @@ classdef CausalBaseParams
 	%   TODO: Add detailed comments
 
 	properties
-		noisiness
+		sourceNoisiness
+		destNoisiness
 		numTimeSteps
 		numFuncSigs
 		numVoxelSigs
@@ -17,7 +18,9 @@ classdef CausalBaseParams
 			obj.validate;
 		end
 		function obj = defineInitialParams(obj)
-			obj.noisiness = 1.0e-6;
+			defaultNoisiness = 1.0e-6;
+			obj.sourceNoisiness = defaultNoisiness;
+			obj.destNoisiness = defaultNoisiness;
 			obj = obj.defineSizeParams;
 		end
 		function obj = defineSizeParams(obj)

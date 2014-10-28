@@ -1,7 +1,7 @@
 % Copyright (c) 2014 Trustees of Dartmouth College. All rights reserved.
 
-classdef SigGenTrigBased < handle
-	% SigGenTrigBased:  Trig-based signal generator for set of like trials
+classdef SigGen < handle
+	% SigGen:  Trig-based signal generator for set of like trials
 	%   (Applies to functional signals only, not voxel signals.)
 	%   TODO: Add detailed comments
 
@@ -11,7 +11,7 @@ classdef SigGenTrigBased < handle
 		isDestBalancing
 	end
 	methods
-		function obj = SigGenTrigBased(baseParams,W,isDestBalancing)
+		function obj = SigGen(baseParams,W,isDestBalancing)
 			baseParams.validateW(W);
 			obj.baseParams = baseParams;
 			obj.W = W;

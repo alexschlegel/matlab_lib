@@ -211,7 +211,7 @@ classdef CausalSimulator < handle
 		function [data,figHandle] = runW(baseParams,W,voxelFreedom,...
 				isDestBalancing)
 			baseParams.validateW(W);  % (redundant, but not harmful)
-			sigGen = SigGenTrigBased(baseParams,W,isDestBalancing);
+			sigGen = SigGen(baseParams,W,isDestBalancing);
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;
 			figHandle = SimStatic.showMatrixGrayscale(data.wStar);

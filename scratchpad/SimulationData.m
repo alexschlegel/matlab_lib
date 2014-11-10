@@ -20,5 +20,21 @@ classdef SimulationData < handle
 			obj.dest = RegionData;
 			obj.wStar = [];
 		end
+		function clims = getWStarClims(obj)
+			ws = obj.wStar(:);
+			%low = min(ws);
+			%high = max(ws);
+			%range = high - low;
+			%clims = [(low-range) (high+range)];
+			clims = [min(ws) max(ws)];
+		end
+		function figHandle = showWStarGrayscale(obj,clims)
+			if nargin < 2
+				clims = obj.getWStarClims;
+			end
+			figHandle = figure;
+			colormap('gray');
+			imagesc(obj.wStar,clims);
+		end
 	end
 end

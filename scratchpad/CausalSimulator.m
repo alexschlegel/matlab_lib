@@ -133,18 +133,21 @@ classdef CausalSimulator < handle
 			dimsList = {1, 2, [1 2]};
 			for i = 1:numel(dimsList)
 				rng('default');
-				[data,figHandle] = CausalSimulator.runDensityTest(...
+				data = CausalSimulator.runDensityTest(...
 					dimsList{i},voxelFreedom,isDestBalancing);
 				dataGrid(i,:) = data;
-				figGrid(i,:) = figHandle;
 			end
+			for i = 1:numel(dataGrid)
+				figGrid(i) = dataGrid(i).showWStarGrayscale;
+			end
+			figGrid = reshape(figGrid,size(dataGrid));
 			% (Can also use subplot to make a grid of plots in one figure)
 			set(figGrid, 'Position', [0 0 150 100]);
 			multiplot(figGrid);  %was: multiplot(reshape(1:15,5,3)');
 			colormap('gray');
 		end
-		function [data,figHandle] = runDensityTest(whichDims,...
-				voxelFreedom,isDestBalancing)
+		function data = runDensityTest(whichDims,voxelFreedom,...
+				isDestBalancing)
 			bp = CausalBaseParams;
 			bp.sourceNoisiness = 1000;
 			bp.destNoisiness = 1000;
@@ -160,7 +163,7 @@ classdef CausalSimulator < handle
 				else
 					error('Invalid dimensions.');
 				end
-				[data(i),figHandle(i)] = CausalSimulator.runW(bp,W,...
+				data(i) = CausalSimulator.runW(bp,W,...
 					voxelFreedom,isDestBalancing);
 			end
 		end
@@ -185,8 +188,8 @@ classdef CausalSimulator < handle
 				end
 			end
 		end
-		function data = runSparse(srcDstIndexPairs,voxelFreedom,...
-				isDestBalancing)
+		function [data,figHandle] = runSparse(srcDstIndexPairs,...
+				voxelFreedom,isDestBalancing)
 			if ~iscell(srcDstIndexPairs) || ~isvector(srcDstIndexPairs)
 				error('First argument is not a cell vector.');
 			end
@@ -205,16 +208,16 @@ classdef CausalSimulator < handle
 				end
 				W(srcDst(1),srcDst(2)) = 1;
 			end
-			[data,figHandle] = CausalSimulator.runW(bp,W,voxelFreedom,...
-				isDestBalancing);
+			data = CausalSimulator.runW(bp,W,voxelFreedom,isDestBalancing);
+			figHandle = data.showWStarGrayscale;
 		end
-		function [data,figHandle] = runW(baseParams,W,voxelFreedom,...
-				isDestBalancing)
+		function data = runW(baseParams,W,voxelFreedom,isDestBalancing)
 			baseParams.validateW(W);  % (redundant, but not harmful)
 			sigGen = SigGen(baseParams,W,isDestBalancing);
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;
-			figHandle = SimStatic.showMatrixGrayscale(data.wStar);
+			%figHandle = data.showWStarGrayscale;
+			%figHandle = SimStatic.showMatrixGrayscale(data.wStar);
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

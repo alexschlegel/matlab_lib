@@ -20,8 +20,8 @@ study	= strStudy;
 
 %get the base study directory
 	cDirRoot	=	[
-						cellfun(@(n) DirAppend('/','mnt','tsestudies',n), AnalysisComputers, 'uni', false)
 						DirAppend(PathRel2Abs('~'),'studies');
+						cellfun(@(n) DirAppend('/','mnt','tsestudies',n), AnalysisComputers, 'uni', false)
 					];
 	nDirRoot	= numel(cDirRoot);
 	

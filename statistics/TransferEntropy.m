@@ -43,7 +43,7 @@ function [te,stat] = TransferEntropy(src,dest,varargin)
 %		Lizier, J. T., Heinzle, J., Horstmann, A., Haynes, J.-D., & Prokopenko,
 %		M. (2011). Multivariate information-theoretic measures reveal directed
 %		information structure and task relevant changes in fMRI connectivity.
-%		Journal of Computational Neuroscience, 30(1), 85–107.
+%		Journal of Computational Neuroscience, 30(1), 85ï¿½107.
 %
 % Example:
 %	nvX=2; nvY=nvX+1; n=1000; covariance=0.2; X=randn(n,nvX); Y=[zeros(1,nvY); covariance*[X(1:end-1,1:end-1).*X(1:end-1,2:end) X(1:end-1,end).*X(1:end-1,1)] randn(n-1,nvY-nvX)]+(1-covariance)*randn(n, nvY); [te,stat] = TransferEntropy(X,Y)
@@ -52,7 +52,7 @@ function [te,stat] = TransferEntropy(src,dest,varargin)
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgsOpt(varargin,...
+opt	= ParseArgs(varargin,...
 		'history'			, 1		, ...
 		'kraskov_k'			, 4		, ...
 		'sample_variables'	, inf	, ...

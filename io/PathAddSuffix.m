@@ -19,13 +19,13 @@ function strPath = PathAddSuffix(strPath,strSuffix,varargin)
 % Out:
 % 	strPath	- strPath altered as specified
 % 
-% Updated:	2011-02-26
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[strExtForce,opt]	= ParseArgsOpt(varargin,[],...
+% Updated:	2014-10-16
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+[strExtForce,opt]	= ParseArgs(varargin,[],...
 						'maxext'	, false	, ...
 						'favor'		, []	  ...
 						);
-cOpt	= Opt2Cell(opt);
+cOpt	= opt2cell(opt);
 					
 [strDir,strFile,strExt]	= PathSplit(strPath,cOpt{:});
 if ~isempty(strExtForce)

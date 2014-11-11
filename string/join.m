@@ -27,13 +27,13 @@ if isempty(optDefault)
 					'enclose'	, ''	, ...
 					'escape'	, true	  ...
 					);
-	cOptDefault	= Opt2Cell(optDefault);
+	cOptDefault	= opt2cell(optDefault);
 end
 
 if numel(varargin)==0
 	opt	= optDefault;
 else
-	opt	= ParseArgsOpt(varargin,cOptDefault{:});
+	opt	= ParseArgs(varargin,cOptDefault{:});
 end
 
 %convert to a cell

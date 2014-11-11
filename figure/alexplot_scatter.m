@@ -44,9 +44,9 @@ function h = alexplot_scatter(x,h,vargin)
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 
 %parse the extra options
-	strStyle	= getfield(ParseArgsOpt(vargin,'substyle','color'),'substyle');
+	strStyle	= getfield(ParseArgs(vargin,'substyle','color'),'substyle');
 	optD		= GetStyleDefaults(strStyle);
-	h.opt		= StructMerge(h.opt,ParseArgsOpt(vargin,...
+	h.opt		= StructMerge(h.opt,ParseArgs(vargin,...
 					'substyle'				, 'color'			, ...
 					'error'					, []				, ...
 					'errortype'				, 'bar'				, ...
@@ -104,7 +104,7 @@ function h = alexplot_scatter(x,h,vargin)
 	end
 	
 	opt		= h.opt;
-	cOpt	= Opt2Cell(h.opt);
+	cOpt	= opt2cell(h.opt);
 	h		= alexplot(h.data.x,h.data.y,cOpt{:},'axistype','off');
 	h.opt	= opt;
 	

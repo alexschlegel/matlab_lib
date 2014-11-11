@@ -29,7 +29,7 @@ function [gc,subSrc,subDst] = GrangerCausalitySubsets(src, dst, varargin)
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgsOpt(varargin,...
+opt	= ParseArgs(varargin,...
 		'size'				, 1		, ...
 		'history'			, 1		, ...
 		'signal_block'		, []	, ...
@@ -40,7 +40,7 @@ if ~isequal(opt.size,1)
 	error('"size" option must be 1.');
 end
 
-cOptGC	= Opt2Cell(structsub(opt,{'history','signal_block'}));
+cOptGC	= opt2cell(structsub(opt,{'history','signal_block'}));
 
 nVariableSrc	= size(src,2);
 nVariableDst	= size(dst,2);

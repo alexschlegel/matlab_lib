@@ -145,7 +145,7 @@ methods %(Access=private)
 	%--------------------------------------------------------------------------%
 	function Server(tc,cmd,varargin)
 		%start or stop a group of Matlab cluster servers
-		cServers = ParseArgsOpt(varargin,fieldnames(tc.servers));
+		cServers = ParseArgs(varargin,fieldnames(tc.servers));
 		cServers = ForceCell(cServers);
 		bStop = strcmpi(cmd,'stop');		
 
@@ -273,7 +273,7 @@ methods %(Access=private)
 	end
 	%--------------------------------------------------------------------------%
 	function varargout = ServerStatus(tc,varargin)
-		hosts = ParseArgsOpt(varargin,fieldnames(tc.servers));
+		hosts = ParseArgs(varargin,fieldnames(tc.servers));
 		hosts = ForceCell(hosts);
 		cOut = cell(size(hosts));
 		for kH = 1:numel(hosts)
@@ -408,7 +408,7 @@ methods %(Access=private)
 	%----------------------------------------------------------------------%
 	function InitializeWorkers(tc,varargin)
 		%generate worker names for the given host
-		hosts = ParseArgsOpt(varargin,fieldnames(tc.servers));
+		hosts = ParseArgs(varargin,fieldnames(tc.servers));
 		hosts = ForceCell(hosts);
 		for kH = 1:numel(hosts)
 			if isfield(tc.servers,hosts{kH})
@@ -568,7 +568,7 @@ methods %(Access=private)
 		%GOAL: fill out hosts is not specified and fill out NaN entries in workers
 		% if cHosts/workers cannot run nThread raise an error
 
-		[hosts,nWorker,opt] = ParseArgsOpt(varargin,'auto',NaN,...
+		[hosts,nWorker,opt] = ParseArgs(varargin,'auto',NaN,...
 				'silent'  , false		,...
 				'debug'   , 0 			 ...
 				);

@@ -17,7 +17,9 @@ function [r,stat] = corrcoef2(x,y,varargin)
 % 	r		- an s1 x ... x sM array of the correlation coefficients between x and
 %			  the corresponding vectors in y
 %	stat	- a struct of statistics:
-%				tails:	- the type of test performed
+%				r		- r again
+%				z		- the Fisher's Z transformed version of r
+%				tails	- the type of test performed
 %				p		- the p-values for each r
 %				df		- the degrees of freedom
 %				m		- the slope of the best-fit line
@@ -53,12 +55,13 @@ nd	= numel(sz);
 	ssXY	= nansum((x-mXR).*(y-mYR),nd);
 
 %correlation coefficient
-	r	= ssXY./sqrt(ssX.*ssY);
+	r	= min(1,max(-1,ssXY./sqrt(ssX.*ssY)));
 
 %stats
 	if nargout>0
 		%get the correlation in there
 			stat.r	= r;
+			stat.z	= fisherz(r);
 			
 		%significance
 			stat.tails	= conditional(opt.twotail,'two','one');

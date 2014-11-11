@@ -23,9 +23,9 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 %	cDir		- a cell of the matching subdirectory paths in strDir.
 %	nDirTotal	- the total number of directories searched
 % 
-% Updated:	2010-04-17
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[re,opt]	= ParseArgsOpt(varargin, '.*', ...
+% Updated:	2014-10-18
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+[re,opt]	= ParseArgs(varargin, '.*', ...
 				'subdir'		, false	, ...
 				'maxdepth'		, -1	, ...
 				'casei'			, false	, ...
@@ -38,19 +38,10 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 				);
 
 %get the regexp function to use
-	if opt.casei
-		if opt.negate
-			refunc	= @priv_REIN;
-		else
-			refunc	= @priv_REIP;
-		end
-	else
-		if opt.negate
-			refunc	= @priv_RECN;
-		else
-			refunc	= @priv_RECP;
-		end
-	end
+	refunc	= conditional(opt.casei,...
+				conditional(opt.negate,@priv_REIN,@priv_REIP)	, ...
+				conditional(opt.negate,@priv_RECN,@priv_REIP)	  ...
+				);
 
 %fix the search directories
 	cDirSearch		= reshape(ForceCell(strDir),[],1);
@@ -98,7 +89,8 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 				for kDirC=1:nDirCur
 					strDirCur	= [cDirSearch{kDirS} cDirCur{kDirC}];
 					
-					[cDirNew,nDirTotal]	= FindDirectories(strDirCur,varargin{:},'maxdepth',opt.maxdepth-1,'dirtotal',opt.dirtotal,'first',false,'name_progress',strNameProgress);
+					cOpt				= opt2cell(optreplace(opt,'maxdepth',opt.maxdepth-1,'dirtotal',opt.dirtotal,'first',false,'name_progress',strNameProgress));
+					[cDirNew,nDirTotal]	= FindDirectories(strDirCur,re,cOpt{:});
 					cDir				= [cDir; cDirNew];
 					
 					opt.dirtotal	= nDirTotal;

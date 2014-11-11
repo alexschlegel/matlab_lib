@@ -11,7 +11,7 @@ function x = from(str)
 % Out:
 % 	x	- the MATLAB variable form of str
 % 
-% Updated: 2014-02-14
+% Updated: 2014-10-17
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -20,6 +20,8 @@ function x = from(str)
 	str	= regexprep(str,'[\n\t]','');
 %escape special characters within strings
 	str	= EscapeInString(str);
+%make sure we have valid field names
+	str	= ValidFieldNames(str);
 %single quotes to double single quotes
 	str	= regexprep(str,'''','''''');
 %non-escaped double quotes to single quotes
@@ -55,6 +57,25 @@ function str = EscapeInString(str)
 		end
 end
 %------------------------------------------------------------------------------%
+function str = ValidFieldNames(str)
+	%find the field specifiers
+		kField	= regexp(str,[nonesc('"') nonesc(':')]);
+		nField	= numel(kField);
+	
+	for kF=1:nField
+		kEnd	= kField(kF) - 2;
+		kStart	= regexp(str(1:kEnd),nonesc('"'));
+		kStart	= kStart(end) + 1;
+		
+		strFieldOld	= str(kStart:kEnd);
+		strFieldNew	= str2fieldname(strFieldOld);
+		if ~strcmp(strFieldOld,strFieldNew)
+			str	= [str(1:kStart-1) strFieldNew str(kEnd+1:end)];
+			kField	= kField + numel(strFieldNew) - numel(strFieldOld);
+		end
+	end
+end
+%------------------------------------------------------------------------------%
 function re = nonesc(chr)
 	re	= sprintf('^%s|(?<=[^\\\\])%s',chr,chr);
 end
@@ -76,11 +97,13 @@ function x = from_simplify(x)
 			else
 				x	= cellfun(@from_simplify,x,'uni',false);
 				
-				if uniform(cellfun(@size,x,'uni',false)) && uniform(cellfun(@class,x,'uni',false))
+				sz	= cellfun(@size,x,'uni',false);
+				cls	= cellfun(@class,x,'uni',false);
+				if uniform(sz) && uniform(cls) && (~all(strcmp(cls,'struct')) || uniform(cellfun(@fieldnames,x,'uni',false)))
 					if size(x{1},1)>1
 						x	= cellfun(@(x) permute(x,[numel(x)+1 1:numel(x)]),x,'uni',false);
 					end
-						
+					
 					x	= cat(1,x{:});
 				end
 			end

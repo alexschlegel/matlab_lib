@@ -45,7 +45,7 @@ persistent optDefault cOptDefault;
 						'border_color'	, 'black'	, ...
 						'border_size'	, 1/6		  ...
 						);
-		cOptDefault	= Opt2Cell(optDefault);
+		cOptDefault	= opt2cell(optDefault);
 	end
 	
 	if nargin<3 || (isnumeric(varargin{1}) && (nargin<4 || (isnumeric(varargin{2}) && nargin<5)))
@@ -53,7 +53,7 @@ persistent optDefault cOptDefault;
 		
 		[s,a]	= ParseArgs(varargin,[],0);
 	else
-		[s,a,opt]	= ParseArgsOpt(varargin,[],0,cOptDefault{:});
+		[s,a,opt]	= ParseArgs(varargin,[],0,cOptDefault{:});
 	end
 
 sIm	= size(cIm);

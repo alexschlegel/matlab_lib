@@ -50,7 +50,7 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 % 
 % Updated: 2012-03-17
 % Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[cIn,opt]	= ParseArgsOpt(varargin,[],...
+[cIn,opt]	= ParseArgs(varargin,[],...
 				'description'		, ['Calling ' strCommand]		, ...
 				'file_prefix'		, [strCommand '-callprocess']	, ...
 				'script_path'		, []							, ...
@@ -83,7 +83,7 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 	cScript	= cellfun(@(varargin) join([strCommand cellfun(@(v) tostring(v),varargin,'UniformOutput',false)],' '),cIn{:},'UniformOutput',false);
 %run each script
 	if opt.run
-		cOpt				= Opt2Cell(opt);
+		cOpt				= opt2cell(opt);
 		[vExitCode,cOutput]	= RunBashScript(cScript,cOpt{:});
 	else
 		vExitCode	= cScript;

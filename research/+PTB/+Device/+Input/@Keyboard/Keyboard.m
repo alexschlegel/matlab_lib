@@ -34,8 +34,8 @@ classdef Keyboard < PTB.Device.Input
 %									right:	key_right
 %									up:		key_up
 %									down:	key_down
-% Updated: 2012-02-10
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2014-09-14
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 	
@@ -55,16 +55,35 @@ classdef Keyboard < PTB.Device.Input
 			key.p_default_name	= cKey;
 			key.p_default_index	= kKey;
 			
+			%get the arrow key names
+				cArrowSuffix	= {'','arrow'};
+				nArrowSuffix	= numel(cArrowSuffix);
+				
+				bSuffixFound	= false;
+				for kA=1:nArrowSuffix
+					strArrowSuffix	= cArrowSuffix{kA};
+					strTest			= ['key_left' strArrowSuffix];
+					
+					if ismember(strTest,cKey)
+						bSuffixFound	= true;
+						break;
+					end
+				end
+				
+				if ~bSuffixFound
+					error('Could not find the arrow keys!');
+				end
+			
 			key.p_scheme			=	{
 											'lr'	{
-														{'left'		'key_left'	[]}
-														{'right'	'key_right'	[]}
+														{'left'		['key_left' strArrowSuffix]	[]}
+														{'right'	['key_right' strArrowSuffix]	[]}
 													}
 											'lrud'	{
-														{'left'		'key_left'	[]}
-														{'right'	'key_right'	[]}
-														{'up'		'key_up'	[]}
-														{'down'		'key_down'	[]}
+														{'left'		['key_left' strArrowSuffix]	[]}
+														{'right'	['key_right' strArrowSuffix]	[]}
+														{'up'		['key_up' strArrowSuffix]	[]}
+														{'down'		['key_down' strArrowSuffix]	[]}
 													}
 										};
 			key.p_scheme_default	= 'lr';

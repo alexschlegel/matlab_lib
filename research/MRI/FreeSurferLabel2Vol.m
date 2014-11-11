@@ -58,7 +58,7 @@ bSuccess	= false;
 	if ischar(cPathLabel) && (~isempty(regexp(cPathLabel,reSubject)) || ~FileExists(cPathLabel))
 	%first call type
 		strSubject			= cPathLabel;
-		[cName,cHemi,opt]	= ParseArgsOpt(varargin,'','both',cOpt{:});
+		[cName,cHemi,opt]	= ParseArgs(varargin,'','both',cOpt{:});
 		cName				= reshape(ForceCell(cName),[],1);
 		cHemi				= reshape(ForceCell(conditional(isequal(lower(cHemi),'both'),{'lh','rh'},cHemi)),[],1);
 		
@@ -66,7 +66,7 @@ bSuccess	= false;
 		cPathLabel	= append(cPathLabel{:});
 	else
 	%second call type
-		opt			= ParseArgsOpt(varargin,cOpt{:});
+		opt			= ParseArgs(varargin,cOpt{:});
 		cPathLabel	= ForceCell(cPathLabel);
 	end
 %check for input files

@@ -24,11 +24,11 @@ if isempty(optDefault)
 						'precision'	, 'char'	, ...
 						'error'		, true		  ...
 						);
-	cOptDefault		= Opt2Cell(optDefault);
+	cOptDefault		= opt2cell(optDefault);
 end
 
 if numel(varargin)>0
-	opt	= ParseArgsOpt(varargin,cOptDefault{:});
+	opt	= ParseArgs(varargin,cOptDefault{:});
 else
 	opt		= optDefault;
 end

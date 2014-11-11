@@ -31,7 +31,7 @@ persistent optDefault cOptDefault;
 						'window'		, 'main'	, ...
 						'center'		, false		  ...
 						);
-		cOptDefault	= Opt2Cell(optDefault);
+		cOptDefault	= opt2cell(optDefault);
 	end
 	
 	if nargin<4 || (isnumeric(varargin{1}) && (nargin<5 || (isnumeric(varargin{2}) && nargin<6)))
@@ -40,7 +40,7 @@ persistent optDefault cOptDefault;
 		
 		[r,p]	= ParseArgs(varargin,1,[0 0]);
 	else
-		[r,p,opt]	= ParseArgsOpt(varargin,1,[0 0],cOptDefault{:});
+		[r,p,opt]	= ParseArgs(varargin,1,[0 0],cOptDefault{:});
 	end
 
 [h,sz]	= shw.parent.Window.Get(opt.window);

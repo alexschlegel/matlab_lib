@@ -24,11 +24,11 @@ if isempty(optDefault)
 	optDefault		= struct(...
 						'all'	, false	  ...
 						);
-	cOptDefault		= Opt2Cell(optDefault);
+	cOptDefault		= opt2cell(optDefault);
 end
 
 if nargin>0
-	[nLevel,opt]	= ParseArgsOpt(varargin,nLevelDefault,cOptDefault{:});
+	[nLevel,opt]	= ParseArgs(varargin,nLevelDefault,cOptDefault{:});
 else
 	nLevel	= nLevelDefault;
 	opt		= optDefault;

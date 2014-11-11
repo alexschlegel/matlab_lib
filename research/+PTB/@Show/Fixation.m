@@ -27,7 +27,7 @@ persistent optDefault cOptDefault;
 						'size'		, []			, ...
 						'color'		, 'fixation'	  ...
 						);
-		cOptDefault	= Opt2Cell(optDefault);
+		cOptDefault	= opt2cell(optDefault);
 	end
 	
 	if nargin<2
@@ -42,7 +42,7 @@ persistent optDefault cOptDefault;
 		rect	= Screen('Rect',h);
 		sz		= rect(3:4) - rect(1:2); 
 	else
-		opt	= ParseArgsOpt(varargin,cOptDefault{:});
+		opt	= ParseArgs(varargin,cOptDefault{:});
 		
 		if isempty(opt.size)
 			opt.size	= PTBIFO.show.fixation.size;

@@ -22,11 +22,11 @@ function strPath = PathRemoveSuffix(strPath,strSuffix,varargin)
 % 
 % Updated:	2011-11-12
 % Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[strExtForce,opt]	= ParseArgsOpt(varargin,[],...
+[strExtForce,opt]	= ParseArgs(varargin,[],...
 						'maxext'	, false	, ...
 						'favor'		, []	  ...
 						);
-cOpt	= Opt2Cell(opt);
+cOpt	= opt2cell(opt);
 					
 [strDir,strFile,strExt]	= PathSplit(strPath,cOpt{:});
 if ~isempty(strExtForce)

@@ -36,7 +36,7 @@ function stat = MVPAClassifyExtraStats(res,varargin)
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgsOpt(varargin,...
+opt	= ParseArgs(varargin,...
 		'confusion_model'	, {}	, ...
 		'permutations'		, 10000	, ...
 		'silent'			, false	  ...
@@ -231,9 +231,10 @@ function stat = ConfusionTest(conf,model,strLevel)
 			end
 				
 			stat.group.r	= cellfun(@(x) mean(x,nd),statcell.r,'uni',false);
-			stat.group.se	= cellfun(@(x) fstderr(x,[],nd),statcell.r,'uni',false);
+			stat.group.z	= cellfun(@(x) mean(x,nd),statcell.z,'uni',false);
+			stat.group.se	= cellfun(@(x) fstderr(x,[],nd),statcell.z,'uni',false);
 			
-			[h,p,ci,stats]	= cellfun(@(x) fttest(x,0,0.05,'right',nd),statcell.r,'uni',false);
+			[h,p,ci,stats]	= cellfun(@(x) fttest(x,0,0.05,'right',nd),statcell.z,'uni',false);
 			
 			stat.group.p	= p;
 			stat.group.t	= cellfun(@(s) s.tstat,stats,'uni',false);

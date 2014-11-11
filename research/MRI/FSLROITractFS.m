@@ -104,7 +104,7 @@ function [bSuccess,cPathROI,cName1,cName2,cPathROISingle,cNameSingle] = FSLROITr
 bSuccess												= false;
 [cPathROI,cName1,cName2,cPathROISingle,cNameSingle]	= deal([]);
 
-opt	= ParseArgsOpt(varargin,...
+opt	= ParseArgs(varargin,...
 		'name'				, []		, ...
 		'hemisphere'		, 'both'	, ...
 		'crop'				, []		, ...
@@ -243,7 +243,7 @@ nLabel					= numel(cLabel);
 	nTract	= numel(cSubjectAll);
 	nSingle	= numel(cSubjectSingleAll);
 %run probtrackx once for each subject to prepare files
-	cOpt				= [Opt2Cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'})) 'seedspace' 'diffusion' 'force' opt.forceprep];
+	cOpt				= [opt2cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'})) 'seedspace' 'diffusion' 'force' opt.forceprep];
 	[bSuccess,cNameDel]	= cellfunprogress(@(dfs,dfsl) FSLProbtrackx(dfsl,{},'dir_fs',dfs,cOpt{:}),cDirFSSubject,cDirFSLSubject,'UniformOutput',false,'label','Preparing probtrackx for each subject');
 	bSuccess			= cellfun(@notfalse,bSuccess);
 	
@@ -279,7 +279,7 @@ if opt.pair
 			bDo						= true(nTract,1);
 		end
 	
-	cOptPTX			= Opt2Cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'}));
+	cOptPTX			= opt2cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'}));
 	nThread			= conditional(opt.dotract,opt.nthread,1);
 	
 	bSuccessPair	= true(nTract,1);
@@ -335,7 +335,7 @@ if opt.single
 			bDo									= true(nSingle,1);
 		end
 	
-	cOptPTX			= Opt2Cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'}));
+	cOptPTX			= opt2cell(structsub(opt,{'wmstopmask','wm_grow','nsample','nstep','steplength','threshcurvature','lengthcorrect','usef','modeuler','rseed','silent'}));
 	nThread			= conditional(opt.dotract,opt.nthread,1);
 	
 	bSuccessSingle	= true(nSingle,1);

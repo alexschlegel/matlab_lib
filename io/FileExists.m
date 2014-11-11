@@ -46,11 +46,11 @@ if isempty(optDefault)
 						'usequick'		, false	, ...
 						'error'			, false	  ...
 						);
-	cOptDefault		= Opt2Cell(optDefault);
+	cOptDefault		= opt2cell(optDefault);
 end
 
 if numel(varargin)>0
-	[re,opt]	= ParseArgsOpt(varargin,reDefault,cOptDefault{:});
+	[re,opt]	= ParseArgs(varargin,reDefault,cOptDefault{:});
 else
 	re		= reDefault;
 	opt		= optDefault;

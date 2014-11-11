@@ -20,13 +20,9 @@ classdef SimulationData < handle
 			obj.dest = RegionData;
 			obj.wStar = [];
 		end
-		function clims = getWStarClims(obj)
-			ws = obj.wStar(:);
-			clims = [min(ws) max(ws)];
-		end
 		function figHandle = showWStarGrayscale(obj,clims)
 			if nargin < 2
-				clims = obj.getWStarClims;
+				clims = obj.getGlobalWStarClims(obj);
 			end
 			figHandle = figure;
 			colormap('gray');
@@ -48,15 +44,6 @@ classdef SimulationData < handle
 			bottomTailPct = outlierPercentage/2;
 			topTailPct = 100-bottomTailPct;
 			clims = prctile(allW(:),[bottomTailPct;topTailPct]).';
-			%display(clims);
-
-			%for i = 1:numel(data)
-			%	climsArray(i,:) = data(i).getWStarClims;
-			%end
-			%disp('climsArray');
-			%disp(climsArray);
-			%clims = [min(climsArray(:,1)) max(climsArray(:,2))];
-			%disp(clims);
 		end
 	end
 end

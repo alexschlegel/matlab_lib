@@ -22,10 +22,6 @@ classdef SimulationData < handle
 		end
 		function clims = getWStarClims(obj)
 			ws = obj.wStar(:);
-			%low = min(ws);
-			%high = max(ws);
-			%range = high - low;
-			%clims = [(low-range) (high+range)];
 			clims = [min(ws) max(ws)];
 		end
 		function figHandle = showWStarGrayscale(obj,clims)
@@ -35,6 +31,32 @@ classdef SimulationData < handle
 			figHandle = figure;
 			colormap('gray');
 			imagesc(obj.wStar,clims);
+		end
+	end
+	methods (Static)
+		function clims = getGlobalWStarClims(data,outlierPercentage)
+			if nargin < 2
+				outlierPercentage = 5;
+			end
+			if outlierPercentage < 0 || outlierPercentage > 30
+				error(sprintf('Nonsensical outlier percentage %g',...
+					outlierPercentage));
+			end
+			for i = 1:numel(data)
+				allW(i,:,:) = data(i).wStar(:,:);
+			end
+			bottomTailPct = outlierPercentage/2;
+			topTailPct = 100-bottomTailPct;
+			clims = prctile(allW(:),[bottomTailPct;topTailPct]).';
+			%display(clims);
+
+			%for i = 1:numel(data)
+			%	climsArray(i,:) = data(i).getWStarClims;
+			%end
+			%disp('climsArray');
+			%disp(climsArray);
+			%clims = [min(climsArray(:,1)) max(climsArray(:,2))];
+			%disp(clims);
 		end
 	end
 end

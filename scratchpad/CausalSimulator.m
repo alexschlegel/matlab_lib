@@ -137,8 +137,9 @@ classdef CausalSimulator < handle
 					dimsList{i},voxelFreedom,isDestBalancing);
 				dataGrid(i,:) = data;
 			end
+			clims = SimulationData.getGlobalWStarClims(dataGrid);
 			for i = 1:numel(dataGrid)
-				figGrid(i) = dataGrid(i).showWStarGrayscale;
+				figGrid(i) = dataGrid(i).showWStarGrayscale(clims);
 			end
 			figGrid = reshape(figGrid,size(dataGrid));
 			% (Can also use subplot to make a grid of plots in one figure)
@@ -216,8 +217,6 @@ classdef CausalSimulator < handle
 			sigGen = SigGen(baseParams,W,isDestBalancing);
 			voxPol = VoxelPolicy(baseParams,voxelFreedom);
 			data = CausalSimulator(sigGen,voxPol).runTest;
-			%figHandle = data.showWStarGrayscale;
-			%figHandle = SimStatic.showMatrixGrayscale(data.wStar);
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

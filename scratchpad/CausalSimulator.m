@@ -131,26 +131,28 @@ classdef CausalSimulator < handle
 			opt = ParseArgs(varargin, ...
 				'iterations'		, 1		, ...
 				'voxelFreedom'		, 1.000	, ...
-				'isDestBalancing'	, false	  ...
+				'isDestBalancing'	, false	, ...
+				'rngSeedBase'		, 0		  ...
 				);
 			dimsList = {1, 2, [1 2]};
 			for i = 1:numel(dimsList)
 				for count = 1:opt.iterations
-					rng(count-1,'twister');
+					rng(opt.rngSeedBase+count-1,'twister');
 					data = CausalSimulator.runDensityTest(...
 						dimsList{i},opt.voxelFreedom,opt.isDestBalancing);
 					for j = 1:numel(data)
-						wStar5D(i,j,:,:,count) = data(j).wStar;
+						wStar5D(:,:,i,j,count) = data(j).wStar;
 					end
 				end
 			end
-			clims = IntensityPlot.getGlobalClims(wStar5D);
-			for i = 1:size(wStar5D,1)
-				for j = 1:size(wStar5D,2)
-					wStars(:,:,:) = wStar5D(i,j,:,:,:);
-					wStarMean = mean(wStars,3);
+			wStar4D = mean(wStar5D,5);
+			sizeW4 = size(wStar4D);
+			figGrid = zeros(sizeW4(3:4));
+			clims = IntensityPlot.getGlobalClims(wStar4D);
+			for i = 1:size(wStar4D,3)
+				for j = 1:size(wStar4D,4)
 					figGrid(i,j) = IntensityPlot.showGrayscale(...
-						wStarMean,clims);
+						wStar4D(:,:,i,j),clims);
 				end
 			end
 			% (Can also use subplot to make a grid of plots in one figure)

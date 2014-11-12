@@ -20,30 +20,10 @@ classdef SimulationData < handle
 			obj.dest = RegionData;
 			obj.wStar = [];
 		end
-		function figHandle = showWStarGrayscale(obj,clims)
-			if nargin < 2
-				clims = obj.getGlobalWStarClims(obj);
-			end
-			figHandle = figure;
-			colormap('gray');
-			imagesc(obj.wStar,clims);
+		function figHandle = showWStarGrayscale(obj)
+			figHandle = IntensityPlot.showGrayscale(obj.wStar);
 		end
 	end
 	methods (Static)
-		function clims = getGlobalWStarClims(data,outlierPercentage)
-			if nargin < 2
-				outlierPercentage = 5;
-			end
-			if outlierPercentage < 0 || outlierPercentage > 30
-				error(sprintf('Nonsensical outlier percentage %g',...
-					outlierPercentage));
-			end
-			for i = 1:numel(data)
-				allW(i,:,:) = data(i).wStar(:,:);
-			end
-			bottomTailPct = outlierPercentage/2;
-			topTailPct = 100-bottomTailPct;
-			clims = prctile(allW(:),[bottomTailPct;topTailPct]).';
-		end
 	end
 end

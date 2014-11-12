@@ -127,21 +127,32 @@ classdef CausalSimulator < handle
 	end
 
 	methods (Static)
-		function runDensityExample
-			voxelFreedom = 1.000;
-			isDestBalancing = false;
+		function runDensityExample(varargin)
+			opt = ParseArgs(varargin, ...
+				'iterations'		, 1		, ...
+				'voxelFreedom'		, 1.000	, ...
+				'isDestBalancing'	, false	  ...
+				);
 			dimsList = {1, 2, [1 2]};
 			for i = 1:numel(dimsList)
-				rng('default');
-				data = CausalSimulator.runDensityTest(...
-					dimsList{i},voxelFreedom,isDestBalancing);
-				dataGrid(i,:) = data;
+				for count = 1:opt.iterations
+					rng(count-1,'twister');
+					data = CausalSimulator.runDensityTest(...
+						dimsList{i},opt.voxelFreedom,opt.isDestBalancing);
+					for j = 1:numel(data)
+						wStar5D(i,j,:,:,count) = data(j).wStar;
+					end
+				end
 			end
-			clims = SimulationData.getGlobalWStarClims(dataGrid);
-			for i = 1:numel(dataGrid)
-				figGrid(i) = dataGrid(i).showWStarGrayscale(clims);
+			clims = IntensityPlot.getGlobalClims(wStar5D);
+			for i = 1:size(wStar5D,1)
+				for j = 1:size(wStar5D,2)
+					wStars(:,:,:) = wStar5D(i,j,:,:,:);
+					wStarMean = mean(wStars,3);
+					figGrid(i,j) = IntensityPlot.showGrayscale(...
+						wStarMean,clims);
+				end
 			end
-			figGrid = reshape(figGrid,size(dataGrid));
 			% (Can also use subplot to make a grid of plots in one figure)
 			set(figGrid, 'Position', [0 0 150 100]);
 			multiplot(figGrid);  %was: multiplot(reshape(1:15,5,3)');

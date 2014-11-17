@@ -10,8 +10,8 @@ classdef IntensityPlot
 				outlierPercentage = 5;
 			end
 			if outlierPercentage < 0 || outlierPercentage > 30
-				error(sprintf('Nonsensical outlier percentage %g',...
-					outlierPercentage));
+				error('Nonsensical outlier percentage %g',...
+					outlierPercentage);
 			end
 			bottomTailPct = outlierPercentage/2;
 			topTailPct = 100-bottomTailPct;

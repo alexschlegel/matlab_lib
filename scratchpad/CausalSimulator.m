@@ -19,8 +19,11 @@ classdef CausalSimulator < handle
 			if sigGen.baseParams ~= voxelPolicy.baseParams
 				error('Arguments have incompatible baseParams.');
 			end
-			if ~strcmp(pcaPolicy,'default') && ~strcmp(pcaPolicy,'skip')
-				error('Invalid pcaPolicy %s',pcaPolicy);
+			switch pcaPolicy
+				case 'default'
+				case 'skip'
+				otherwise
+					error('Invalid pcaPolicy %s',pcaPolicy);
 			end
 			obj.baseParams = sigGen.baseParams;
 			obj.sigGen = sigGen;
@@ -63,12 +66,14 @@ classdef CausalSimulator < handle
 			obj.performRegionPCA(data.dest);
 		end
 		function performRegionPCA(obj,region)
-			if strcmp(obj.pcaPolicy,'default')
-				[region.pcaCoeff, region.pcaSigs] = pca(region.voxelSigs);
-			elseif strcmp(obj.pcaPolicy,'skip')
-				region.pcaSigs = region.funcSigs;
-			else
-				error('Unknown pcaPolicy');
+			switch obj.pcaPolicy
+				case 'default'
+					[region.pcaCoeff, region.pcaSigs] = ...
+						pca(region.voxelSigs);
+				case 'skip'
+					region.pcaSigs = region.funcSigs;
+				otherwise
+					error('Unknown pcaPolicy');
 			end
 		end
 		function performVoxelSynthesis(obj,data)
@@ -111,11 +116,11 @@ classdef CausalSimulator < handle
 			disp(class(obj));
 			obj.showParams;
 			disp(repmat('-',1,70));
-			maxDisplayRows = 10;
-			maxDisplayCols = 3;
 			fprintf(...
 				'Matrices below are clipped for readability.\n\n');
 			%{
+			maxDisplayRows = 10;
+			maxDisplayCols = 3;
 			disp(['Source funcSigs vs. source pcaSigs ' ...
 				'(with zero column as separator):']);
 			Sf = SimStatic.clipmat(data.source.funcSigs,...
@@ -139,21 +144,16 @@ classdef CausalSimulator < handle
 
 	methods (Static)
 		function runDensityExample(varargin)
-			opt = ParseArgs(varargin, ...
-				'iterations'		, 1			, ...
-				'voxelFreedom'		, 1.000		, ...
-				'isDestBalancing'	, false		, ...
-				'outlierPercentage'	, 5			, ...
-				'rngSeedBase'		, 0			, ...
-				'pcaPolicy'			, 'default'	  ...
-				);
+			[opt,optcell] = Opts.getOpts(varargin);
+			nf = opt.numFuncSigs;
 			dimsList = {1, 2, [1 2]};
+			wStar5D = zeros(nf,nf,numel(dimsList),opt.maxWOnes,...
+				opt.iterations);
 			for i = 1:numel(dimsList)
 				for count = 1:opt.iterations
 					rng(opt.rngSeedBase+count-1,'twister');
 					data = CausalSimulator.runDensityTest(...
-						dimsList{i},opt.voxelFreedom,...
-						opt.isDestBalancing,opt.pcaPolicy);
+						dimsList{i},optcell{:});
 					for j = 1:numel(data)
 						wStar5D(:,:,i,j,count) = data(j).wStar;
 					end
@@ -175,33 +175,33 @@ classdef CausalSimulator < handle
 			multiplot(figGrid);  %was: multiplot(reshape(1:15,5,3)');
 			colormap('gray');
 		end
-		function data = runDensityTest(whichDims,voxelFreedom,...
-				isDestBalancing,pcaPolicy)
-			bp = CausalBaseParams;
-			bp.sourceNoisiness = 1000;
-			bp.destNoisiness = 1000;
+		function data = runDensityTest(whichDims,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
+			bp = CausalBaseParams(optcell{:});
 			nf = bp.numFuncSigs;
+			bothDims = [1 2];
 			for i = 1:5
 				W = zeros(nf);
 				if whichDims == 1
 					W(1:i,1) = ones(i,1);
 				elseif whichDims == 2
 					W(1,1:i) = ones(1,i);
-				elseif whichDims == [1 2]
+				elseif whichDims == bothDims
 					W(1:i,1:i) = diag(ones(i,1));
 				else
 					error('Invalid dimensions.');
 				end
-				data(i) = CausalSimulator.runW(bp,W,...
-					voxelFreedom,isDestBalancing,pcaPolicy);
+				data(i) = CausalSimulator.runW(bp,W,optcell{:});
 			end
 		end
 		function runNineSourceGraphs
 			for i = 1:9
 				rng('default');
 				srcDstIndexPairs = {[i (i+1)]};
-				CausalSimulator.runSparse(srcDstIndexPairs,0.000,false,...
-					'default');
+				CausalSimulator.runSparse(srcDstIndexPairs,...
+					'voxelFreedom',0.000,...
+					'isDestBalancing',false,...
+					'pcaPolicy','default');
 			end
 		end
 		function runPolicyContrast
@@ -210,22 +210,22 @@ classdef CausalSimulator < handle
 			%srcDstIndexPairs = {[3 9],[7 10]};
 			%srcDstIndexPairs = {[3 4],[6 7],[9 10]};
 			%srcDstIndexPairs = {[1 2],[2 3],[3 4],[4 5],[5 6]};
-			for destBalancing = 0:1
+			for isDestBalancing = 0:1
 				for voxelFreedom = 0.000:1.000
 					rng('default');
 					CausalSimulator.runSparse(srcDstIndexPairs,...
-						voxelFreedom,destBalancing,'default');
+						'voxelFreedom',voxelFreedom,...
+						'isDestBalancing',isDestBalancing,...
+						'pcaPolicy','default');
 				end
 			end
 		end
-		function [data,figHandle] = runSparse(srcDstIndexPairs,...
-				voxelFreedom,isDestBalancing,pcaPolicy)
+		function [data,figHandle] = runSparse(srcDstIndexPairs,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
 			if ~iscell(srcDstIndexPairs) || ~isvector(srcDstIndexPairs)
 				error('First argument is not a cell vector.');
 			end
-			bp = CausalBaseParams;
-			bp.sourceNoisiness = 1000;
-			bp.destNoisiness = 1000;
+			bp = CausalBaseParams(optcell{:});
 			nf = bp.numFuncSigs;
 			W = zeros(nf);
 			for i = 1:numel(srcDstIndexPairs)
@@ -238,16 +238,15 @@ classdef CausalSimulator < handle
 				end
 				W(srcDst(1),srcDst(2)) = 1;
 			end
-			data = CausalSimulator.runW(bp,W,voxelFreedom,...
-				isDestBalancing,pcaPolicy);
+			data = CausalSimulator.runW(bp,W,optcell{:});
 			figHandle = data.showWStarGrayscale;
 		end
-		function data = runW(baseParams,W,voxelFreedom,isDestBalancing,...
-				pcaPolicy)
+		function data = runW(baseParams,W,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
 			baseParams.validateW(W);  % (redundant, but not harmful)
-			sigGen = SigGen(baseParams,W,isDestBalancing);
-			voxPol = VoxelPolicy(baseParams,voxelFreedom);
-			data = CausalSimulator(sigGen,voxPol,pcaPolicy).runTest;
+			gen = SigGen(baseParams,W,optcell{:});
+			voxPol = VoxelPolicy(baseParams,opt.voxelFreedom);
+			data = CausalSimulator(gen,voxPol,opt.pcaPolicy).runTest;
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

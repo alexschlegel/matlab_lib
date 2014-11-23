@@ -13,30 +13,18 @@ classdef CausalBaseParams
 		numTopComponents
 	end
 	methods
-		function obj = CausalBaseParams
-			obj = obj.defineInitialParams;
+		function obj = CausalBaseParams(varargin)
+			obj = obj.defineInitialParams(varargin{:});
 			obj.validate;
 		end
-		function obj = defineInitialParams(obj)
-			defaultNoisiness = 1.0e-6;
-			obj.sourceNoisiness = defaultNoisiness;
-			obj.destNoisiness = defaultNoisiness;
-			obj = obj.defineSizeParams;
-		end
-		function obj = defineSizeParams(obj)
-			obj = obj.defineStandardSizeParams;
-		end
-		function obj = defineStandardSizeParams(obj)
-			obj.numTimeSteps = 1000;
-			obj.numFuncSigs = 10;
-			obj.numVoxelSigs = 500;
-			obj.numTopComponents = 10;
-		end
-		function obj = defineTinySizeParams(obj)
-			obj.numTimeSteps = 10;
-			obj.numFuncSigs = 3;
-			obj.numVoxelSigs = 5;
-			obj.numTopComponents = 3;
+		function obj = defineInitialParams(obj,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
+			obj.sourceNoisiness		= opt.sourceNoisiness;
+			obj.destNoisiness		= opt.destNoisiness;
+			obj.numTimeSteps		= opt.numTimeSteps;
+			obj.numFuncSigs			= opt.numFuncSigs;
+			obj.numVoxelSigs		= opt.numVoxelSigs;
+			obj.numTopComponents	= opt.numTopComponents;
 		end
 		function b = eq(obj1,obj2)
 			b = isequal(obj1,obj2);

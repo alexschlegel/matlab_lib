@@ -21,11 +21,13 @@ classdef RecurrenceParams
 		% 0 = zero nonsourceW
 		% 1 = nonsourceW equal to W
 		% 2 = nonsourceW only, zero W
-		function obj = RecurrenceParams(baseParams,W,isDestBalancing)
+		function obj = RecurrenceParams(baseParams,W,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
 			nf = baseParams.numFuncSigs;
 			obj.baseParams = baseParams;
-			obj.recurDiagonals = repmat({ones(1,nf)},3,1);
-			beta = isDestBalancing / 2;
+			obj.recurDiagonals = repmat(...
+				{opt.recurStrength * ones(1,nf)},3,1);
+			beta = opt.isDestBalancing / 2;
 			alpha = 1 - beta;
 			obj.W = alpha * W;
 			obj.nonsourceW = beta * W;

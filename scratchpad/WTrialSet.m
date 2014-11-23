@@ -23,7 +23,7 @@ classdef WTrialSet < handle
 			obj.wStarSet = zeros(numTrials,numFeatures);
 			for i = 1:numTrials
 				voxPol = VoxelPolicy(baseParams,voxelFreedom);
-				obj.sims{i} = CausalSimulator(sigGen,voxPol);
+				obj.sims{i} = CausalSimulator(sigGen,voxPol,'default');
 				obj.dataSet{i} = obj.sims{i}.performAll;
 				wStar = obj.dataSet{i}.wStar;
 				obj.wStarSet(i,:) = reshape(wStar,1,numFeatures);

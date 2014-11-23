@@ -12,12 +12,13 @@ classdef SigGen < handle
 		recurrenceParams
 	end
 	methods
-		function obj = SigGen(baseParams,W,isDestBalancing)
+		function obj = SigGen(baseParams,W,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
 			baseParams.validateW(W);
 			obj.baseParams = baseParams;
-			obj.isDestBalancing = isDestBalancing;
+			obj.isDestBalancing = opt.isDestBalancing;
 			obj.recurrenceParams = RecurrenceParams(baseParams,W,...
-				isDestBalancing);
+				optcell{:});
 			obj.W = obj.recurrenceParams.W;
 		end
 		function [src,dst] = genSigs(obj)

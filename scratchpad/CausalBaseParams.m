@@ -18,7 +18,7 @@ classdef CausalBaseParams
 			obj.validate;
 		end
 		function obj = defineInitialParams(obj,varargin)
-			[opt,optcell] = Opts.getOpts(varargin);
+			[opt,optcell] = Opts.getOpts(varargin); %#ok
 			obj.sourceNoisiness		= opt.sourceNoisiness;
 			obj.destNoisiness		= opt.destNoisiness;
 			obj.numTimeSteps		= opt.numTimeSteps;
@@ -42,7 +42,7 @@ classdef CausalBaseParams
 		function validateW(obj,W)
 			obj.validate;
 			nf = obj.numFuncSigs;
-			if size(W) ~= [nf nf]
+			if any(size(W) ~= [nf nf])
 				error('W size is incompatible with CausalBaseParams.');
 			end
 		end

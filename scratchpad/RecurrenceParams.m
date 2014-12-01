@@ -22,7 +22,7 @@ classdef RecurrenceParams
 		% 1 = nonsourceW equal to W
 		% 2 = nonsourceW only, zero W
 		function obj = RecurrenceParams(baseParams,W,varargin)
-			[opt,optcell] = Opts.getOpts(varargin);
+			[opt,optcell] = Opts.getOpts(varargin); %#ok
 			nf = baseParams.numFuncSigs;
 			obj.baseParams = baseParams;
 			obj.recurDiagonals = repmat(...

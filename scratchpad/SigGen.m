@@ -30,7 +30,7 @@ classdef SigGen < handle
 			nf = obj.baseParams.numFuncSigs;
 			src = zeros(nt,nf);
 			dst = zeros(nt,nf);
-			oth = zeros(nt,nf);
+			%oth = zeros(nt,nf);
 			prevSrc = zeros(nf,1);
 			prevDst = zeros(nf,1);
 			prevOth = zeros(nf,1);

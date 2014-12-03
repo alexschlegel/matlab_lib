@@ -3,6 +3,8 @@
 classdef CausalBaseParams
 	% CausalBaseParams:  Base parameters for causal flow
 	%   TODO: Add detailed comments
+	%
+	%  TODO: This class is obsolescent
 
 	properties
 		sourceNoisiness
@@ -19,8 +21,8 @@ classdef CausalBaseParams
 		end
 		function obj = defineInitialParams(obj,varargin)
 			[opt,optcell] = Opts.getOpts(varargin); %#ok
-			obj.sourceNoisiness		= opt.sourceNoisiness;
-			obj.destNoisiness		= opt.destNoisiness;
+			obj.sourceNoisiness		= opt.noisinessForSource;
+			obj.destNoisiness		= opt.noisinessForDest;
 			obj.numTimeSteps		= opt.numTimeSteps;
 			obj.numFuncSigs			= opt.numFuncSigs;
 			obj.numVoxelSigs		= opt.numVoxelSigs;

@@ -49,9 +49,9 @@ classdef RecurrenceParams
 			switch policySuffix
 				case ''
 					isRelative = ~strcmp(policyStem,'det');
-				case ':@'
+				case ':abs'
 					isRelative = false;
-				case '::'
+				case ':rel'
 					isRelative = true;
 				otherwise
 					error('Invalid auxWPolicy suffix %s',policySuffix);

@@ -37,6 +37,7 @@ function [bSuccess,cPathOut] = FSLFunc2Standard3(cPathFunc,varargin)
 			);
 	
 	[cPathFunc,cPathOut,bNoCell,b]	= ForceCell(cPathFunc,opt.output);
+	[cPathFunc,cPathOut]			= FillSingletonArrays(cPathFunc,cPathOut);
 	cPathOut						= cellfun(@(fi,fo) conditional(~isempty(fo),fo,PathAddSuffix(fi,'-standard-3mm','favor','nii.gz')),cPathFunc,cPathOut,'uni',false);
 
 %which data do we need to process?

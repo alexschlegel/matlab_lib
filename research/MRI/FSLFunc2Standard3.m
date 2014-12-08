@@ -37,7 +37,7 @@ function [bSuccess,cPathOut] = FSLFunc2Standard3(cPathFunc,varargin)
 			);
 	
 	[cPathFunc,cPathOut,bNoCell,b]	= ForceCell(cPathFunc,opt.output);
-	cPathOut						= cellfun(@(fi,fo) conditional(~isempty(fo),fo,PathAddSuffix(fi,'-standard-3mm','favor','nii.gz')),cPathIn,cPathOut,'uni',false);
+	cPathOut						= cellfun(@(fi,fo) conditional(~isempty(fo),fo,PathAddSuffix(fi,'-standard-3mm','favor','nii.gz')),cPathFunc,cPathOut,'uni',false);
 
 %which data do we need to process?
 	if opt.force

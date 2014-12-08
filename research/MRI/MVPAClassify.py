@@ -993,7 +993,7 @@ def get_cross_validator(param, clf, partitioner, indent=0):
 		'enable_ca': ['stats'],
 	}
 	
-	#the NestedClassifier's traning stats tell us what clfs were used
+	#the NestedClassifier's training stats tell us what clfs were used
 	if param['nested_clf']:
 		cv_kwargs['enable_ca'].append('training_stats')
 	

@@ -22,10 +22,14 @@ function [bSuccess,cPathOut] = FSLFunc2Standard3(cPathFunc,varargin)
 %				  successfully
 %	cPathOut	- the output file path/cell of output paths
 % 
-% Updated: 2014-12-08
+% Updated: 2014-12-09
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+if isempty(cPathFunc)
+	[bSuccess,cPathOut]	= deal([]);
+	return;
+end
 
 %parse the inputs
 	opt	= ParseArgsOpt(varargin,...

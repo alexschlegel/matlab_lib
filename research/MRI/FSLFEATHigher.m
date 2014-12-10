@@ -1,36 +1,38 @@
-function [bSuccess,cDirOut] = FSLFEATHigher(cDirFEAT,d,varargin)
+function [bSuccess,cDirOut] = FSLFEATHigher(cPathIn,d,varargin)
 % FSLFEATHigher
 % 
 % Description:	perform a higher level analysis of functional data using FSL's
 %				feat
 % 
-% Syntax:	[bSuccess,cDirOut] = FSLFEATHigher(cDirFEAT,d,<options>)
+% Syntax:	[bSuccess,cDirOut] = FSLFEATHigher(cPathIn,d,<options>)
 % 
 % In:
-%	cDirFEAT	- a cell of paths to lower-level FEAT directories, or a cell of
-%				  cells of paths. feat is called for each cell of lower-level
-%				  FEAT directories.
-%	d			- an nFEATDir x nEV design matrix, or a cell of ??? x nEV design
-%				  matrices to use a different one for each set of lower-level
-%				  FEAT directories
+%	cPathIn		- either a cell of paths to lower-level FEAT directories or a
+%				  cell of paths to COPE images from FEAT directories, or a
+%				  cell of cells of such paths. feat is called for each cell of
+%				  lower-level FEAT directories / COPE files.
+%	d			- an nInput x nEV design matrix, or a cell of design matrices to
+%				  use a different one for each set of inputs
 %	<options>:
-%		output:			(<'gfeat' in base path of lower-level FEAT directories>)
-%						the path to the folder in which to place information
-%						about the preprocessing, or a cell of folder names
+%		output:			(<'gfeat' in base path of inputs>) the path to the
+%						directory in which to store outputs, or a cell of paths
 %		use_cope:		(<all>) a logical array indicating which COPEs from the
-%						lower-level analyses to analyze
-%		ev_name			(<auto>) a nEV-length cell of names for each
-%						explanatory variable in the design matrix
+%						lower-level analyses to analyze, or a cell of arrays
+%						(only applies to lower-level FEAT directory inputs)
+%		ev_name			(<auto>) an nEV-length cell of names for each
+%						explanatory variable in the design matrix, or a cell of
+%						cells to use a different set of names for each design
+%						matrix
 %		tcontrast		(eye(nEV)) an nTContrast x nEV array of t-contrast
-%						definitions.  FEAT seems to crash if no t-contrasts are
-%						defined.
+%						definitions, or a cell of t-contrasts. FEAT seems to
+%						crash if no t-contrasts are defined.
 %		tcontrast_name	(<auto>) an nTContrast-length cell of names for each
 %						t-contrast, or a cell of nTContrast-length cells to use
 %						a different set of names for each analysis
 %		ftest:			(ones(1,nTContrast)) an nFTest x nTContrast array of
-%						f-test definitions
+%						f-test definitions, or a cell of f-tests
 %		group:			(<ones>) an nData-length array specifying group
-%						membership, or a cell of arrays
+%						membership, or a cell of group membership arrays
 %		model:			(2) the model type to use.  one of the following:
 %							0:	mixed effects, simple ordinary least squares
 %							1:	mixed effects, FLAME 1+2
@@ -52,96 +54,94 @@ function [bSuccess,cDirOut] = FSLFEATHigher(cDirFEAT,d,varargin)
 %				  analyzed
 %	cDirOut		- a cell of output FEAT directories
 % 
-% Updated: 2013-10-17
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2014-12-10
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgs(varargin,...
-		'output'			, []		, ...
-		'use_cope'			, []		, ...
-		'ev_name'			, []		, ...
-		'tcontrast'			, []		, ...
-		'tcontrast_name'	, []		, ...
-		'ftest'				, []		, ...
-		'group'				, []		, ...
-		'model'				, 2			, ...
-		'thresh_type'		, 'cluster'	, ...
-		'p_thresh'			, 0.05		, ...
-		'z_thresh'			, 2.3		, ...
-		'reg_standard'		, true		, ...
-		'nthread'			, 1			, ...
-		'force'				, true		, ...
-		'silent'			, false		  ...
-		);
 
-opt.thresh_type	= CheckInput(opt.thresh_type,'thresh_type',{'none','uncorrected','voxel','cluster'});
-threshType		= switch2(opt.thresh_type,...
-					'none'			, 0	, ...
-					'uncorrected'	, 1	, ...
-					'voxel'			, 2	, ...
-					'cluster'		, 3	  ...
-					);
+%process the inputs
+	opt	= ParseArgs(varargin,...
+			'output'			, []		, ...
+			'use_cope'			, []		, ...
+			'ev_name'			, {}		, ...
+			'tcontrast'			, []		, ...
+			'tcontrast_name'	, {}		, ...
+			'ftest'				, []		, ...
+			'group'				, []		, ...
+			'model'				, 2			, ...
+			'thresh_type'		, 'cluster'	, ...
+			'p_thresh'			, 0.05		, ...
+			'z_thresh'			, 2.3		, ...
+			'reg_standard'		, true		, ...
+			'nthread'			, 1			, ...
+			'force'				, true		, ...
+			'silent'			, false		  ...
+			);
+	
+	opt.thresh_type	= CheckInput(opt.thresh_type,'thresh_type',{'none','uncorrected','voxel','cluster'});
+	threshType		= switch2(opt.thresh_type,...
+						'none'			, 0	, ...
+						'uncorrected'	, 1	, ...
+						'voxel'			, 2	, ...
+						'cluster'		, 3	  ...
+						);
+	
+	%cellify and fill
+		cPathInOrig										= cPathIn;
+		[cPathIn,cEVName,cTContrastName]				= ForceCell(cPathIn,opt.ev_name,opt.tcontrast_name,'level',2);
+		[d,cDirOut,cUseCOPE,cTContrast,cFTest,cGroup]	= ForceCell(d,opt.output,opt.use_cope,opt.tcontrast,opt.ftest,opt.group);
+		
+		bNoCell	= ~isequal(cPathInOrig,cPathIn);
+		
+		[cPathIn,cEVName,cTContrastName,d,cDirOut,cUseCOPE,cTContrast,cFTest,cGroup]	= FillSingletonArrays(cPathIn,cEVName,cTContrastName,d,cDirOut,cUseCOPE,cTContrast,cFTest,cGroup);
+		
+		bNoCell	= bNoCell && numel(cPathIn)==1;
+	%fill in defaults
+		[nInput,nEV]	= cellfun(@size,d,'uni',false);
+		
+		cDirOut	= cellfun(@(p,d) unless(d,DirAppend(PathGetBase(p),'gfeat')),cPathIn,cDirOut,'uni',false);
+		
+		cEVName			= cellfun(@(evn,nev) unless(evn,arrayfun(@(k) sprintf('ev_%d',k),(1:nev)','uni',false)),cEVName,nEV,'uni',false);
+		cTContrast		= cellfun(@(tc,nev) unless(tc,eye(nev)),cTContrast,nEV,'uni',false);
+		cTContrastName	= cellfun(@(tcn,tc) unless(tcn,arrayfun(@(k) sprintf('tcontrast_%d',k),(1:size(tc,1))','uni',false)),cTContrastName,cTContrast,'uni',false);
+		cFTest			= cellfun(@(ft,tc) unless(ft,ones(1,size(tc,1))),cFTest,cTContrast,'uni',false);
+		cGroup			= cellfun(@(g,ni) unless(g,ones(ni,1)),cGroup,nInput,'uni',false);
 
-%cellify
-	cdfOld							= cDirFEAT;
-	[cDirFEAT,opt.tcontrast_name]	= ForceCell(cDirFEAT,opt.tcontrast_name,'level',2);
-	
-	bNoCell	= ~isequal(cdfOld,cDirFEAT);
-	
-	[d,opt.group]	= ForceCell(d,opt.group); 
-
-if ~isempty(d)   
-	[dummy,nEV]	= size(d{1}); % nEV will be the same for all design matrices
-else
-    error('Please specifiy a design matrix');
-end
-
-%fill in defaults
-	if isempty(opt.ev_name)
-		opt.ev_name	= arrayfun(@(k) ['ev_' num2str(k)],(1:nEV)','UniformOutput',false);
-	end
-	
-	if isempty(opt.tcontrast)
-		opt.tcontrast	= eye(nEV);
-	end
-	nTContrast	= size(opt.tcontrast,1);
-	
-	if isempty(opt.ftest)
-		opt.ftest	= ones(1,nTContrast);
-	end
-	nFTest	= size(opt.ftest,1);
-	
-	if isempty(opt.output)
-		cDirOut	= cellfun(@(c) DirAppend(PathGetBase(c),'gfeat'),cDirFEAT,'UniformOutput',false);
-	else
-		cDirOut	= ForceCell(opt.output);
-	end
-	
-	[cDirFEAT,cDirOut,d,opt.group,opt.tcontrast_name]	= FillSingletonArrays(cDirFEAT,cDirOut,d,opt.group,opt.tcontrast_name);
-	
-	cTContrastNameDefault	= arrayfun(@(k) ['tcontrast_' num2str(k)],(1:nTContrast)','UniformOutput',false);
-	opt.tcontrast_name		= cellfun(@(c) conditional(isequal(c,{[]}),cTContrastNameDefault,c),opt.tcontrast_name,'UniformOutput',false);
-	
-	opt.group	= cellfun(@(g,d) unless(g,ones(numel(d),1)),opt.group,cDirFEAT,'UniformOutput',false);
-	
-	bNoCell	= bNoCell && numel(cDirFEAT)==1;
 %get the template
 	strPathFEATTemplate	= PathAddSuffix(mfilename('fullpath'),'','template');
 	featTemplate		= ReadTemplate(strPathFEATTemplate,'subtemplate',true);
 %get the files to analyze
 	if ~opt.force
-		bProcess	= ~cellfun(@(x,d) FSLCompareDesign(x,d,opt.tcontrast,opt.ftest),cDirOut,d);
+		bProcess	= ~cellfun(@FSLCompareDesign,cDirOut,d,cTContrast,cFTest);
 	else
 		bProcess	= true(size(cDirOut));
 	end
 %analyze each
-	bSuccess	= true(size(cDirOut));
-	mtO			= MultiTask(@AnalyzeOne,{cDirFEAT(bProcess),d(bProcess),opt.group(bProcess),opt.tcontrast_name(bProcess),cDirOut(bProcess)},'uniformoutput',true,'description','Higher Level FEAT Analysis','nthread',opt.nthread,'silent',opt.silent);
-	switch class(mtO)
-		case 'cell'
-			bSuccess(bProcess)	= cellfun(@notfalse,mtO);
-		otherwise
-			bSuccess(bProcess)	= mtO;
+	if any(bProcess(:))
+		bSuccess	= true(size(cDirOut));
+		cInput		=	{
+							cPathIn(bProcess)
+							d(bProcess)
+							cUseCOPE(bProcess)
+							cEVName(bProcess)
+							cTContrast(bProcess)
+							cTContrastName(bProcess)
+							cFTest(bProcess)
+							cGroup(bProcess)
+							cDirOut(bProcess)
+						};
+		res			= MultiTask(@AnalyzeOne,cInput,
+						'description'	, 'Higher level FEAT analysis'	, ...
+						'uniformoutput'	, true							, ...
+						'nthread'		, opt.nthread					, ...
+						'silent'		, opt.silent					  ...
+						);
+		switch class(res)
+			case 'cell'
+				bSuccess(bProcess)	= cellfun(@notfalse,res);
+			otherwise
+				bSuccess(bProcess)	= res;
+		end
 	end
 %uncellify
 	if bNoCell
@@ -149,168 +149,201 @@ end
 	end
 
 %------------------------------------------------------------------------------%
-function b = AnalyzeOne(cDirFEAT,d,grp,cTContrastName,strDirOut)
+function b = AnalyzeOne(cPathIn,d,bUseCOPE,cEVName,tContrast,cTContrastName,fTest,grp,strDirOut)
 	[nData,nEV]	= size(d);
 	
+	b	= false;
+	
 	%make sure we got files
-		b	= nData>0;
-		if ~b
+		if ~nData>0
 			return;
 		end
 	%make sure strDirOut exists
-		b	= CreateDirPath(strDirOut);
-		if ~b
+		if ~CreateDirPath(strDirOut)
 			return;
 		end
 	%temporary directory so we're not left with a bunch of crap
 		strDirTemp	= GetTempDir;
+	
+	%are these FEAT directories or COPE files?
+		bFEATDir	= all(cellfun(@isdir,cPathIn));
+		inputType	= conditional(bFEATDir,1,2);
 	%fill the cope template
-		if ~isempty(opt.use_cope)
-			bUseCope	= reshape(opt.use_cope,[],1);
-		else
-			bUseCope	= true(numel(FSLPathCOPE(cDirFEAT{1})),1);
-		end
-		nCope	= numel(bUseCope);
-		
-		%fill the use_cope template
-			cCope	= cell(nCope,1);
-			for kC=1:nCope
-				sCope		=	struct(...
-									'n_cope'	, kC					, ...
-									'use'		, double(bUseCope(kC))	  ...
-									);
-				cCope{kC}	= StringFillTemplate(featTemplate('use_cope'),sCope);
+		if bFEATDir
+			if isempty(bUseCope)
+				nCOPE		= numel(FSLPathCOPE(cPathIn{1}));
+				bUseCOPE	= true(nCope,1);
+			else
+				bUseCOPE	= reshape(bUseCope,[],1);
 			end
+			nCOPE	= numel(bUseCOPE);
 			
-			strUseCope	= join(cCope,10);
-		
-		sCope	= struct(...
-					'n_cope'	, nCope			, ...
-					'use_cope'	, strUseCope	  ...
-					);
-		strCope	= StringFillTemplate(featTemplate('cope'),sCope);
-	%fill the data_path template
-		cDataPath	= cell(nData,1);
-		for kD=1:nData
-			sData			= struct(...
-									'n_path'	, kD			, ...
-									'path'		, cDirFEAT{kD}	  ...
+			%fill the use_cope template
+				cUseCOPETemplate	= cell(nCOPE,1);
+				for kC=1:nCOPE
+					sCOPE	=	struct(...
+									'n_cope'	, kC					, ...
+									'use'		, double(bUseCOPE(kC))	  ...
 									);
-			cDataPath{kD}	= StringFillTemplate(featTemplate('data_path'),sData);
+					
+					cUseCOPETemplate{kC}	= StringFillTemplate(featTemplate('use_cope'),sCOPE);
+				end
+				
+				strUseCOPE	= join(cUseCOPETemplate,10);
+			
+			sCOPE	= struct(...
+						'n_cope'	, nCOPE			, ...
+						'use_cope'	, strUseCOPE	  ...
+						);
+		else
+			sCOPE	= struct(...
+						'n_cope'	, 0		, ...
+						'use_cope'	, ''	  ...
+						);
 		end
 		
-		strDataPath	= join(cDataPath,10);
+		strCOPE	= StringFillTemplate(featTemplate('cope'),sCOPE);
+	%fill the data_path template
+		cDataPathTemplate	= cell(nData,1);
+		for kD=1:nData
+			sData	= struct(...
+							'k_path'	, kD			, ...
+							'path'		, cPathIn{kD}	  ...
+							);
+			
+			cDataPathTemplate{kD}	= StringFillTemplate(featTemplate('data_path'),sData);
+		end
+		
+		strDataPath	= join(cDataPathTemplate,10);
 	%fill the ev template
-		cEV	= cell(nEV,1);
+		cEVTemplate	= cell(nEV,1);
 		
 		for kEV=1:nEV
 			%fill the ev_orthogonalise template
-				cEVOrtho	= cell(nEV+1,1);
+				cEVOrthoTemplate	= cell(nEV+1,1);
 				
 				for kEVO=1:nEV+1
-					sEVOrtho		=	struct(...
-											'n_ev'		, kEV		, ...
-											'n_other'	, kEVO-1	  ...
-											);
-					cEVOrtho{kEVO}	= StringFillTemplate(featTemplate('ev_orthogonalise'),sEVOrtho);
+					sEVOrtho	=	struct(...
+										'n_ev'		, kEV		, ...
+										'n_other'	, kEVO-1	  ...
+										);
+					
+					cEVOrthoTemplate{kEVO}	= StringFillTemplate(featTemplate('ev_orthogonalise'),sEVOrtho);
 				end
 				
-				strEVOrtho	= join(cEVOrtho,10);
+				strEVOrtho	= join(cEVOrthoTemplate,10);
 			%fill the ev_value template
-				cEVValue	= cell(nData,1);
+				cEVValueTemplate	= cell(nData,1);
 				
 				for kD=1:nData
-					sEVValue		= struct(...
-										'n_ev'		, kEV		, ...
-										'n_input'	, kD		, ...
-										'value'		, d(kD,kEV)	  ...
-										);
-					cEVValue{kD}	= StringFillTemplate(featTemplate('ev_value'),sEVValue);
+					sEVValue	= struct(...
+									'n_ev'		, kEV		, ...
+									'n_input'	, kD		, ...
+									'value'		, d(kD,kEV)	  ...
+									);
+					
+					cEVValueTemplate{kD}	= StringFillTemplate(featTemplate('ev_value'),sEVValue);
 				end
 				
-				strEVValue	= join(cEVValue,10);
+				strEVValue	= join(cEVValueTemplate,10);
 			
-			sEV			= 	struct(...
-								'n'						, kEV					, ...
-								'name'					, opt.ev_name{kEV}		, ...
-								'ev_orthogonalise'		, strEVOrtho			, ...
-								'ev_value'				, strEVValue			  ...
-								);
-			cEV{kEV}	= StringFillTemplate(featTemplate('ev'),sEV);
+			sEV	= 	struct(...
+						'n'						, kEV				, ...
+						'name'					, cEVName{kEV}		, ...
+						'ev_orthogonalise'		, strEVOrtho		, ...
+						'ev_value'				, strEVValue		  ...
+						);
+			
+			cEVTemplate{kEV}	= StringFillTemplate(featTemplate('ev'),sEV);
 		end
 		
-		strEV	= join(cEV,10);
+		strEV	= join(cEVTemplate,10);
 	%fill the group template
-		cGroup	= cell(nData,1);
+		cGroupTemplate	= cell(nData,1);
 		
 		for kD=1:nData
-			sGroup		= struct(...
-							'n_input'	, kD		, ...
-							'n_group'	, grp(kD)	  ...
-							);
-			cGroup{kD}	= StringFillTemplate(featTemplate('group'),sGroup);
+			sGroup	= struct(...
+						'n_input'	, kD		, ...
+						'n_group'	, grp(kD)	  ...
+						);
+			
+			cGroupTemplate{kD}	= StringFillTemplate(featTemplate('group'),sGroup);
 		end
 		
-		strGroup	= join(cGroup,10);
+		strGroup	= join(cGroupTemplate,10);
 	%fill the contrast template
 		%fill the t contrast template
-			cTContrast	= cell(nTContrast,1);
+			nTContrast			= size(tContrast,1);
+			cTContrastTemplate	= cell(nTContrast,1);
 			
 			for kT=1:nTContrast
 				%fill the contrast vector template
-					cTContrastVector	= cell(nEV,1);
+					cTContrastVectorTemplate	= cell(nEV,1);
 					
 					for kTE=1:nEV
-						sContrastVector			= struct(...
-													'n_contrast'	, kT						, ...
-													'n_element'		, kTE						, ...
-													'value'			, opt.tcontrast(kT,kTE)	  ...
-													);
-						cTContrastVector{kTE}	= StringFillTemplate(featTemplate('t_contrast_vector'),sContrastVector);
+						sContrastVector	= struct(...
+											'n_contrast'	, kT				, ...
+											'n_element'		, kTE				, ...
+											'value'			, tContrast(kT,kTE)	  ...
+											);
+						
+						cTContrastVectorTemplate{kTE}	= StringFillTemplate(featTemplate('t_contrast_vector'),sContrastVector);
 					end
 					
-					strTContrastVector	= join(cTContrastVector,10);
+					strTContrastVector	= join(cTContrastVectorTemplate,10);
 				
-				sTContrast		=	struct(...
-										'n'					, kT					, ...
-										'title'				, cTContrastName{kT}	, ...
-										't_contrast_vector'	, strTContrastVector	  ...
-										);
-				cTContrast{kT}	= StringFillTemplate(featTemplate('t_contrast'),sTContrast);
+				sTContrast	=	struct(...
+									'n'					, kT					, ...
+									'title'				, cTContrastName{kT}	, ...
+									't_contrast_vector'	, strTContrastVector	  ...
+									);
+				
+				cTContrastTemplate{kT}	= StringFillTemplate(featTemplate('t_contrast'),sTContrast);
 			end
 			
-			strTContrast	= join(cTContrast,10);
+			strTContrast	= join(cTContrastTemplate,10);
 		%fill the f-test template
 			%fill the f-test vector templates
-				cFTestVector	= {};
+				nFTest					= size(fTest,1);
+				cFTestVectorTemplate	= cell(nFTest*nTContrast,1);
+				
+				kFT	= 0;
 				for kF=1:nFTest
-					for kFT=1:nTContrast
-						sFTestVector		= struct(...
-												'n_test'	, kF				, ...
-												'n_element'	, kFT				, ...
-												'value'		, opt.ftest(kF,kFT)	  ...
-												);
-						cFTestVector{end+1}	= StringFillTemplate(featTemplate('f_test_vector'),sFTestVector);
+					for kT=1:nTContrast
+						kFT	= kFT + 1;
+						
+						sFTestVector	= struct(...
+											'n_test'	, kF			, ...
+											'n_element'	, kT			, ...
+											'value'		, fTest(kF,kT)	  ...
+											);
+						
+						cFTestVectorTemplate{kFT}	= StringFillTemplate(featTemplate('f_test_vector'),sFTestVector);
 					end
 				end
 				
-				strFTestVector	= join(cFTestVector,10);
+				strFTestVector	= join(cFTestVectorTemplate,10);
 			
 			sFTest		= struct(...
 							'f_test_vector'	, strFTestVector	  ...
 							);
 			strFTest	= StringFillTemplate(featTemplate('f_test'),sFTest);
 		%fill the contrast mask template
-			cContrastMask	= {};
-			nContrastMask	= nTContrast + nFTest;
+			nContrastMask			= nTContrast + nFTest;
+			cContrastMaskTemplate	= cell(nContrastMask.^2 - nContrastMask);
+			
+			kC	= 0;
 			for kC1=1:nContrastMask
 				for kC2=1:nContrastMask
 					if kC1~=kC2
-						sContrastMask			= struct(...
-													'n1'	, kC1	, ...
-													'n2'	, kC2	  ...
-													);
-						cContrastMask{end+1}	= StringFillTemplate(featTemplate('contrast_mask'),sContrastMask);
+						kC	= kC + 1;
+						
+						sContrastMask	= struct(...
+											'n1'	, kC1	, ...
+											'n2'	, kC2	  ...
+											);
+						
+						cContrastMaskTemplate{kC}	= StringFillTemplate(featTemplate('contrast_mask'),sContrastMask);
 					end
 				end
 			end
@@ -327,6 +360,7 @@ function b = AnalyzeOne(cDirFEAT,d,grp,cTContrastName,strDirOut)
 		sMain		= struct(...
 						'output_dir'	, strDirTemp				, ...
 						'n_input'		, nData						, ...
+						'input_type'	, inputType					, ...
 						'model'			, opt.model					, ...
 						'num_ev'		, nEV						, ...
 						'num_tcontrast'	, nTContrast				, ...
@@ -335,7 +369,7 @@ function b = AnalyzeOne(cDirFEAT,d,grp,cTContrastName,strDirOut)
 						'p_thresh'		, opt.p_thresh				, ...
 						'z_thresh'		, opt.z_thresh				, ...
 						'reg_standard'	, double(opt.reg_standard)	, ...
-						'cope'			, strCope					, ...
+						'cope'			, strCOPE					, ...
 						'data_path'		, strDataPath				, ...
 						'ev'			, strEV						, ...
 						'group'			, strGroup					, ...

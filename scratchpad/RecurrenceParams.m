@@ -44,6 +44,7 @@ classdef RecurrenceParams
 		end
 		function obj = genAuxW(obj,varargin)
 			[opt,optcell] = Opts.getOpts(varargin); %#ok
+			% TODO: Use split() here instead of regexprep:
 			policyStem = regexprep(opt.auxWPolicy,':.*$','');
 			policySuffix = regexprep(opt.auxWPolicy,'^[^:]*','');
 			switch policySuffix
@@ -54,28 +55,45 @@ classdef RecurrenceParams
 				case ':rel'
 					isRelative = true;
 				otherwise
-					error('Invalid auxWPolicy suffix %s',policySuffix);
+					error('Invalid auxWPolicy suffix "%s".',policySuffix);
 			end
-			auxW = randn(size(obj.W));
+			randAuxW = randn(size(obj.W));
 			switch policyStem
+				case 'not'
+					obj.nonsourceW = ...
+						RecurrenceParams.generateComplementaryAuxW(...
+							opt.auxWPolicy,opt.auxWWeight,obj.W);
 				case 'row'
 					obj.nonsourceW = ...
 						RecurrenceParams.normalizeAuxWByRowOrCol(...
-							auxW,2,opt.auxWWeight,isRelative,obj.W);
+							randAuxW,2,opt.auxWWeight,isRelative,obj.W);
 				case 'col'
 					obj.nonsourceW = ...
 						RecurrenceParams.normalizeAuxWByRowOrCol(...
-							auxW,1,opt.auxWWeight,isRelative,obj.W);
+							randAuxW,1,opt.auxWWeight,isRelative,obj.W);
 				case 'det'
 					obj.nonsourceW = ...
 						RecurrenceParams.normalizeAuxWByDet(...
-							auxW,opt.auxWWeight,isRelative,obj.W);
+							randAuxW,opt.auxWWeight,isRelative,obj.W);
 				otherwise
-					error('Invalid auxWPolicy stem %s',policyStem);
+					error('Invalid auxWPolicy stem "%s".',policyStem);
 			end
 		end
 	end
 	methods (Static)
+		function auxW = generateComplementaryAuxW(auxWPolicy,auxWWeight,W)
+			if length(split(auxWPolicy,':')) > 1
+				error('Invalid auxWPolicy "%s".',auxWPolicy);
+			end
+			if any(W < 0)
+				error('For "not" policy, W cannot have negative elements.');
+			end
+			if any(W > auxWWeight)
+				error('For "not" policy, W cannot have %s %g.',...
+					'elements greater than auxWWeight',auxWWeight);
+			end
+			auxW = auxWWeight - W;
+		end
 		function auxW = normalizeAuxWByDet(auxW,auxWWeight,isRelative,W)
 			auxDet = det(auxW);
 			if abs(auxDet) < 1e-6

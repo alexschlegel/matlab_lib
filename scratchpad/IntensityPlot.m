@@ -21,6 +21,9 @@ classdef IntensityPlot
 			if nargin < 2
 				clims = IntensityPlot.getGlobalClims(M);
 			end
+			if clims(1) >= clims(2)
+				clims(2) = clims(1) + 1e-6*(abs(clims(1)) + 1);
+			end
 			figHandle = figure;
 			colormap('gray');
 			imagesc(M,clims);

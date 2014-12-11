@@ -147,29 +147,52 @@ classdef CausalSimulator < handle
 			[opt,optcell] = Opts.getOpts(varargin);
 			nf = opt.numFuncSigs;
 			dimsList = {1, 2, [1 2]};
-			wStar5D = zeros(nf,nf,numel(dimsList),opt.maxWOnes,...
-				opt.iterations);
-			for i = 1:numel(dimsList)
+			gridSize = [numel(dimsList) opt.maxWOnes];
+			dataGrid = cell(gridSize);
+			auxW4D = zeros([nf nf gridSize]);
+			wStar5D = zeros([size(auxW4D) opt.iterations]);
+			for i = 1:gridSize(1)
 				for count = 1:opt.iterations
 					rng(opt.rngSeedBase+count-1,'twister');
 					data = CausalSimulator.runDensityTest(...
 						dimsList{i},optcell{:});
-					for j = 1:numel(data)
+					if numel(data) ~= gridSize(2)
+						error('Sizing error.');
+					end
+					for j = 1:gridSize(2)
+						if count == 1
+							dataGrid{i,j} = data(j);
+							auxW4D(:,:,i,j) = data(j).simulator...
+								.sigGen.recurrenceParams.nonsourceW;
+						end
 						wStar5D(:,:,i,j,count) = data(j).wStar;
 					end
 				end
 			end
 			wStar4D = mean(wStar5D,5);
-			sizeW4 = size(wStar4D);
-			figGrid = zeros(sizeW4(3:4));
-			clims = IntensityPlot.getGlobalClims(wStar4D,...
+			climsAuxW = IntensityPlot.getGlobalClims(auxW4D,0);
+			climsWStar = IntensityPlot.getGlobalClims(wStar4D,...
 				opt.outlierPercentage);
-			for i = 1:size(wStar4D,3)
-				for j = 1:size(wStar4D,4)
-					figGrid(i,j) = IntensityPlot.showGrayscale(...
-						wStar4D(:,:,i,j),clims);
+			fplotter = FuncSetPlotter;
+			fplotter.timeBegin = 101;
+			fplotter.timeCount = 40;
+			fplotter.funcIdxBegin = 1;
+			fplotter.funcIdxCount = 5;
+			figGrid = zeros([gridSize 2 2]);
+			for i = 1:gridSize(1)
+				for j = 1:gridSize(2)
+					dataCell = dataGrid{i,j};
+					figGrid(i,j,1,1) = ...
+						fplotter.showSigs(dataCell.source.funcSigs);
+					figGrid(i,j,2,1) = ...
+						fplotter.showSigs(dataCell.dest.funcSigs);
+					figGrid(i,j,1,2) = IntensityPlot.showGrayscale(...
+						auxW4D(:,:,i,j),climsAuxW);
+					figGrid(i,j,2,2) = IntensityPlot.showGrayscale(...
+						wStar4D(:,:,i,j),climsWStar);
 				end
 			end
+			figGrid = reshape(permute(figGrid,[3 1 4 2]),2*gridSize);
 			% (Can also use subplot to make a grid of plots in one figure)
 			set(figGrid, 'Position', [0 0 150 100]);
 			multiplot(figGrid);  %was: multiplot(reshape(1:15,5,3)');

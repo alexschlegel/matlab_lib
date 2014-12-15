@@ -27,8 +27,10 @@ classdef WPairedTrialConfig < handle
 			flatWs = obj.genIndicatorCols(wNumel,[wOnes,wOnes]);
 			wA = reshape(flatWs(:,1),wShape);
 			wB = reshape(flatWs(:,2),wShape);
-			wB = zeros(size(wB));
-			wB(1:5,1:5) = diag(ones(5,1));
+% 			wA = zeros(size(wA));
+% 			wA(1,1:3) = 1;
+% 			wB = zeros(size(wB));
+% 			wB(1:5,1:5) = diag(ones(5,1));
 			obj.sigGenA = SigGen(wA,optcell{:});
 			obj.sigGenB = SigGen(wB,optcell{:});
 		end

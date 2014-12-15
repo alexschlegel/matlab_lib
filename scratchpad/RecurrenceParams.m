@@ -10,7 +10,6 @@ classdef RecurrenceParams
 	%   3. Non-source (hidden) causal region
 
 	properties
-		baseParams
 		recurDiagonals
 		W
 		nonsourceW
@@ -21,10 +20,10 @@ classdef RecurrenceParams
 		% 0 = zero nonsourceW
 		% 1 = nonsourceW equal to W
 		% 2 = nonsourceW only, zero W
-		function obj = RecurrenceParams(baseParams,W,varargin)
+		function obj = RecurrenceParams(W,varargin)
 			[opt,optcell] = Opts.getOpts(varargin);
-			nf = baseParams.numFuncSigs;
-			obj.baseParams = baseParams;
+			Opts.validateW(opt,W);
+			nf = opt.numFuncSigs;
 			obj.recurDiagonals = repmat(...
 				{opt.recurStrength * ones(1,nf)},3,1);
 			switch opt.auxWPolicy

@@ -6,28 +6,23 @@ classdef SigGen < handle
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
-		baseParams
-		W                % probably will be going away
-		isDestBalancing  % probably will be going away
+		opt
 		recurrenceParams
 	end
 	methods
-		function obj = SigGen(baseParams,W,varargin)
+		function obj = SigGen(W,varargin)
 			[opt,optcell] = Opts.getOpts(varargin);
-			baseParams.validateW(W);
-			obj.baseParams = baseParams;
-			obj.isDestBalancing = opt.isDestBalancing;
-			obj.recurrenceParams = RecurrenceParams(baseParams,W,...
-				optcell{:});
-			obj.W = obj.recurrenceParams.W;
+			Opts.validateW(opt,W);
+			obj.opt = opt;
+			obj.recurrenceParams = RecurrenceParams(W,optcell{:});
 		end
 		function [src,dst] = genSigs(obj)
-			bp = obj.baseParams;
+			opt = obj.opt;
 			rp = obj.recurrenceParams;
 			wTrans = rp.W.';
 			nsWTrans = rp.nonsourceW.';
-			nt = obj.baseParams.numTimeSteps;
-			nf = obj.baseParams.numFuncSigs;
+			nt = opt.numTimeSteps;
+			nf = opt.numFuncSigs;
 			src = zeros(nt,nf);
 			dst = zeros(nt,nf);
 			%oth = zeros(nt,nf);
@@ -41,9 +36,9 @@ classdef SigGen < handle
 
 				currDst = currDst + wTrans * prevSrc + nsWTrans * prevOth;
 
-				currSrc = currSrc + bp.sourceNoisiness * randn(nf,1);
-				currDst = currDst + bp.destNoisiness * randn(nf,1);
-				currOth = currOth + bp.sourceNoisiness * randn(nf,1);
+				currSrc = currSrc + opt.noisinessForSource * randn(nf,1);
+				currDst = currDst + opt.noisinessForDest * randn(nf,1);
+				currOth = currOth + opt.noisinessForSource * randn(nf,1);
 
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
@@ -53,6 +48,9 @@ classdef SigGen < handle
 			end
 			src = zscore(src);
 			dst = zscore(dst);
+		end
+		function W = W(obj)
+			W = obj.recurrenceParams.W;
 		end
 	end
 end

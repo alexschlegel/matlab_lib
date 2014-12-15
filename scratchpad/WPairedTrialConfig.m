@@ -10,14 +10,14 @@ classdef WPairedTrialConfig < handle
 	% sigGenA, sigGenB.
 
 	properties (SetAccess = private)
-		baseParams
 		sigGenA
 		sigGenB
 	end
 	methods
-		function obj = WPairedTrialConfig(baseParams,wDensity)
-			baseParams.validate;
-			nf = baseParams.numFuncSigs;
+		function obj = WPairedTrialConfig(wDensity,varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
+			Opts.validate(opt);
+			nf = opt.numFuncSigs;
 			wShape = [nf nf];
 			wNumel = nf^2;
 			wOnes = floor(wNumel * wDensity);
@@ -27,9 +27,8 @@ classdef WPairedTrialConfig < handle
 			flatWs = obj.genIndicatorCols(wNumel,[wOnes,wOnes]);
 			wA = reshape(flatWs(:,1),wShape);
 			wB = reshape(flatWs(:,2),wShape);
-			obj.baseParams = baseParams;
-			obj.sigGenA = SigGen(baseParams,wA);
-			obj.sigGenB = SigGen(baseParams,wB);
+			obj.sigGenA = SigGen(wA,optcell{:});
+			obj.sigGenB = SigGen(wB,optcell{:});
 		end
 	end
 	methods (Static)

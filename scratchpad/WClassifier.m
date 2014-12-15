@@ -5,23 +5,24 @@ classdef WClassifier < handle
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
+		opt
 		wPairedTrialConfig
-		voxelFreedom
 		numTrialsPerW
 		trialSetA
 		trialSetB
 	end
 
 	methods
-		function obj = WClassifier(wPairedTrialConfig,voxelFreedom,...
-				numTrialsPerW)
+		function obj = WClassifier(wPairedTrialConfig,numTrialsPerW,...
+				varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
+			obj.opt = opt;
 			obj.wPairedTrialConfig = wPairedTrialConfig;
-			obj.voxelFreedom = voxelFreedom;
 			obj.numTrialsPerW = numTrialsPerW;
 			obj.trialSetA = WTrialSet(wPairedTrialConfig.sigGenA,...
-				voxelFreedom,numTrialsPerW);
+				numTrialsPerW,optcell{:});
 			obj.trialSetB = WTrialSet(wPairedTrialConfig.sigGenB,...
-				voxelFreedom,numTrialsPerW);
+				numTrialsPerW,optcell{:});
 		end
 		function netScore = computeNetScore(obj)
 			totScore = 0;
@@ -56,31 +57,34 @@ classdef WClassifier < handle
 			display('Not yet implemented');
 		end
 		%}
-		function runExample
+		function runExample(varargin)
+			[opt,optcell] = Opts.getOpts(varargin,...
+				'noisinessForDest'		, 1000	, ...
+				'noisinessForSource'	, 1000	, ...
+				'voxelFreedom'			, 0.000	  ...
+				);
 			rng('default');
 			scores = zeros(1,10);
 			for i = 1:numel(scores)
 				scores(i) = ...
-					WClassifier.testClassification(1000,0.1,0,20,true);
+					WClassifier.testClassification(0.1,20,true,optcell{:});
 			end
 			disp('Scores:');
 			disp(scores);
 			fprintf('Mean = %g\n', mean(scores));
 		end
 		function netScore = testClassification(...
-				noisiness,wDensity,voxelFreedom,numTrialsPerW,showWs)
-			bp = CausalBaseParams;
-			bp.sourceNoisiness = noisiness;
-			bp.destNoisiness = noisiness;
-			wPairConfig = WPairedTrialConfig(bp,wDensity);
+				wDensity,numTrialsPerW,showWs,varargin)
+			% TODO: wDensity, etc., should be made into Opt variables
+			[opt,optcell] = Opts.getOpts(varargin);
+			wPairConfig = WPairedTrialConfig(wDensity,optcell{:});
 			if showWs
 				disp('W1:');
 				disp(SimStatic.clipmat(wPairConfig.sigGenA.W,10,10));
 				disp('W2:');
 				disp(SimStatic.clipmat(wPairConfig.sigGenB.W,10,10));
 			end
-			classifier = WClassifier(wPairConfig,...
-				voxelFreedom,numTrialsPerW);
+			classifier = WClassifier(wPairConfig,numTrialsPerW,optcell{:});
 			netScore = classifier.computeNetScore;
 			fprintf('Net score = %g\n\n', netScore);
 		end

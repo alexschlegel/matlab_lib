@@ -5,7 +5,7 @@ classdef CausalSimulator < handle
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
-		baseParams
+		opt
 		sigGen
 		voxelPolicy
 		pcaPolicy
@@ -16,8 +16,8 @@ classdef CausalSimulator < handle
 
 	methods
 		function obj = CausalSimulator(sigGen,voxelPolicy,pcaPolicy)
-			if sigGen.baseParams ~= voxelPolicy.baseParams
-				error('Arguments have incompatible baseParams.');
+			if Opts.optConflict(sigGen.opt,voxelPolicy.opt)
+				error('Arguments have incompatible opt variables.');
 			end
 			switch pcaPolicy
 				case 'runPCA'
@@ -25,7 +25,7 @@ classdef CausalSimulator < handle
 				otherwise
 					error('Invalid pcaPolicy %s',pcaPolicy);
 			end
-			obj.baseParams = sigGen.baseParams;
+			obj.opt = sigGen.opt;
 			obj.sigGen = sigGen;
 			obj.voxelPolicy = voxelPolicy;
 			obj.pcaPolicy = pcaPolicy;
@@ -46,7 +46,7 @@ classdef CausalSimulator < handle
 			obj.performCausalityComputation(data);
 		end
 		function performCausalityComputation(obj,data)
-			nc = obj.baseParams.numTopComponents;
+			nc = obj.opt.numTopComponents;
 			data.wStar = zeros(nc,nc);
 			for i = 1:nc
 				for j = 1:nc
@@ -90,21 +90,21 @@ classdef CausalSimulator < handle
 		end
 		function showParams(obj)
 			fprintf('Num time steps = %d\nNum functional sigs = %d\n',...
-				obj.baseParams.numTimeSteps, obj.baseParams.numFuncSigs);
+				obj.opt.numTimeSteps, obj.opt.numFuncSigs);
 			fprintf('Num voxel sigs = %d\nNum top components = %d\n',...
-				obj.baseParams.numVoxelSigs,...
-				obj.baseParams.numTopComponents);
+				obj.opt.numVoxelSigs,...
+				obj.opt.numTopComponents);
 			fprintf('Source noisiness = %d\n',...
-				obj.baseParams.sourceNoisiness);
+				obj.opt.noisinessForSource);
 			fprintf('Destination noisiness = %d\n',...
-				obj.baseParams.destNoisiness);
-			fprintf('Voxel-mixing freedom = %d\n', obj.voxelPolicy.freedom);
+				obj.opt.noisinessForDest);
+			fprintf('Voxel-mixing freedom = %d\n', obj.opt.voxelFreedom);
 			falseTrue = {'false','true'};
 			fprintf('Is destination balanced = %s\n',...
-				falseTrue{obj.sigGen.isDestBalancing+1});
+				falseTrue{obj.opt.isDestBalancing+1});
 		end
 		function showRatios(obj,data)
-			ratios = data.source.pcaSigs(:,1:obj.baseParams.numFuncSigs) ...
+			ratios = data.source.pcaSigs(:,1:obj.opt.numFuncSigs) ...
 				./ data.source.funcSigs;
 			CausalSimulator.showUpperLeftAndMeanAndVariance(ratios,...
 				{'Ratios of pcaSigs to funcSigs:',...
@@ -204,8 +204,7 @@ classdef CausalSimulator < handle
 				error('Too many dims in whichDims.');
 			end
 			dimsMask = 0.5*bitor(2^whichDims(1),2^whichDims(end));
-			bp = CausalBaseParams(optcell{:});
-			nf = bp.numFuncSigs;
+			nf = opt.numFuncSigs;
 			data = repmat(SimulationData([]),1,opt.maxWOnes);
 			for i = 1:opt.maxWOnes
 				W = zeros(nf);
@@ -218,14 +217,14 @@ classdef CausalSimulator < handle
 				else
 					error('Invalid dimensions.');
 				end
-				data(i) = CausalSimulator.runW(bp,W,optcell{:});
+				data(i) = CausalSimulator.runW(W,optcell{:});
 			end
 		end
-		function data = runW(baseParams,W,varargin)
+		function data = runW(W,varargin)
 			[opt,optcell] = Opts.getOpts(varargin);
-			baseParams.validateW(W);  % (redundant, but not harmful)
-			gen = SigGen(baseParams,W,optcell{:});
-			voxPol = VoxelPolicy(baseParams,opt.voxelFreedom);
+			Opts.validateW(opt,W);
+			gen = SigGen(W,optcell{:});
+			voxPol = VoxelPolicy(optcell{:});
 			data = CausalSimulator(gen,voxPol,opt.pcaPolicy).runTest;
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)

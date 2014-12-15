@@ -5,17 +5,16 @@ classdef VoxelPolicy < handle
 	%   TODO: Add detailed comments
 
 	properties (SetAccess = private)
-		baseParams
-		freedom
+		opt
 	end
 	properties (Access = private)
 		regionMixers
 	end
 	methods
-		function obj = VoxelPolicy(baseParams,freedom)
-			baseParams.validate;
-			obj.baseParams = baseParams;
-			obj.freedom = freedom;
+		function obj = VoxelPolicy(varargin)
+			[opt,optcell] = Opts.getOpts(varargin);
+			Opts.validate(opt);
+			obj.opt = opt;
 			obj.regionMixers = cell(1,2);
 		end
 		function voxels = mixFuncSigs(obj,funcSigs,regionIndex)
@@ -24,9 +23,9 @@ classdef VoxelPolicy < handle
 	end
 	methods (Access = private)
 		function mixer = createMixer(obj)
-			nf = obj.baseParams.numFuncSigs;
-			nv = obj.baseParams.numVoxelSigs;
-			beta = obj.freedom;
+			nf = obj.opt.numFuncSigs;
+			nv = obj.opt.numVoxelSigs;
+			beta = obj.opt.voxelFreedom;
 			alpha = 1 - beta;
 			shortDim = min(nf,nv);
 			fixed = zeros(nf,nv);

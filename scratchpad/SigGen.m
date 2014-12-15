@@ -82,12 +82,16 @@ classdef SigGen < handle
 			for count = 1:opt.iterations
 				rng(opt.rngSeedBase+count-1,'twister');
 				[src,dst] = gen.genSigs;
-				fplotter = FuncSetPlotter;
-				sigs = [src dst];
-				figs(count) = fplotter.showSigs([src dst]);
+				%fplotter = FuncSetPlotter;
+				%sigs = [src dst];
+				%figs(count) = fplotter.showSigs([src dst]);
+				t = (1:opt.numTimeSteps).';
+				figs(count) = figure;
+				plot(t,src,t,dst);
 			end
-			set(figs, 'Position', [0 0 240 160]);
-			multiplot(figs);
+			%set(figs, 'Position', [0 0 240 160]);
+			%figHandle	= multiplot(figs);
+			figHandle	= figs;
 		end
 	end
 end

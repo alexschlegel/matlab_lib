@@ -150,6 +150,7 @@ classdef CausalSimulator < handle
 			gridSize = [numel(dimsList) opt.maxWOnes];
 			dataGrid = cell(gridSize);
 			auxW4D = zeros([nf nf gridSize]);
+			W4D = zeros([nf nf gridSize]);
 			wStar5D = zeros([size(auxW4D) opt.iterations]);
 			for i = 1:gridSize(1)
 				for count = 1:opt.iterations
@@ -164,6 +165,8 @@ classdef CausalSimulator < handle
 							dataGrid{i,j} = data(j);
 							auxW4D(:,:,i,j) = data(j).simulator...
 								.sigGen.recurrenceParams.nonsourceW;
+							W4D(:,:,i,j) = data(j).simulator...
+								.sigGen.recurrenceParams.W;
 						end
 						wStar5D(:,:,i,j,count) = data(j).wStar;
 					end
@@ -171,6 +174,7 @@ classdef CausalSimulator < handle
 			end
 			wStar4D = mean(wStar5D,5);
 			climsAuxW = IntensityPlot.getGlobalClims(auxW4D,0);
+			climsW = IntensityPlot.getGlobalClims(W4D,0);
 			climsWStar = IntensityPlot.getGlobalClims(wStar4D,...
 				opt.outlierPercentage);
 			fplotter = FuncSetPlotter;
@@ -187,7 +191,7 @@ classdef CausalSimulator < handle
 					figGrid(i,j,2,1) = ...
 						fplotter.showSigs(dataCell.dest.funcSigs);
 					figGrid(i,j,1,2) = IntensityPlot.showGrayscale(...
-						auxW4D(:,:,i,j),climsAuxW);
+						W4D(:,:,i,j),climsW);
 					figGrid(i,j,2,2) = IntensityPlot.showGrayscale(...
 						wStar4D(:,:,i,j),climsWStar);
 				end
@@ -207,13 +211,14 @@ classdef CausalSimulator < handle
 			nf = opt.numFuncSigs;
 			data = repmat(SimulationData([]),1,opt.maxWOnes);
 			for i = 1:opt.maxWOnes
+				ii = i+3;
 				W = zeros(nf);
 				if dimsMask == 1
-					W(1:i,1) = ones(i,1);
+					W(1:ii,1) = ones(ii,1);
 				elseif dimsMask == 2
-					W(1,1:i) = ones(1,i);
+					W(1,1:ii) = ones(1,ii);
 				elseif dimsMask == 3
-					W(1:i,1:i) = diag(ones(i,1));
+					W(1:ii,1:ii) = diag(ones(ii,1));
 				else
 					error('Invalid dimensions.');
 				end

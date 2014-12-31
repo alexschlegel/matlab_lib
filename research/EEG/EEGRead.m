@@ -331,7 +331,7 @@ function EEGRead_BDF()
 		d	= permute(d,[2 1 3]);
 		d	= reshape(d,nChannelRead,[]);
 	%keep only the samples we're interested in
-		kSample	= nSamplePerChannelRecord*(kFromU-1)+kSampleInRecord;
+		kSample	= nSamplePerChannelRecord*(kFromU-1)+reshape(kSampleInRecord,[],1);
 		d		= d(:,kSample);
 	%split into data and status samples
 		bChannelData	= ismember(kChannelRead,kChannelDataAll);

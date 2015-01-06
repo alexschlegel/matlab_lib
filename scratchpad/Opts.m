@@ -29,8 +29,11 @@ classdef Opts
 				'auxWWeight'			, 1.0		, ...
 				'isDestBalancing'		, false		, ...
 				'lizierNorm'			, true		, ...
-				'noisinessForDest'		, 1.0e-6	, ...
-				'noisinessForSource'	, 1.0e-6	, ...
+				... % To override both 'noiseAtDest' and 'noiseAtSource'
+				... % with the same value, just override 'noise' (which
+				... % is handled by propagateNoiseOverride below).
+				'noiseAtDest'			, 1.0e-6	, ...
+				'noiseAtSource'			, 1.0e-6	, ...
 				'recurStrength'			, 0.8		, ...
 				'voxelFreedom'			, 1.000		, ...
 				'zScoreSigs'			, false		  ...
@@ -41,8 +44,8 @@ classdef Opts
 				'iterations'		, 1			, ...
 				'maxWOnes'			, 4			, ...
 				'outlierPercentage'	, 5			, ...
-				... %'pcaPolicy'			, 'runPCA'	, ...
 				'pcaPolicy'			, 'skipPCA'	, ...
+				... %'pcaPolicy'			, 'runPCA'	, ...
 				'rngSeedBase'		, 0			  ...
 			};
 		end
@@ -66,18 +69,31 @@ classdef Opts
 				Opts.getOptsInternal(newDefaults,optvar);
 		end
 		function conflict = optConflict(optStructA,optStructB)
-			% TODO: Need to implement; for now, forgive conflicts
+			conflict = false;
 			namesA = fieldnames(optStructA);
 			for i = 1:numel(namesA)
 				name = namesA{i};
+				if strcmp(name,'opt_extra')
+					continue;
+				end
 				if isfield(optStructB,name)
 					valA = optStructA.(name);
 					valB = optStructB.(name);
-					% TODO: Add code to compare valA, valB;
-					% consider, at a minimum, float and char values
+					if (isfloat(valA) || islogical(valA)) && ...
+							(isfloat(valB) || islogical(valB))
+						conflict = (valA ~= valB);
+					elseif ischar(valA) && ischar(valB)
+						conflict = ~strcmp(valA,valB);
+					elseif isfloat(valA) || islogical(valA) || ischar(valA)
+						conflict = true;
+					else
+						error('Unsupported opt data type %s',class(valA));
+					end
+				end
+				if conflict
+					break;
 				end
 			end
-			conflict = false;
 		end
 		function validate(opt)
 			if opt.numTopComponents > opt.numFuncSigs
@@ -100,6 +116,7 @@ classdef Opts
 			if isstruct(optvar)
 				optvar = opt2cell(optvar);
 			end
+			optvar = Opts.propagateNoiseOverride(optvar);
 			overriddenKeys = optvar(1:2:end);
 			if ~all(cellfun(@(x) ischar(x), overriddenKeys))
 				error('Malformed options variable.');
@@ -110,6 +127,21 @@ classdef Opts
 			end
 			opt = ParseArgs(optvar,defaults{:});
 			optcell = opt2cell(opt);
+		end
+		function optcell = propagateNoiseOverride(optcell)
+			noiseKeyOrdinal = find(strcmp(optcell(1:2:end),'noise'));
+			if numel(noiseKeyOrdinal) > 1
+				error('Multiple noise keys');
+			end
+			if ~isempty(noiseKeyOrdinal)
+				valueIndex = 2*noiseKeyOrdinal;
+				keyIndex = valueIndex-1;
+				noiseVal = optcell{valueIndex};
+				optcell = [optcell(1:(keyIndex-1)) ...
+					{'noiseAtDest',noiseVal,'noiseAtSource',noiseVal} ...
+					optcell((valueIndex+1):end)];
+			end
+
 		end
 	end
 end

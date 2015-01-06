@@ -21,13 +21,10 @@ classdef SigGen < handle
 			rp = obj.recurrenceParams;
 			wTrans = rp.W.';
 			nsWTrans = rp.nonsourceW.';
-			if any(nsWTrans ~= 0)  % TODO: Temporary, for testing
-				error('Stuff in nsWTrans');
-			end
 			srcCoeffSums = rp.recurDiagonals{1}.' + ...
-				opt.noisinessForSource;
+				opt.noiseAtSource;
 			dstCoeffSums = rp.recurDiagonals{2}.' + sum(wTrans,2) + ...
-				opt.noisinessForDest;
+				opt.noiseAtDest;
 			nt = opt.numTimeSteps;
 			nf = opt.numFuncSigs;
 			src = zeros(nt,nf);
@@ -43,9 +40,9 @@ classdef SigGen < handle
 
 				currDst = currDst + wTrans * prevSrc + nsWTrans * prevOth;
 
-				currSrc = currSrc + opt.noisinessForSource * randn(nf,1);
-				currDst = currDst + opt.noisinessForDest * randn(nf,1);
-				currOth = currOth + opt.noisinessForSource * randn(nf,1);
+				currSrc = currSrc + opt.noiseAtSource * randn(nf,1);
+				currDst = currDst + opt.noiseAtDest * randn(nf,1);
+				currOth = currOth + opt.noiseAtSource * randn(nf,1);
 
 				if obj.opt.lizierNorm
 					currSrc = currSrc ./ srcCoeffSums;
@@ -72,8 +69,7 @@ classdef SigGen < handle
 				'numFuncSigs'			, 1		, ...
 				'numTopComponents'		, 1		, ...
 				'numTimeSteps'			, 100	, ...
-				'noisinessForDest'		, 1		, ...
-				'noisinessForSource'	, 1		, ...
+				'noise'					, 1		, ...
 				'iterations'			, 5		  ...
 				);
 			W = 1;

@@ -9,8 +9,7 @@ function [b,err,t,kState] = Pressed(bb,strButton,varargin)
 % In:
 %	strButton	- the button name
 %	[bLog]		- true to add a log event if the button was pressed
-%	'reset'		- this will cause the function to just return.  maintained for
-%				  compatibility with other Input objects
+%	'reset'		- clear the serial buffer of the specified buttons
 %
 % Out:
 %	b		- true if the button was pressed, or false if err==true
@@ -27,15 +26,15 @@ bLog	= ParseArgs(varargin,true);
 [b,err,t]	= deal(false);
 kState		= [];
 
-%should we just reset?
-	if isequal(bLog,'reset')
-		return;
-	end
 %get the indices to test
 	[kGood,kBad]	= bb.Get(strButton);
 	kCheck			= unique(append([kGood{:};kBad{:}]));
 %get the state of the buttons
 	[s,t]		= bb.State(kCheck);
+%should we just reset?
+	if isequal(bLog,'reset')
+		return;
+	end
 %test the bad buttons
 	err	= p_TestBad(bb,s,t,strButton,kBad,bLog);
 	if err

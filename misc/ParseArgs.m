@@ -85,7 +85,7 @@ function out = DoParseOpt
 					kOverridden					= find(bOverridden);
 					kUserOption					= kUserOption(bOverridden);
 				%split
-					bUserOption	= ~isempty(kUserOption);
+					bUserOption	= ~isempty(kUserOption) || nUser>nArgument;
 					if bUserOption
 						kUserArgEnd		= nUser - 2*max(kUserOption);
 						userArgument	= vargin(1:min(nArgument,kUserArgEnd));

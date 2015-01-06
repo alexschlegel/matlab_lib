@@ -8,11 +8,10 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % In:
 % 	cPathData	- the path to the nX x nY x nZ x nSample NIfTI file to analyze,
 %				  or a cell of paths. if the last dimension of the cell has size
-%				  2, then we perform cross classification in which the
-%				  classifier is trained on one dataset and tested on the other.
-%				  in this case, both datasets must have the same target/chunk
-%				  structure. note that currently both datasets are included in
-%				  training and testing.
+%				  2, performs cross classification in which the classifier is
+%				  trained on the first (or second) dataset and tested on the
+%				  second (or first). in this case, both datasets must have the
+%				  same target/chunk structure.
 %	cTarget		- an nSample x 1 cell specifying the target of each sample, or a
 %				  cell of sample cell arrays (one for each dataset)
 %	kChunk		- an nSample x 1 array specifying the chunk of each sample, or a
@@ -62,11 +61,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %		average:				(false) true to average samples from the same
 %								target and chunk
 %		spatiotemporal:			(false) true to do a spatiotemporal analysis
-%		crossclassify:			(<auto>) true to cross-classify, but only if the
-%								data are formatted as described above
-%		match_features:			(false) only applies to cross-classifications.
-%								true to perform feature matching between the
-%								training and testing datasets.
+%		crossclassify:			(<auto>) true to cross-classify, if the data
+%								are formatted as described above
 %		selection:				(1) the number/fraction of features to select
 %								for classification, based on a one-way ANOVA. if
 %								a number less than one is passed, it is
@@ -136,12 +132,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % Out:
 % 	res	- a struct array of analysis results
 % 
-% Updated: 2014-12-14
+% Updated: 2014-04-27
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-% for the future:
 % from Yarik, partitioner to do cross classification in one direction only.
 % here, test on second dataset only:
 % partitioner = ChainNode([NFoldPartitioner(attr='roi'),
@@ -168,7 +163,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'average'				, false			, ...
 			'spatiotemporal'		, false			, ...
 			'crossclassify'			, true			, ...
-			'match_features'		, false			, ...
 			'selection'				, 1				, ...
 			'save_selected'			, false			, ...
 			'target_subset'			, {}			, ...
@@ -219,6 +213,12 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 				cSub		= subsall(cPathData);
 				cSub		= cSub(1:end-1);
 				cPathData	= cellfun(@(f1,f2) {f1;f2},cPathData(cSub{:},1),cPathData(cSub{:},2),'uni',false);
+			%retool the partitioner
+				if ischar(opt.partitioner)
+					opt.partitioner	= 1;
+				end
+				
+				opt.partitioner	= sprintf('ChainNode([NFoldPartitioner(attr=''crossclassify_dataset''),ExcludeTargetsCombinationsPartitioner(k=%d,targets_attr=''chunks'',space=''partitions'')],space=''partitions'')',opt.partitioner);
 		end
 	
 	%construct one set of everything for each dataset
@@ -312,14 +312,32 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 	tNow	= nowms;
 	L		= Log('level',param.debug,'silent',param.silent);
 	
-	%save a custom sample attribute for zscoring if necessary
-		if ~isequal(param.zscore,false) && ~ischar(param.zscore)
-			param.sample_attr.zscore	= param.zscore;
-			param.zscore				= 'zscore';
+	%make some modifications for cross-classification
+		if param.crossclassify
+			%save a combined dataset in which the two datasets have been
+			%concatenated temporally
+				cPathTTData	= strPathData;
+				strPathData	= PathUnsplit(param.output_dir,[param.output_prefix '-cat'],'nii.gz');
+				
+				if ~FSLMerge(cPathTTData,strPathData,'silent',true)
+					error('Could not merge the two cross-classification datasets.');
+				end
+			%double the sample-based arrays
+				nSample	= numel(kTarget);
+				
+				%target and chunk arrays
+					[kTarget,kChunk]	= varfun(@(x) [x;x], kTarget, kChunk);
+				
+				%custom sample attributes
+					param.sample_attr	= structfun2(@(x) repmat(x,[2 1]),param.sample_attr);
+				
+				%custom zscore attribute
+					if isnumeric(param.zscore) && numel(param.zscore)==nSample
+						param.zscore	= [param.zscore; param.zscore+max(param.zscore)];
+					end
+			%sample attribute to distinguish the training and testing datasets
+				param.sample_attr.crossclassify_dataset	= reshape(repmat([1 2],[nSample 1]),[],1)';
 		end
-	
-	%reshape the custom sample attributes
-		param.sample_attr	= structfun2(@(attr) reshape(attr,1,[]),param.sample_attr);
 	
 	%file paths
 		bSaveOutput	= ~isempty(param.output_dir);

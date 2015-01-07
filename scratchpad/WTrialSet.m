@@ -14,7 +14,9 @@ classdef WTrialSet < handle
 
 	methods
 		function obj = WTrialSet(sigGen,numTrials,varargin)
-			[opt,optcell] = Opts.getOpts(varargin);
+			[opt,optcell] = Opts.getOpts(varargin,...
+				'pcaPolicy'			,'runPCA'	  ...
+				);
 			obj.opt = opt;
 			numFeatures = opt.numTopComponents ^ 2;
 			obj.sigGen = sigGen;
@@ -23,7 +25,7 @@ classdef WTrialSet < handle
 			obj.wStarSet = zeros(numTrials,numFeatures);
 			for i = 1:numTrials
 				voxPol = VoxelPolicy(optcell{:});
-				obj.sims{i} = CausalSimulator(sigGen,voxPol,'runPCA');
+				obj.sims{i} = CausalSimulator(sigGen,voxPol);
 				obj.dataSet{i} = obj.sims{i}.performAll;
 				wStar = obj.dataSet{i}.wStar;
 				obj.wStarSet(i,:) = reshape(wStar,1,numFeatures);

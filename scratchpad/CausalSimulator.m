@@ -8,27 +8,19 @@ classdef CausalSimulator < handle
 		opt
 		sigGen
 		voxelPolicy
-		pcaPolicy
 	end
 	properties
 		autoShowResults = true
 	end
 
 	methods
-		function obj = CausalSimulator(sigGen,voxelPolicy,pcaPolicy)
+		function obj = CausalSimulator(sigGen,voxelPolicy)
 			if Opts.optConflict(sigGen.opt,voxelPolicy.opt)
 				error('Arguments have incompatible opt variables.');
-			end
-			switch pcaPolicy
-				case 'runPCA'
-				case 'skipPCA'
-				otherwise
-					error('Invalid pcaPolicy %s',pcaPolicy);
 			end
 			obj.opt = sigGen.opt;
 			obj.sigGen = sigGen;
 			obj.voxelPolicy = voxelPolicy;
-			obj.pcaPolicy = pcaPolicy;
 		end
 		function M = makeColumnMeansZero(~,M)
 			M = M - repmat(mean(M),size(M,1),1);
@@ -66,7 +58,7 @@ classdef CausalSimulator < handle
 			obj.performRegionPCA(data.dest);
 		end
 		function performRegionPCA(obj,region)
-			switch obj.pcaPolicy
+			switch obj.opt.pcaPolicy
 				case 'runPCA'
 					[region.pcaCoeff, region.pcaSigs] = ...
 						pca(region.voxelSigs);
@@ -223,7 +215,7 @@ classdef CausalSimulator < handle
 			Opts.validateW(opt,W);
 			gen = SigGen(W,optcell{:});
 			voxPol = VoxelPolicy(optcell{:});
-			data = CausalSimulator(gen,voxPol,opt.pcaPolicy).runTest;
+			data = CausalSimulator(gen,voxPol).runTest;
 		end
 		function showUpperLeftAndMeanAndVariance(M,headings)
 			disp(headings{1});

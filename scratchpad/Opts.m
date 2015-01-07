@@ -96,9 +96,7 @@ classdef Opts
 			end
 		end
 		function validate(opt)
-			if opt.numTopComponents > opt.numFuncSigs
-				error('Num top components exceeds num func sigs.');
-			end
+			Opts.validateInternal(opt);
 		end
 		function validateW(opt,W)
 			Opts.validate(opt);
@@ -127,6 +125,7 @@ classdef Opts
 			end
 			opt = ParseArgs(optvar,defaults{:});
 			optcell = opt2cell(opt);
+			Opts.validateInternal(opt);
 		end
 		function optcell = propagateNoiseOverride(optcell)
 			noiseKeyOrdinal = find(strcmp(optcell(1:2:end),'noise'));
@@ -141,7 +140,23 @@ classdef Opts
 					{'noiseAtDest',noiseVal,'noiseAtSource',noiseVal} ...
 					optcell((valueIndex+1):end)];
 			end
-
+		end
+		function validateInternal(opt)
+			% TODO:  Note that some opt validations are performed
+			% elsewhere in the code.  In principle it would be
+			% cleaner to place them all here.  On the other hand,
+			% validating the options where they are used makes it
+			% easier to keep the validations consistent with the
+			% code's actual expectations.
+			if opt.numTopComponents > opt.numFuncSigs
+				error('Opts error: numTopComponents exceeds numFuncSigs.');
+			end
+			switch opt.pcaPolicy
+				case 'runPCA'
+				case 'skipPCA'
+				otherwise
+					error('Opts error: invalid pcaPolicy %s',opt.pcaPolicy);
+			end
 		end
 	end
 end

@@ -4,28 +4,32 @@ classdef RecurrenceParams
 	% RecurrenceParams:  Parameters for causal flow recurrence
 	%   TODO: Add detailed comments
 	%
-	% Signal indices are
-	%   1. Source
-	%   2. Dest
-	%   3. Non-source (hidden) causal region
+	% Signal indices (used to index recurDiagonals) are
+	%   1. Pre-source causal region (hidden)
+	%   2. Source
+	%   3. Non-source causal region affecting dest (hidden)
+	%   4. Dest
+	%
+	% For now, all signals get the same values in recurDiagonals;
+	% new policies could be added in future.
 
 	properties
 		recurDiagonals
+		preW
 		W
 		nonsourceW
 	end
 	methods
-		% isDestBalancing is in process of changing from a boolean
-		% to a continuous parameter from 0 to 2 (later on, 0 to 1):
-		% 0 = zero nonsourceW
-		% 1 = nonsourceW equal to W
-		% 2 = nonsourceW only, zero W
+		% isDestBalancing is now a continuous parameter from 0 to 1:
+		% 0.0 = zero nonsourceW
+		% 0.5 = nonsourceW equal to W
+		% 1.0 = nonsourceW only, zero W
 		function obj = RecurrenceParams(W,varargin)
 			[opt,optcell] = Opts.getOpts(varargin);
 			Opts.validateW(opt,W);
 			nf = opt.numFuncSigs;
 			obj.recurDiagonals = repmat(...
-				{opt.recurStrength * ones(1,nf)},3,1);
+				{opt.recurStrength * ones(1,nf)},4,1);
 			switch opt.auxWPolicy
 				case 'beta'
 					obj = obj.genAlphaBetaW(W,optcell{:});
@@ -33,10 +37,18 @@ classdef RecurrenceParams
 					obj.W = W;
 					obj = obj.genAuxW(optcell{:});
 			end
+			switch opt.preWPolicy
+				case 'none'
+					obj.preW = 0 * W;
+				case 'likeAux'
+					obj.preW = obj.nonsourceW;
+				case 'likeW'
+					obj.preW = obj.W;
+			end
 		end
 		function obj = genAlphaBetaW(obj,W,varargin)
 			[opt,optcell] = Opts.getOpts(varargin); %#ok
-			beta = opt.isDestBalancing / 2;
+			beta = opt.isDestBalancing;
 			alpha = 1 - beta;
 			obj.W = alpha * W;
 			obj.nonsourceW = beta * W;

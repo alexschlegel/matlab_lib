@@ -19,30 +19,36 @@ classdef SigGen < handle
 		function [src,dst] = genSigs(obj)
 			opt = obj.opt;
 			rp = obj.recurrenceParams;
+			preWTrans = rp.preW.';
 			wTrans = rp.W.';
 			nsWTrans = rp.nonsourceW.';
-			srcCoeffSums = rp.recurDiagonals{1}.' + ...
+			srcCoeffSums = rp.recurDiagonals{2}.' + ...
 				opt.noiseAtSource;
-			dstCoeffSums = rp.recurDiagonals{2}.' + sum(wTrans,2) + ...
+			dstCoeffSums = rp.recurDiagonals{4}.' + sum(wTrans,2) + ...
 				opt.noiseAtDest;
 			nt = opt.numTimeSteps;
 			nf = opt.numFuncSigs;
 			src = zeros(nt,nf);
 			dst = zeros(nt,nf);
-			%oth = zeros(nt,nf);
+			prevPre = zeros(nf,1);
 			prevSrc = zeros(nf,1);
+			prevNon = zeros(nf,1);
 			prevDst = zeros(nf,1);
-			prevOth = zeros(nf,1);
 			for i = 1:nt
-				currSrc = diag(rp.recurDiagonals{1}) * prevSrc;
-				currDst = diag(rp.recurDiagonals{2}) * prevDst;
-				currOth = diag(rp.recurDiagonals{3}) * prevOth;
+				currPre = diag(rp.recurDiagonals{1}) * prevPre;
+				currSrc = diag(rp.recurDiagonals{2}) * prevSrc;
+				currNon = diag(rp.recurDiagonals{3}) * prevNon;
+				currDst = diag(rp.recurDiagonals{4}) * prevDst;
 
-				currDst = currDst + wTrans * prevSrc + nsWTrans * prevOth;
+				currSrc = currSrc + preWTrans * prevPre;
+				currDst = currDst + wTrans * prevSrc + nsWTrans * prevNon;
 
+				% TODO: May want to change breakdown of noise params;
+				% at present, noiseAtSource is reused for three purposes.
+				currPre = currPre + opt.noiseAtSource * randn(nf,1);
 				currSrc = currSrc + opt.noiseAtSource * randn(nf,1);
+				currNon = currNon + opt.noiseAtSource * randn(nf,1);
 				currDst = currDst + opt.noiseAtDest * randn(nf,1);
-				currOth = currOth + opt.noiseAtSource * randn(nf,1);
 
 				if obj.opt.lizierNorm
 					currSrc = currSrc ./ srcCoeffSums;
@@ -50,9 +56,10 @@ classdef SigGen < handle
 				end
 				src(i,:) = currSrc';
 				dst(i,:) = currDst';
+				prevPre = currPre;
 				prevSrc = currSrc;
+				prevNon = currNon;
 				prevDst = currDst;
-				prevOth = currOth;
 			end
 			if obj.opt.zScoreSigs
 				src = zscore(src);

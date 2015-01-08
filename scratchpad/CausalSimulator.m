@@ -89,9 +89,7 @@ classdef CausalSimulator < handle
 			fprintf('Noise at source = %d\n',obj.opt.noiseAtSource);
 			fprintf('Noise at destination = %d\n',obj.opt.noiseAtDest);
 			fprintf('Voxel-mixing freedom = %d\n', obj.opt.voxelFreedom);
-			falseTrue = {'false','true'};
-			fprintf('Is destination balanced = %s\n',...
-				falseTrue{obj.opt.isDestBalancing+1});
+			fprintf('Destination balancing = %g\n',obj.opt.isDestBalancing);
 		end
 		function showRatios(obj,data)
 			ratios = data.source.pcaSigs(:,1:obj.opt.numFuncSigs) ...
@@ -133,6 +131,15 @@ classdef CausalSimulator < handle
 	end
 
 	methods (Static)
+		function baselineRunDensity(varargin)
+			[opt,optcell] = Opts.getOpts(varargin,...
+				'auxWPolicy'		, 'beta'	, ...
+				'lizierNorm'		, false		, ...
+				'zScoreSigs'		, true		, ...
+				'noise'				, 1			  ...
+			);
+			CausalSimulator.runDensityExample(optcell{:});
+		end
 		function runDensityExample(varargin)
 			[opt,optcell] = Opts.getOpts(varargin);
 			nf = opt.numFuncSigs;

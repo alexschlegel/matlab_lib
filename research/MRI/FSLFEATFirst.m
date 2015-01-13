@@ -53,8 +53,8 @@ function [bSuccess,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %				  analyzed
 %	cDirOut		- a cell of output directories
 % 
-% Updated: 2013-10-20
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2014-12-10
+% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -76,6 +76,8 @@ opt	= ParseArgs(varargin,...
 		'force'				, true	, ...
 		'silent'			, false	  ...
 		);
+
+status('preparing FEAT First','silent',opt.silent);
 
 %cellify
 	[cPathData,d,bNoCell,dummy]	= ForceCell(cPathData,d); 
@@ -142,9 +144,11 @@ end
 
 %------------------------------------------------------------------------------%
 function b = AnalyzeOne(strPathData,d,strDirOut)
+	status(sprintf('analyzing %s',strPathData),'silent',opt.silent);
+
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
 	
-	[tr,nVol]	= NIfTIGetTiming(strPathData);
+	[tr,sNIfTI]	= NIfTIGetTiming(strPathData);
 	
 	%make sure strDirOut exists
 		b	= CreateDirPath(strDirOut);
@@ -319,7 +323,7 @@ function b = AnalyzeOne(strPathData,d,strDirOut)
 						'functional_path'	, strPathData			, ...
 						'output_dir'		, strDirTemp			, ...
 						'tr'				, tr					, ...
-						'volumes'			, nVol					, ...
+						'volumes'			, sNIfTI.nvol			, ...
 						'delete_volumes'	, opt.delete_volumes	, ...
 						'bb_thresh'			, opt.bb_thresh			, ...
 						'noise_level'		, opt.noise_level		, ...

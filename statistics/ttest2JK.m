@@ -1,9 +1,9 @@
-function [h,p,ci,stats] = ttestJK(x,y,varargin)
+function [h,p,ci,stats] = ttest2JK(x,y,varargin)
 % ttestJK
 % 
 % Description:	perform an unpaired t-test on jackknifed data
 % 
-% Syntax:	[h,p,ci,stats] = ttestJK(x,y,[alpha]=0.05,[tail]='both',[vartype]='equal',[dim]='')
+% Syntax:	[h,p,ci,stats] = ttest2JK(x,y,[alpha]=0.05,[tail]='both',[vartype]='equal',[dim]='')
 % 
 % In:
 % 	x		- the first set of jackknifed sample data

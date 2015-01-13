@@ -1,8 +1,7 @@
 function [Y,t,g] = longitudinal(varargin)
 % datagen.longitudinal
 % 
-% Description:	generate longitudinal data for testing (not for ethics
-%				violations...no, of course not :/)
+% Description:	generate longitudinal data for testing
 % 
 % Syntax:	[Y,t,g] = datagen.longitudinal(<options>)
 % 

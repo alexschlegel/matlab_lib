@@ -10,3 +10,11 @@ function x = from(str)
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 x	= eval(str);
+
+%------------------------------------------------------------------------------%
+function n = null()
+	n	= [];
+end
+%------------------------------------------------------------------------------%
+
+end

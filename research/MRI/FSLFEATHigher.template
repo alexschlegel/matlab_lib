@@ -54,7 +54,7 @@ set fmri(multiple) <n_input>
 # Higher-level input type
 # 1 : Inputs are lower-level FEAT directories
 # 2 : Inputs are cope images from FEAT directories
-set fmri(inputtype) 1
+set fmri(inputtype) <input_type>
 
 # Carry out pre-stats processing?
 set fmri(filtering_yn) 0
@@ -311,8 +311,8 @@ set fmri(ncopeinputs) <n_cope>
 set fmri(copeinput.<n_cope>) <use>
 
 <!--data_path------------------------------------------------------------------>
-# 4D AVW data or FEAT directory (<n_path>)
-set feat_files(<n_path>) "<path>"
+# 4D AVW data or FEAT directory (<k_path>)
+set feat_files(<k_path>) "<path>"
 
 <!--ev------------------------------------------------------------------------->
 # EV <n> title

@@ -62,6 +62,11 @@ bSuccess	= MultiTask(@BetOne,{cPathIn, cPathOut},...
 				'silent'		, opt.silent		  ...
 				);
 
+if bNoCell
+	cPathOut	= cPathOut{1};
+end
+
+
 %------------------------------------------------------------------------------%
 function bSuccess = BetOne(strPathIn, strPathOut)
 	if ~opt.force && FileExists(strPathOut)

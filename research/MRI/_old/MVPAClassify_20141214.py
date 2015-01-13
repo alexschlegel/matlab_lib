@@ -348,30 +348,27 @@ def parse_results(param, result):
 	return result
 
 
-def feature_match(x, y, metric='correlation'):
-	"""reorder the features of x so they match as closely as possible those
-	of y. x and y must have the same number of features.
+def feature_match(ds1, ds2, metric='correlation'):
+	"""reorder the features of ds2 so they match as closely as possible those
+	of ds1. ds1 and ds2 must have the same number of features.
 	
 	Parameters
 	----------
-	x : array
-	  a two-dimensional array
-	y : array
-	  an two-dimensional array with the same number of columns as x
+	ds1 : Dataset
+	  a dataset
+	ds2 : Dataset
+	  a dataset with the same number of features as ds1
 	metric : str, optional
 	  the distance metric to use (see sklearn's pairwise_distances)
 	
 	Returns
 	-------
-	d : dict
-	  a dict of results, including:
-		'idx': the index array to use to reorder the features of y
-		'negate': in the case of correlation as a metric, the features of y
-			(before re-ordering) that should negated
+	idx : array
+	  the index array used to reorder the features of ds2
 	"""
 	
 	#calculate the pairwise distance between each feature
-	D = pairwise_distances(np.transpose(x),np.transpose(y),metric='correlation')
+	D = pairwise_distances(np.transpose(ds1),np.transpose(ds2),metric='correlation')
 	
 	#make negative correlations positive, and mark them for negating if they
 	#end up being matches
@@ -389,17 +386,29 @@ def feature_match(x, y, metric='correlation'):
 	rc_idx = linear_assignment(D)
 	idx = rc_idx[:,1]
 	
-	d = dict()
-	d['idx'] = idx
+	#add a feature attribute to keep track of the original indices
+	ds2.fa['idx_orig'] = np.arange(0,ds2.nfeatures)
 	
+	#reorder the features of ds2
+	ds2.samples = ds2.samples[:,idx]
+	
+	#reorder the feature attributes as well
+	for attr in ds2.fa.values():
+		ds2.fa[attr.name].value = attr.value[idx]
+	
+	#negate the components with negative correlations
 	if metric=='correlation':
 		negate = negate[:,idx]
-		diag = np.eye(y.shape[1], dtype=bool)
+		diag = np.eye(ds2.nfeatures, dtype=bool)
 		negate = negate[diag]
-		d['negate'] = negate
+		
+		#add a feature attribute to keep track of which features were
+		#negated
+		ds2.fa['negated'] = negate
+		
+		ds2.samples[:, negate]	 = -ds2.samples[:, negate]
 	
-	return d
-
+	return idx
 
 class Locker(object):
 	"""object to prevent other processes from doing something until we are
@@ -666,8 +675,8 @@ class Data(FileObject):
 		status('loading data')
 		
 		#data parameters
-		samples = force_list(self.param['path_data'])
-		attr = SampleAttributes(self.param['path_attribute'])
+		samples = self.param['path_data']
+		attr = SampleAttributes(param['path_attribute'])
 		
 		#lock object to make sure only one process loads data at a time
 		lock = Locker(name='mvpaclassify_load_data', paired=True, duration=300)
@@ -680,21 +689,7 @@ class Data(FileObject):
 		pid = os.fork()
 		if pid:  # parent
 			#load the data
-			ds = []
-			for idx, s in enumerate(samples):
-				#load the dataset
-				ds_cur = fmri_dataset(samples=s, chunks=attr.chunks, targets=attr.targets)
-				#add a sample attribute to keep track of the datasets
-				ds_cur.sa['dataset'] = [idx+1]
-				
-				#add the custom sample attributes
-				if isinstance(self.param['sample_attr'],dict):
-					for key in self.param['sample_attr']:
-						ds_cur.sa[str(key)] = self.param['sample_attr'][key]
-				
-				ds.append(ds_cur)
-			#stack the datasets
-			ds = vstack(tuple(ds))
+			ds = fmri_dataset(samples=samples, chunks=attr.chunks, targets=attr.targets)
 			
 			#stop the lock
 			lock.stop()
@@ -703,6 +698,11 @@ class Data(FileObject):
 			lock.start()
 			
 			os._exit(0)
+		
+		#add the custom sample attributes
+		if isinstance(param['sample_attr'],dict):
+			for key in param['sample_attr']:
+				ds.sa[str(key)] = param['sample_attr'][key]
 		
 		return ds
 
@@ -772,11 +772,10 @@ class CrossClassifier(ProxyClassifier):
 	__dataset_attr = None
 	
 	__match_features = False
-	__match_data = None
 	__feature_match_idx = None
 	__feature_match_negate = None
 	
-	def __init__(self, clf, dataset_attr='dataset', match_features=False, match_data=None, *args, **kwargs):
+	def __init__(self, clf, dataset_attr='dataset', match_features=False, *args, **kwargs):
 		"""Initialize the instance of CrossClassifier
 		
 		Parameters
@@ -791,9 +790,6 @@ class CrossClassifier(ProxyClassifier):
 		  apply the new feature space order to the testing data before
 		  predicting. matching is done by maximizing the correlation
 		  between paired features.
-		match_data : the data to use for feature matching, or the name of a
-		  dataset attribute that stores the data to use. if unspecified,
-		  uses the training dataset for matching.
 		"""
 		self.__clf2 = copy.deepcopy(clf)
 		
@@ -804,92 +800,35 @@ class CrossClassifier(ProxyClassifier):
 		
 		self.__dataset_attr = dataset_attr
 		self.__match_features = match_features
-		self.__match_data = match_data
-		
-		self.__feature_match_result = None
-	
-	def _get_dataset_attr(self, dataset):
-		attr = dataset.sa[self.__dataset_attr].value
-		
-		if len(attr.shape)>1:
-			attr = attr[:,0]
-		
-		return attr
-	
-	def _get_match_data(self, dataset):
-		if not self.__match_data is None:
-			if isinstance(self.__match_data, basestring):
-				ds = dataset.a[self.__match_data]
-			else:
-				ds = self.__match_data
-			
-			ds = ds[dataset.sa.time_indices]
-		else:
-			ds = dataset
-	
-	def __match_array_to_data(self, x, dataset):
-		"""in the case of event related datasets, samples are combined into
-		single samples with some integer multiple of the original number of
-		features. this is a problem if the feature matching is performed on
-		an earlier version of the data with fewer features than the training
-		and testing data. this will take an array calculated in the original
-		feature space and make it work in the new, expanded feature space."""
-		n_feature_orig = x.shape[1]
-		n_feature_now = dataset.shape[1]
-		
-		if n_feature_orig != n_feature_now:
-			if n_feature_now % n_feature_orig != 0:
-				raise Exception('Training dataset must have a multiple of the number of features as the feature matching data')
-			
-			mult = n_feature_now/n_feature_orig
-			
-			if np.result_type(x) == np.bool:
-				x = np.tile(x,(1,mult))
-			else:
-				x = hstack([ x + n*n_feature_orig for n in np.arange(mult) ])
-			
-		return x
 	
 	def _set_retrainable(self, value, force=False):
 		self.__clf2._set_retrainable(value, force=force)
 		super(CrossClassifier, self)._set_retrainable(value, force=force)		
 		
 	def _train(self, dataset):
-		attr = self._get_dataset_attr(dataset)
+		attr = dataset.sa[self.__dataset_attr].value
 		
 		ds1 = dataset[attr==1]
 		ds2 = dataset[attr==2]
 		
 		#match the features between ds1 and ds2
 		if self.__match_features:
-			#calculate the feature match order
-			match_data = self._get_match_data(dataset)
-			md1 = match_data[attr==1]
-			md2 = match_data[attr==2]			
-			self.__feature_match_result = feature_match(md1, md2)
-			
-			#reorder ds2's features
-			idx = self.__match_array_to_data(self.__feature_match_result['idx'], dataset) #***test this
-			negate = self.__match_array_to_data(self.__feature_match_result['negate'], dataset)
-			ds2 = ds2[:,idx]
-			ds2.samples[:,negate] = -ds2.samples[:,negate]
+			self.__feature_match_idx = feature_match(ds1, ds2)
+			self.__feature_match_negate = ds2.fa.negated
 		
 		super(CrossClassifier, self)._train(ds1)
 		self.__clf2.train(ds2)
 	
 	def _predict(self, dataset):
-		attr = self._get_dataset_attr(dataset)
+		attr = dataset.sa[self.__dataset_attr].value
 		
 		ds1 = dataset[attr==1]
 		ds2 = dataset[attr==2]
 		
 		#apply the feature order determined during training
 		if self.__match_features:
-			idx = self.__match_array_to_data(self.__feature_match_result['idx'], dataset)
-			negate = self.__match_array_to_data(self.__feature_match_result['negate'], dataset)
-			
-			ds2 = ds2[:,idx]
-			ds2.samples[:,negate] = -ds2.samples[:,negate]
+			ds2 = ds2[:,self.__feature_match_idx]
+			ds2.samples[:,self.__feature_match_negate] = -ds2.samples[:,self.__feature_match_negate]
 		
 		#use the classifier trained on ds1 to predict ds2
 		result2 = super(CrossClassifier, self)._predict(ds2)
@@ -1028,13 +967,16 @@ def preprocess_data(param, ds):
 	if param['zscore']:
 		status('z-scoring samples', indent=1)
 		
-		zscore(ds, chunks_attr=param['zscore'])
-	
-	#if we are going to do cross-classification with feature matching, then
-	#keep a copy of the data before we start mucking with samples and
-	#features
-	if param['crossclassify'] and param['match_features']:
-		ds.a['feature_match_data'] = ds.samples
+		#use a custom attribute to determine groups for z-scoring
+		if isinstance(param['zscore'], str):
+			zscore_attr = param['zscore']
+		else:
+			status('using custom zscore attribute', indent=2, debug='all')
+			ds.sa['zscore'] = param['zscore']
+			
+			zscore_attr = 'zscore'
+		
+		zscore(ds, chunks_attr=zscore_attr)
 	
 	#create a spatiotemporal event-related dataset
 	if param['spatiotemporal']:
@@ -1197,10 +1139,6 @@ def get_classifier(param, ds, partitioner, mean_control, indent=0):
 			clf.ca = nested_ca
 	else:
 		param['save_selected'] = False
-	
-	#cross-classification
-	if param['crossclassify']:
-		clf = CrossClassifier(clf, match_features=param['match_features'], match_data='feature_match_data')
 	
 	return clf
 

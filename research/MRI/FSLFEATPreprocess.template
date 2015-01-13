@@ -108,7 +108,7 @@ set fmri(unwarp_dir) y-
 set fmri(st) <slice_time_correct>
 
 # Slice timings file
-set fmri(st_file) ""
+set fmri(st_file) "<slice_timing_file>"
 
 # BET brain extraction
 set fmri(bet_yn) <bet>

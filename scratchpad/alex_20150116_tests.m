@@ -46,6 +46,10 @@ DEBUG	= true;
 		%magnitude of noise introduced in the voxel mixing
 			noiseMix	= 0.1; 
 	
+%for debugging, make behavior reproducible, otherwise randomize
+	seeds			= [0 randseed2];
+	rng(seeds([DEBUG ~DEBUG]),'twister');
+
 %the two causality matrices (and other control causality matrices)
 	nW				= 4;
 	[cWCause,cW]	= deal(cell(nW,1));
@@ -90,7 +94,9 @@ DEBUG	= true;
 
 %derived parameters
 	%block design
-		block	= blockdesign(1:2,nRepBlock,nRun);
+		rngState = rng;
+		block	= blockdesign(1:2,nRepBlock,nRun,'seed',rngState.Seed+1);
+		rng(rngState);
 		target	= arrayfun(@(run) block2target(block(run,:),nTBlock,nTRest,{'A','B'}),reshape(1:nRun,[],1),'uni',false);
 	
 	%number of time points per run

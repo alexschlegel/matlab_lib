@@ -1,4 +1,4 @@
-function m = blockdesign(c,nRep,nRun)
+function m = blockdesign(c,nRep,nRun,varargin)
 % blockdesign
 % 
 % Description:	generate a condition order for nRun runs of an experiment with
@@ -7,12 +7,14 @@ function m = blockdesign(c,nRep,nRun)
 %				entered (e.g. more runs than can be handled by a balanced Latin
 %				square)
 % 
-% Syntax:	m = blockdesign(c,nRep,nRun)
+% Syntax:	m = blockdesign(c,nRep,nRun,<options>)
 % 
 % In:
-% 	c		- an array of conditions
-%	nRep	- the number of time conditions are shown per run
-%	nRun	- the number of runs
+% 	c			- an array of conditions
+%	nRep		- the number of time conditions are shown per run
+%	nRun		- the number of runs
+%	<options>:
+%		seed:	(randseed2) the base seed to use for randomizing
 % 
 % Out:
 % 	m	- an nRun x nBlock matrix of the conditions to show in each block
@@ -22,10 +24,13 @@ function m = blockdesign(c,nRep,nRun)
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
+opt	= ParseArgs(varargin,...
+		'seed'	, randseed2	  ...
+		);
 %form the blocks
 	block	= repmat(reshape(c,1,[]),[1 nRep]);
 %randomize them
-	block	= randomize(block);
+	block	= randomize(block,'seed',opt.seed);
 	nBlock	= numel(block);
 
 %get a balanced latin square for the blocks
@@ -49,6 +54,6 @@ function m = blockdesign(c,nRep,nRun)
 %map to the conditions
 	m	= block(m);
 %randomize across rows
-	m	= randomize(m,1,'rows');
+	m	= randomize(m,1,'rows','seed',opt.seed+1);
 %keep the runs requested
 	m	= m(1:nRun,:);

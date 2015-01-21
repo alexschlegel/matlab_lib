@@ -1,4 +1,9 @@
 % Copyright (c) 2014 Trustees of Dartmouth College. All rights reserved.
+%
+% This class is a reworking of Alex's script 20150116_alex_tests.m
+% --------------------------------------------------------------------
+
+classdef Pipeline
 
 %cuts/pastes/modifications of Bennet's pipeline. trying to understand the
 %pipeline as a whole better, and a big long string of code works better for me
@@ -9,6 +14,20 @@
 %and B) differ only in the pattern of directed connectivity from X to Y.  Can we
 %classify between the two conditions based on the recovered pattern of
 %connectivity from X to Y?
+
+ properties
+ end
+ properties (SetAccess = private)
+ end
+
+ methods
+  function p = Pipeline
+  end
+
+  function runsim(p)
+
+%TODO: Fix indentation throughout
+
 DEBUG	= true;
 
 %user-defined parameters
@@ -299,3 +318,12 @@ DEBUG	= true;
 		disp(sprintf('p(binom): %.3f',p));
 	end
 	
+  end
+ end
+ methods (Static)
+  function go
+	p = Pipeline;
+	p.runsim;
+  end
+ end
+end

@@ -15,6 +15,10 @@ classdef Pipeline
 %classify between the two conditions based on the recovered pattern of
 %connectivity from X to Y?
 
+
+% Simplest invocation (as of 2015-01-22):  Pipeline.runTrainClassify;
+%
+
 properties
 	uopt
 end
@@ -24,10 +28,13 @@ end
 methods
 	% Pipeline - Constructor for Pipeline class
 	%
-	% Syntax:	p = Pipeline(<options>)
+	% Syntax:	pipeline = Pipeline(<options>)
 	%
 	% In:
 	%	<options>:
+	%					[In future, default for DEBUG may change to false]
+	%		DEBUG		(true) Display debugging information
+	%
 	%					-- Size of the various spaces:
 	%
 	%		nSig:		(10) total number of functional signals
@@ -54,9 +61,10 @@ methods
 	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%
-	function p = Pipeline(varargin)
+	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
 		opt	= ParseArgs(varargin,...
+			'DEBUG'		, true	, ...
 			'nSig'		, 10	, ...
 			'nSigCause'	, 10	, ...
 			'nVoxel'	, 100	, ...
@@ -72,15 +80,15 @@ methods
 			'doMixing'	, true	, ...
 			'noiseMix'	, 0.1	  ...
 			);
-		p.uopt = opt;
+		obj.uopt = opt;
 	end
 
-	function runSim(p)
-		u = p.uopt;
+	function [acc,p_binom] = trainClassify(obj)
+		u		= obj.uopt;
+		DEBUG	= u.DEBUG;
 
 %TODO: Fix indentation throughout
 
-DEBUG	= true;
 
 %for debugging, make behavior reproducible, otherwise randomize
 	seeds			= [0 randseed2];
@@ -141,7 +149,7 @@ DEBUG	= true;
 		nT		= nTRun*u.nRun;
 	
 	if DEBUG
-		disp(sprintf('TRs per run: %d',nTRun)); 
+		disp(sprintf('TRs per run: %d',nTRun));
 
 		figure;
 		imagesc(block);
@@ -326,21 +334,29 @@ DEBUG	= true;
 		Nbin	= 2*u.nRun;
 		Pbin	= 0.5;
 		Xbin	= sum(res);
-		p		= 1 - binocdf(Xbin-1,Nbin,Pbin);
+		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
 	%accuracy
 		acc	= Xbin/Nbin;
 		
 	if DEBUG
 		disp(sprintf('accuracy: %.2f%%',100*acc));
-		disp(sprintf('p(binom): %.3f',p));
+		disp(sprintf('p(binom): %.3f',p_binom));
 	end
 	
 	end
 end
 methods (Static)
-	function go(varargin)
-		p = Pipeline(varargin{:});
-		p.runSim;
+	% runTrainClassify - static method for running pipeline
+	%
+	% Syntax:	[acc,p_binom] = Pipeline.runTrainClassify(<options>)
+	%
+	% In:
+	%	<options>:
+	%		See Pipeline constructor above for description of <options>
+	%
+	function [acc,p_binom] = runTrainClassify(varargin)
+		pipeline = Pipeline(varargin{:});
+		[acc,p_binom] = pipeline.trainClassify;
 	end
 end
 end

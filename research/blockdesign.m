@@ -14,12 +14,12 @@ function m = blockdesign(c,nRep,nRun,varargin)
 %	nRep		- the number of time conditions are shown per run
 %	nRun		- the number of runs
 %	<options>:
-%		seed:	(randseed2) the base seed to use for randomizing
+%		seed:	(randseed2) the seed to use for randomizing
 % 
 % Out:
 % 	m	- an nRun x nBlock matrix of the conditions to show in each block
 % 
-% Updated: 2012-02-06
+% Updated: 2015-01-22
 % Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -27,10 +27,13 @@ function m = blockdesign(c,nRep,nRun,varargin)
 opt	= ParseArgs(varargin,...
 		'seed'	, randseed2	  ...
 		);
+%obtain two block seeds for two calls to randomize
+	rng(opt.seed,'twister');
+	blockseeds = randi(intmax('uint32'),1,2);
 %form the blocks
 	block	= repmat(reshape(c,1,[]),[1 nRep]);
 %randomize them
-	block	= randomize(block,'seed',opt.seed);
+	block	= randomize(block,'seed',blockseeds(1));
 	nBlock	= numel(block);
 
 %get a balanced latin square for the blocks
@@ -54,6 +57,6 @@ opt	= ParseArgs(varargin,...
 %map to the conditions
 	m	= block(m);
 %randomize across rows
-	m	= randomize(m,1,'rows','seed',opt.seed+1);
+	m	= randomize(m,1,'rows','seed',blockseeds(2));
 %keep the runs requested
 	m	= m(1:nRun,:);

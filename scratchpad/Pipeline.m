@@ -38,7 +38,7 @@ methods
 	%					-- Debugging options:
 	%
 	%		DEBUG		(false) Display debugging information
-	%		seed:		(randseed2) the base seed to use for randomizing
+	%		seed:		(randseed2) the seed to use for randomizing
 	%
 	%					-- Size of the various spaces:
 	%
@@ -155,8 +155,9 @@ methods
 
 %derived parameters
 	%block design
+		designSeed = randi(intmax('uint32'));
 		rngState = rng;
-		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',rngState.Seed+1);
+		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
 		rng(rngState);
 		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 

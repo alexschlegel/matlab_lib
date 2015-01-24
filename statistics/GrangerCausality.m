@@ -9,16 +9,19 @@ function gc = GrangerCausality(src,dst,varargin)
 % 	src	- an nSample x 1 source signal
 %	dst	- an nSample x 1 destination signal
 %	<options>:
-%		history:		(1) the lag value for the GC calculation (ONLY 1 IS
-%						SUPPORTED)
-%		signal_block:	(<none>) this is a hack for gridop because my "signals"
-%						are actually blocks of 5 samples (one block for each
-%						trial) smooshed together, so that comparing the 5th
-%						sample of the source to the 5th and 6th samples of the
-%						destination (i.e. past to past & next) is meaningless,
-%						since the 6th sample is actually the 1st sample of the
-%						next, totally unrelated trial. in this case,
-%						signal_block:=5.
+%		lag:		(1) an array specifying the lags to use in the GC
+%					calculation. e.g. [1 2 4] will include the 1st, 2nd, and 4th
+%					lagged signals.
+%		src_past:	(<auto>) an nSample x nLag array of the lagged source
+%					signals. if unspecified, calculates the lagged signals from
+%					the data. use this option if something other than the lagged
+%					signals as calculated from the input data should be used.
+%					for instance, if the input signals are actually a
+%					concatenation of temporally separated signals, then the
+%					correctly lagged signals will include samples that are not
+%					in the input.
+%		dst_past:	(<auto>) the same as src_past, but for the destination
+%					signal
 % 
 % Out:
 % 	gc	- the granger causality from src to dest
@@ -27,51 +30,64 @@ function gc = GrangerCausality(src,dst,varargin)
 %	algorithm taken from the GCCAtoolbox by Anil Seth
 %
 % Example:
-%	n=200; blk=5;
+%	n=200;
 %	x = randn(n,1); y=[0; x(1:end-1)];
-%	kb=[]; for k=1:n/(2*blk), kb=[kb; 2*blk*(k-1) + (1:blk)']; end
 %	xs=x(1:n/2); ys=y(1:n/2); xb = x(kb); yb=y(kb);
-%	gcFull = GrangerCausality(xb,yb);
-%	gcBlock = GrangerCausality(xb,yb,'signal_block',blk);
+%	gcFull = GrangerCausality(x,y);
 %	gcCompare = GrangerCausality(xs,ys);
 % 
-% Updated: 2014-03-28
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-01-23
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
-		'history'		, 1		, ...
-		'signal_block'	, []	  ...
+		'lag'		, 1		, ...
+		'src_past'	, []	, ...
+		'dst_past'	, []	  ...
 		);
 
-if opt.history~=1
-	error('Only history value of 1 is supported.');
-end
+%make sure we're working with Nx1 arrays
+	[src,dst]	= varfun(@(x) reshape(x,[],1),src,dst);
 
 %remove the signal means
-	[src,dst]	= varfun(@(x) x - mean(x),src,dst);
+	[src,dst]	= varfun(@demean,src,dst);
 
 %signal subsets
-	sPast	= src(1:end-1);
-	dPast	= dst(1:end-1);
-	dNext	= dst(2:end);
-
-%optionally remove the block border samples (see documentation)
-	if ~isempty(opt.signal_block)
-		nSample	= numel(src);
-		kSkip	= opt.signal_block:opt.signal_block:nSample-1;
-		
-		sPast(kSkip,:)	= [];
-		dPast(kSkip,:)	= [];
-		dNext(kSkip,:)	= [];
+	maxLag	= max(opt.lag);
+	
+	if ~isempty(opt.src_past)
+		srcPast	= demean(opt.src_past,1);
+	else
+		srcPast	= ConstructPasts(src);
+	end
+	
+	if ~isempty(opt.dst_past)
+		dstPast	= demean(opt.dst_past,1);
+		dstNext	= dst;
+	else
+		dstPast	= ConstructPasts(dst);
+		dstNext	= ConstructPast(dst,0);
 	end
 
 %granger causality
-	C	= RegCov([sPast dPast],dNext);
-	S	= RegCov(dPast,dNext);
+	C	= RegCov([srcPast dstPast],dstNext);
+	S	= RegCov(dstPast,dstNext);
 	
 	gc	= log(S/C);
 
+%------------------------------------------------------------------------------%
+function xPast = ConstructPasts(x)
+%construct the set of past (lagged) signals. output is nSample x nLag.
+	xPast	= arrayfun(@(lag) ConstructPast(x,lag),opt.lag,'uni',false);
+	xPast	= cat(2,xPast{:});
+end
+%------------------------------------------------------------------------------%
+function xPast = ConstructPast(x,lag)
+%construct a single past signal
+	kStart	= maxLag + 1 - lag;
+	kEnd	= numel(x) - lag;
+	xPast	= x(kStart:kEnd);
+end
 %------------------------------------------------------------------------------%
 function C = RegCov(reg,d)
 %perform linear regression on d using the predictors in reg and return the
@@ -79,4 +95,7 @@ function C = RegCov(reg,d)
 	beta	= reg\d;
 	err		= d - reg*beta;
 	C		= cov(err,1);
+end
 %------------------------------------------------------------------------------%
+
+end

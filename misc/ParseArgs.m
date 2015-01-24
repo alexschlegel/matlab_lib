@@ -26,8 +26,8 @@ function varargout = ParseArgs(vargin,varargin)
 %		explicitly set in the options section, then vN-1 will be confused with
 %		the option.
 % 
-% Updated: 2014-02-06
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-01-20
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -87,9 +87,6 @@ function out = DoParseOpt
 				%split
 					bUserOption	= ~isempty(kUserOption) || nUser>nArgument;
 					if bUserOption
-						kUserArgEnd		= nUser - 2*max(kUserOption);
-						userArgument	= vargin(1:min(nArgument,kUserArgEnd));
-						
 						userOptKeyExtra	= userOptKey;
 						userOptValExtra	= userOptVal;
 						userOptKeyExtra(kUserOption)	= [];
@@ -97,6 +94,15 @@ function out = DoParseOpt
 						
 						userOptKey	= userOptKey(kUserOption);
 						userOptVal	= userOptVal(kUserOption);
+						
+						if ~isempty(kUserOption)
+							kUserArgEnd		= nUser - 2*max(kUserOption);
+						else
+							kUserArgEnd		= nUser; 
+						end
+						
+						
+						userArgument	= vargin(1:min(nArgument,kUserArgEnd));
 						
 						%eliminate explicitly unspecified options
 							bUserUnspecified	= cellfun(@isempty,userOptVal);

@@ -115,6 +115,8 @@ classdef Keyboard < PTB.Device.Input
 				cKeys	= {['key_' strName '_l'],['key_' strName '_r']};
 			elseif ismember(['left_' strName],cKeyAll)
 				cKeys	= {['key_left_' strName],['key_right_' strName]};
+			elseif ismember(['left' strName],cKeyAll)
+				cKeys	= {['key_left' strName],['key_right' strName]};
 			else
 				error(['No keys found for "' strName '"!']);
 			end

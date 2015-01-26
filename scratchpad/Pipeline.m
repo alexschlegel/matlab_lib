@@ -1,6 +1,7 @@
-% Copyright (c) 2014 Trustees of Dartmouth College. All rights reserved.
+% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 %
 % This class is a reworking of Alex's script 20150116_alex_tests.m
+% and now incorporates the changes from 20150123_alex_tests.m
 % --------------------------------------------------------------------
 
 classdef Pipeline
@@ -40,6 +41,10 @@ methods
 	%		DEBUG		(false) Display debugging information
 	%		seed:		(randseed2) the seed to use for randomizing
 	%
+	%					-- Subjects
+	%
+	%		nSubject	(20) number of subjects
+	%
 	%					-- Size of the various spaces:
 	%
 	%		nSig:		(10) total number of functional signals
@@ -48,16 +53,16 @@ methods
 	%
 	%					-- Time:
 	%
-	%		nTBlock:	(20) number of time points per block
-	%		nTRest:		(5) number of time points per rest periods
-	%		nRepBlock:	(3) number of repetitions of each block per run
+	%		nTBlock:	(1) number of time points per block
+	%		nTRest:		(4) number of time points per rest periods
+	%		nRepBlock:	(20) number of repetitions of each block per run
 	%		nRun:		(10) number of runs
 	%
 	%					-- Signal characteristics:
 	%
 	%		CRecurX:	(0.1) recurrence coefficient (should be <= 1)
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
-	%		CRecurZ:	(0)   recurrence coefficient (should be <= 1)
+	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSum:		(0.1) sum of W columns (sum(W)/sqrt(nSigCause)+CRecurY/X must be <=1)
 	%
@@ -71,16 +76,17 @@ methods
 		opt	= ParseArgs(varargin,...
 			'DEBUG'		, false		, ...
 			'seed'		, randseed2	, ...
+			'nSubject'	, 20		, ...
 			'nSig'		, 10		, ...
 			'nSigCause'	, 10		, ...
 			'nVoxel'	, 100		, ...
-			'nTBlock'	, 20		, ...
-			'nTRest'	, 5			, ...
-			'nRepBlock'	, 3			, ...
+			'nTBlock'	, 1			, ...
+			'nTRest'	, 4			, ...
+			'nRepBlock'	, 20		, ...
 			'nRun'		, 10		, ...
 			'CRecurX'	, 0.1		, ...
 			'CRecurY'	, 0.7		, ...
-			'CRecurZ'	, 0			, ...
+			'CRecurZ'	, 0.5		, ...
 			'WFullness'	, 0.1		, ...
 			'WSum'		, 0.1		, ...
 			'doMixing'	, true		, ...
@@ -101,7 +107,7 @@ methods
 		end
 	end
 
-	function [acc,p_binom] = trainClassify(obj)
+	function [meanAcc,stats,p_grouplevel] = trainClassify(obj)
 		u		= obj.uopt;
 		DEBUG	= u.DEBUG;
 
@@ -110,6 +116,13 @@ methods
 
 %initialize pseudo-random-number generator
 	rng(u.seed,'twister');
+
+%run each subject
+	acc	= NaN(u.nSubject,1);
+
+	progress(u.nSubject,'label','simulating each subject');
+	for kS=1:u.nSubject
+		doDebug	= DEBUG && kS==1;
 
 %the two causality matrices (and other control causality matrices)
 	nW				= 4;
@@ -134,7 +147,7 @@ methods
 	[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
 	[WA,WB,WBlank,WZ]						= deal(cW{:});
 
-	if DEBUG
+	if doDebug
 		szIm	= 200;
 
 		im	= normalize([WACause WBCause]);
@@ -166,7 +179,7 @@ methods
 	%total number of time points
 		nT		= nTRun*u.nRun;
 
-	if DEBUG
+	if doDebug
 		disp(sprintf('TRs per run: %d',nTRun));
 
 		figure;
@@ -182,6 +195,7 @@ methods
 	Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
 
 	for kR=1:u.nRun
+		W	= WBlank;
 		for kT=1:nTRun
 			%previous values
 				if kT==1
@@ -193,7 +207,15 @@ methods
 					yPrev	= squeeze(Y(kT-1,kR,:));
 					zPrev	= squeeze(Z(kT-1,kR,:,:));
 				end
-			%current causality matrix
+
+			%pre-source
+				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+			%source
+				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
+			%destination
+				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
+
+			%causality matrix for the next sample
 				switch target{kR}{kT}
 					case 'A'
 						W	= WA;
@@ -202,17 +224,10 @@ methods
 					otherwise
 						W	= WBlank;
 				end
-
-			%pre-source
-				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
-			%source
-				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
-			%destination
-				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
 		end
 	end
 
-	if DEBUG
+	if doDebug
 		XCause	= X(:,:,1:u.nSigCause);
 		YCause	= Y(:,:,1:u.nSigCause);
 
@@ -225,8 +240,8 @@ methods
 		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
 		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
 
-		[h,p,ci,stats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
-		tstat			= cellfun(@(s) s.tstat,stats,'uni',false);
+		[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
 
 		disp(sprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',cXMMeasure{:}));
 		disp(sprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',cYMMeasure{:}));
@@ -234,7 +249,7 @@ methods
 		disp(sprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',tstat{:}));
 	end
 
-	if DEBUG
+	if doDebug
 		tPlot	= reshape(1:nTRun,[],1);
 		xPlot	= X(:,1,1);
 		yPlot	= Y(:,1,1);
@@ -289,26 +304,43 @@ methods
 	YUnMix	= YUnMix(:,:,1:u.nSigCause);
 
 %calculate W*
-	%get the A and B portions of the signals for each run
-		XA	= arrayfun(@(run) squeeze(XUnMix(strcmp(target{run},'A'),run,:)),reshape(1:u.nRun,[],1),'uni',false);
-		XB	= arrayfun(@(run) squeeze(XUnMix(strcmp(target{run},'B'),run,:)),reshape(1:u.nRun,[],1),'uni',false);
-
-		YA	= arrayfun(@(run) squeeze(YUnMix(strcmp(target{run},'A'),run,:)),reshape(1:u.nRun,[],1),'uni',false);
-		YB	= arrayfun(@(run) squeeze(YUnMix(strcmp(target{run},'B'),run,:)),reshape(1:u.nRun,[],1),'uni',false);
-
-	%calculate the Granger Causality from X components to Y components for each run
+	%calculate the Granger Causality from X components to Y components for each
+	%run and condition
 		[WAs,WBs]	= deal(repmat({zeros(u.nSigCause)},[u.nRun 1]));
 
 		for kR=1:u.nRun
+			kALag	= find(strcmp(target{kR},'A'));
+			kBLag	= find(strcmp(target{kR},'B'));
+
+			kA	= kALag + 1;
+			kB	= kBLag + 1;
+
 			for kX=1:u.nSigCause
+				XA		= XUnMix(kA,kR,kX);
+				XB		= XUnMix(kB,kR,kX);
+				XALag	= XUnMix(kALag,kR,kX);
+				XBLag	= XUnMix(kBLag,kR,kX);
+
 				for kY=1:u.nSigCause
-					WAs{kR}(kX,kY)	= GrangerCausality(XA{kR}(:,kX),YA{kR}(:,kY));
-					WBs{kR}(kX,kY)	= GrangerCausality(XB{kR}(:,kX),YB{kR}(:,kY));
+					YA		= YUnMix(kA,kR,kY);
+					YB		= YUnMix(kB,kR,kY);
+					YALag	= YUnMix(kALag,kR,kY);
+					YBLag	= YUnMix(kBLag,kR,kY);
+
+					WAs{kR}(kX,kY)	= GrangerCausality(XA,YA,...
+										'src_past'	, XALag	, ...
+										'dst_past'	, YALag	  ...
+										);
+
+					WBs{kR}(kX,kY)	= GrangerCausality(XB,YB,...
+										'src_past'	, XBLag	, ...
+										'dst_past'	, YBLag	  ...
+										);
 				end
 			end
 		end
 
-	if DEBUG
+	if doDebug
 		mWAs	= mean(cat(3,WAs{:}),3);
 		mWBs	= mean(cat(3,WBs{:}),3);
 
@@ -354,13 +386,23 @@ methods
 		Xbin	= sum(res);
 		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
 	%accuracy
-		acc	= Xbin/Nbin;
+		acc(kS)	= Xbin/Nbin;
 
-	if DEBUG
-		disp(sprintf('accuracy: %.2f%%',100*acc));
+	if doDebug
+		disp(sprintf('accuracy: %.2f%%',100*acc(kS)));
 		disp(sprintf('p(binom): %.3f',p_binom));
 	end
+	progress;
+	end
 
+	%evaluate the classifier accuracies
+		[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+
+		meanAcc	= mean(acc);
+		if DEBUG
+			disp(sprintf('mean accuracy: %.2f%%',100*meanAcc));
+			disp(sprintf('group-level: t(%d)=%.3f, p=%.3f',stats.df,stats.tstat,p_grouplevel));
+		end
 	end
 end
 methods (Static)
@@ -380,28 +422,30 @@ methods (Static)
 
 	% debugTrainClassify - static method for running debug-pipeline
 	%
-	% Syntax:	[acc,p_binom] = Pipeline.debugTrainClassify(<options>)
+	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
+	%				Pipeline.debugTrainClassify(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
-	function [acc,p_binom] = debugTrainClassify(varargin)
+	function [meanAcc,stats,p_grouplevel] = debugTrainClassify(varargin)
 		pipeline = Pipeline.createDebugPipeline(varargin{:});
-		[acc,p_binom] = pipeline.trainClassify;
+		[meanAcc,stats,p_grouplevel] = pipeline.trainClassify;
 	end
 
 	% runTrainClassify - static method for running pipeline
 	%
-	% Syntax:	[acc,p_binom] = Pipeline.runTrainClassify(<options>)
+	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
+	%				Pipeline.runTrainClassify(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See Pipeline constructor above for description of <options>
 	%
-	function [acc,p_binom] = runTrainClassify(varargin)
+	function [meanAcc,stats,p_grouplevel] = runTrainClassify(varargin)
 		pipeline = Pipeline(varargin{:});
-		[acc,p_binom] = pipeline.trainClassify;
+		[meanAcc,stats,p_grouplevel] = pipeline.trainClassify;
 	end
 end
 end

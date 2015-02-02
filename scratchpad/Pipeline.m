@@ -109,22 +109,11 @@ methods
 		end
 	end
 
-	function [meanAcc,stats,p_grouplevel] = trainClassify(obj)
+	function accSubj = subjectTrainClassify(obj,doDebug)
 		u		= obj.uopt;
-		DEBUG	= u.DEBUG;
 
 %TODO: Fix indentation throughout
 
-
-%initialize pseudo-random-number generator
-	rng(u.seed,'twister');
-
-%run each subject
-	acc	= NaN(u.nSubject,1);
-
-	progress(u.nSubject,'label','simulating each subject');
-	for kS=1:u.nSubject
-		doDebug	= DEBUG && kS==1;
 
 %the two causality matrices (and other control causality matrices)
 	nW				= 4;
@@ -392,12 +381,29 @@ methods
 		Xbin	= sum(res);
 		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
 	%accuracy
-		acc(kS)	= Xbin/Nbin;
+		accSubj	= Xbin/Nbin;
 
 	if doDebug
-		fprintf('accuracy: %.2f%%\n',100*acc(kS));
+		fprintf('accuracy: %.2f%%\n',100*accSubj);
 		fprintf('p(binom): %.3f\n',p_binom);
 	end
+	end
+
+	function [meanAcc,stats,p_grouplevel] = trainClassify(obj)
+		u		= obj.uopt;
+		DEBUG	= u.DEBUG;
+
+%initialize pseudo-random-number generator
+	rng(u.seed,'twister');
+
+%run each subject
+	acc	= NaN(u.nSubject,1);
+
+	progress(u.nSubject,'label','simulating each subject');
+	for kS=1:u.nSubject
+		doDebug	= DEBUG && kS==1;
+		acc(kS)	= subjectTrainClassify(obj,doDebug);
+
 	progress;
 	end
 

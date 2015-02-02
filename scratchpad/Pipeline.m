@@ -40,6 +40,7 @@ methods
 	%
 	%		DEBUG		(false) Display debugging information
 	%		seed:		(randseed2) the seed to use for randomizing
+	%		szIm:		(200) pixel height of debug images
 	%
 	%					-- Subjects
 	%
@@ -76,6 +77,7 @@ methods
 		opt	= ParseArgs(varargin,...
 			'DEBUG'		, false		, ...
 			'seed'		, randseed2	, ...
+			'szIm'		, 200		, ...
 			'nSubject'	, 20		, ...
 			'nSig'		, 10		, ...
 			'nSigCause'	, 10		, ...
@@ -148,15 +150,16 @@ methods
 	[WA,WB,WBlank,WZ]						= deal(cW{:});
 
 	if doDebug
-		szIm	= 200;
+		imDims	= [u.szIm NaN];
+		graySeparator	= 0.8*ones(u.szIm,round(1.5*u.szIm/u.nSigCause));
 
 		im	= normalize([WACause WBCause]);
-		im	= [imresize(im(:,1:u.nSigCause),[szIm NaN],'nearest') 0.8*ones(szIm,round(200/u.nSigCause)) imresize(im(:,u.nSigCause+1:end),[szIm NaN],'nearest')];
+		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
 		figure; imshow(im);
 		title('W_A and W_B');
 
 		im	= normalize([WBlankCause WZCause]);
-		im	= [imresize(im(:,1:u.nSigCause),[szIm NaN],'nearest') 0.8*ones(szIm,round(200/u.nSigCause)) imresize(im(:,u.nSigCause+1:end),[szIm NaN],'nearest')];
+		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
 		figure; imshow(im);
 		title('W_{blank} and W_Z');
 
@@ -348,7 +351,7 @@ methods
 		mWBs	= mean(cat(3,WBs{:}),3);
 
 		im	= normalize([mWAs mWBs]);
-		im	= [imresize(im(:,1:u.nSigCause),[szIm NaN],'nearest') 0.8*ones(szIm,round(200/u.nSigCause)) imresize(im(:,u.nSigCause+1:end),[szIm NaN],'nearest')];
+		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
 		figure; imshow(im);
 		title('W^*_A and W^*_B');
 

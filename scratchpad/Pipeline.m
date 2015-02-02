@@ -160,10 +160,10 @@ methods
 		figure; imshow(im);
 		title('W_{blank} and W_Z');
 
-		disp(sprintf('WA column sums:  %s',sprintf('%.3f ',sum(WACause))));
-		disp(sprintf('WB column sums:  %s',sprintf('%.3f ',sum(WBCause))));
-		disp(sprintf('sum(WA)+CRecurY: %s',sprintf('%.3f ',sum(WACause)+u.CRecurY)));
-		disp(sprintf('sum(WB)+CRecurY: %s',sprintf('%.3f ',sum(WBCause)+u.CRecurY)));
+		fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
+		fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
+		fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+		fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
 	end
 
 %derived parameters
@@ -180,7 +180,7 @@ methods
 		nT		= nTRun*u.nRun;
 
 	if doDebug
-		disp(sprintf('TRs per run: %d',nTRun));
+		fprintf('TRs per run: %d\n',nTRun);
 
 		figure;
 		imagesc(block);
@@ -231,7 +231,7 @@ methods
 		XCause	= X(:,:,1:u.nSigCause);
 		YCause	= Y(:,:,1:u.nSigCause);
 
-		cMeasure	= {'mean','range','std','std(d/dx)'};
+		%cMeasure	= {'mean','range','std','std(d/dx)'};
 		cFMeasure	= {@mean,@range,@std,@(x) std(diff(x))};
 
 		cXMeasure	= cellfun(@(f) f(reshape(permute(XCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
@@ -240,13 +240,14 @@ methods
 		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
 		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
 
-		[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		%[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
 		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
 
-		disp(sprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',cXMMeasure{:}));
-		disp(sprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',cYMMeasure{:}));
-		disp(sprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',p{:}));
-		disp(sprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f',tstat{:}));
+		fprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cXMMeasure{:});
+		fprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cYMMeasure{:});
+		fprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',p{:});
+		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
 	end
 
 	if doDebug
@@ -291,10 +292,12 @@ methods
 
 %unmix and keep the top nSigCause components
 	if u.doMixing
-		[CPCAX,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
+		%[CPCAX,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
+		[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
 		XUnMix			= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
 
-		[CPCAY,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
+		%[CPCAY,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
+		[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
 		YUnMix			= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
 	else
 		[XUnMix,YUnMix]	= deal(X,Y);
@@ -349,8 +352,8 @@ methods
 		figure; imshow(im);
 		title('W^*_A and W^*_B');
 
-		disp(sprintf('mean W*A column sums:  %s',sprintf('%.3f ',sum(mWAs))));
-		disp(sprintf('mean W*B column sums:  %s',sprintf('%.3f ',sum(mWBs))));
+		fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
+		fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
 	end
 
 %classify between W*A and W*B
@@ -389,19 +392,20 @@ methods
 		acc(kS)	= Xbin/Nbin;
 
 	if doDebug
-		disp(sprintf('accuracy: %.2f%%',100*acc(kS)));
-		disp(sprintf('p(binom): %.3f',p_binom));
+		fprintf('accuracy: %.2f%%\n',100*acc(kS));
+		fprintf('p(binom): %.3f\n',p_binom);
 	end
 	progress;
 	end
 
 	%evaluate the classifier accuracies
-		[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+		%[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
 
 		meanAcc	= mean(acc);
 		if DEBUG
-			disp(sprintf('mean accuracy: %.2f%%',100*meanAcc));
-			disp(sprintf('group-level: t(%d)=%.3f, p=%.3f',stats.df,stats.tstat,p_grouplevel));
+			fprintf('mean accuracy: %.2f%%\n',100*meanAcc);
+			fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 		end
 	end
 end

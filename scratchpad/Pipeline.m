@@ -109,80 +109,12 @@ methods
 		end
 	end
 
-	function accSubj = subjectTrainClassify(obj,doDebug)
-		u		= obj.uopt;
-
 %TODO: Fix indentation throughout
 
-
-%the two causality matrices (and other control causality matrices)
-	nW				= 4;
-	[cWCause,cW]	= deal(cell(nW,1));
-
-	for kW=1:nW
-		%generate a random W
-			W					= rand(u.nSigCause);
-		%make it sparse
-			W(1-W>u.WFullness)	= 0;
-		%normalize each column to the specified mean
-			W			= W*u.WSum./repmat(sum(W,1),[u.nSigCause 1]);
-			W(isnan(W))	= 0;
-
-		cWCause{kW}	= W;
-
-		%insert into the full matrix
-		cW{kW}							= zeros(u.nSig);
-		cW{kW}(1:u.nSigCause,1:u.nSigCause)	= cWCause{kW};
-	end
-
-	[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
-	[WA,WB,WBlank,WZ]						= deal(cW{:});
-
-	if doDebug
-		imDims	= [u.szIm NaN];
-		graySeparator	= 0.8*ones(u.szIm,round(1.5*u.szIm/u.nSigCause));
-
-		im	= normalize([WACause WBCause]);
-		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
-		figure; imshow(im);
-		title('W_A and W_B');
-
-		im	= normalize([WBlankCause WZCause]);
-		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
-		figure; imshow(im);
-		title('W_{blank} and W_Z');
-
-		fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
-		fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
-		fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
-		fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
-	end
-
-%derived parameters
-	%block design
-		designSeed = randi(intmax('uint32'));
-		rngState = rng;
-		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
-		rng(rngState);
-		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
-
-	%number of time points per run
+	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ)
+		u		= obj.uopt;
 		nTRun	= numel(target{1});
-	%total number of time points
-		nT		= nTRun*u.nRun;
 
-	if doDebug
-		fprintf('TRs per run: %d\n',nTRun);
-
-		figure;
-		imagesc(block);
-		colormap('gray');
-		title('block design (blk=A, wht=B)');
-		xlabel('block');
-		ylabel('run');
-	end
-
-%generate the functional signals
 	[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
 	Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
 
@@ -218,31 +150,32 @@ methods
 				end
 		end
 	end
+	end
+	function [cWCause,cW] = generateWs(obj,nW)
+		u		= obj.uopt;
+	[cWCause,cW]	= deal(cell(nW,1));
 
-	if doDebug
-		XCause	= X(:,:,1:u.nSigCause);
-		YCause	= Y(:,:,1:u.nSigCause);
+	for kW=1:nW
+		%generate a random W
+			W					= rand(u.nSigCause);
+		%make it sparse
+			W(1-W>u.WFullness)	= 0;
+		%normalize each column to the specified mean
+			W			= W*u.WSum./repmat(sum(W,1),[u.nSigCause 1]);
+			W(isnan(W))	= 0;
 
-		%cMeasure	= {'mean','range','std','std(d/dx)'};
-		cFMeasure	= {@mean,@range,@std,@(x) std(diff(x))};
+		cWCause{kW}	= W;
 
-		cXMeasure	= cellfun(@(f) f(reshape(permute(XCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
-		cYMeasure	= cellfun(@(f) f(reshape(permute(YCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
-
-		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
-		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
-
-		%[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
-		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
-		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
-
-		fprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cXMMeasure{:});
-		fprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cYMMeasure{:});
-		fprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',p{:});
-		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
+		%insert into the full matrix
+		cW{kW}							= zeros(u.nSig);
+		cW{kW}(1:u.nSigCause,1:u.nSigCause)	= cWCause{kW};
+	end
 	end
 
-	if doDebug
+	function showFunctionalSigPlot(obj,X,Y,block)
+		u		= obj.uopt;
+		nTRun	= size(X,1);
+
 		tPlot	= reshape(1:nTRun,[],1);
 		xPlot	= X(:,1,1);
 		yPlot	= Y(:,1,1);
@@ -274,6 +207,93 @@ methods
 			set(hP,'EdgeColor',colCur);
 			MoveToBack(h.hA,hP);
 		end
+	end
+
+	function showFunctionalSigStats(obj,X,Y)
+		u		= obj.uopt;
+		nTRun	= size(X,1);
+
+		XCause	= X(:,:,1:u.nSigCause);
+		YCause	= Y(:,:,1:u.nSigCause);
+
+		%cMeasure	= {'mean','range','std','std(d/dx)'};
+		cFMeasure	= {@mean,@range,@std,@(x) std(diff(x))};
+
+		cXMeasure	= cellfun(@(f) f(reshape(permute(XCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
+		cYMeasure	= cellfun(@(f) f(reshape(permute(YCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
+
+		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
+		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
+
+		%[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
+
+		fprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cXMMeasure{:});
+		fprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cYMMeasure{:});
+		fprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',p{:});
+		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
+	end
+
+	function showTwoWs(obj,W1,W2,figTitle)
+		u		= obj.uopt;
+		imDims	= [u.szIm NaN];
+		graySeparator	= 0.8*ones(u.szIm,round(1.5*u.szIm/u.nSigCause));
+
+		im	= normalize([W1 W2]);
+		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
+		figure; imshow(im);
+		title(figTitle);
+	end
+
+	function accSubj = subjectTrainClassify(obj,doDebug)
+		u		= obj.uopt;
+
+%the two causality matrices (and other control causality matrices)
+	[cWCause,cW]	= generateWs(obj,4);
+
+	[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+	[WA,WB,WBlank,WZ]						= deal(cW{:});
+
+	if doDebug
+		showTwoWs(obj,WACause,WBCause,'W_A and W_B');
+		showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
+		fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
+		fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
+		fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+		fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+	end
+
+%derived parameters
+	%block design
+		designSeed = randi(intmax('uint32'));
+		rngState = rng;
+		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
+		rng(rngState);
+		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
+
+	%number of time points per run
+		nTRun	= numel(target{1});
+	%total number of time points
+		nT		= nTRun*u.nRun;
+
+	if doDebug
+		fprintf('TRs per run: %d\n',nTRun);
+
+		figure;
+		imagesc(block);
+		colormap('gray');
+		title('block design (blk=A, wht=B)');
+		xlabel('block');
+		ylabel('run');
+	end
+
+%generate the functional signals
+	[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
+
+	if doDebug
+		showFunctionalSigStats(obj,X,Y);
+		showFunctionalSigPlot(obj,X,Y,block);
 	end
 
 %mix between voxels
@@ -339,11 +359,7 @@ methods
 		mWAs	= mean(cat(3,WAs{:}),3);
 		mWBs	= mean(cat(3,WBs{:}),3);
 
-		im	= normalize([mWAs mWBs]);
-		im	= [imresize(im(:,1:u.nSigCause),imDims,'nearest') graySeparator imresize(im(:,u.nSigCause+1:end),imDims,'nearest')];
-		figure; imshow(im);
-		title('W^*_A and W^*_B');
-
+		showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
 		fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
 		fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
 	end

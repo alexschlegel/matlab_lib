@@ -17,8 +17,8 @@ classdef Pipeline
 %connectivity from X to Y?
 
 
-% Simplest invocation (as of 2015-01-22):  Pipeline.debugTrainClassify;
-% use "Pipeline.runTrainClassify" to randomize behavior and suppress
+% Simplest invocation (as of 2015-02-03):  Pipeline.debugSimulation;
+% use "Pipeline.runSimulation" to randomize behavior and suppress
 % diagnostic output.
 %
 
@@ -98,6 +98,37 @@ methods
 		obj.explicitOptionNames	= varargin(1:2:end);
 	end
 
+%TODO: Fix indentation throughout
+
+	%calculate the Granger Causality from X components to Y components for each
+	%run and condition
+	% Xu for XUnMix, Yu for YUnMix
+	% condLetter is 'A' or 'B'
+	function W_stars = calculateW_stars(obj,Xu,Yu,target,condLetter)
+		u		= obj.uopt;
+		W_stars	= repmat({zeros(u.nSigCause)},[u.nRun 1]);
+
+		for kR=1:u.nRun
+			kLag	= find(strcmp(target{kR},condLetter));
+			k		= kLag + 1;
+
+			for kX=1:u.nSigCause
+				Xc		= Xu(k,kR,kX);
+				XcLag	= Xu(kLag,kR,kX);
+
+				for kY=1:u.nSigCause
+					Yc		= Yu(k,kR,kY);
+					YcLag	= Yu(kLag,kR,kY);
+
+					W_stars{kR}(kX,kY)	= GrangerCausality(Xc,Yc,...
+										'src_past'	, XcLag	, ...
+										'dst_past'	, YcLag	  ...
+										);
+				end
+			end
+		end
+	end
+
 	function obj = changeDefaultsToDebug(obj)
 		obj = obj.changeOptionDefault('DEBUG',true);
 		obj = obj.changeOptionDefault('seed',0);
@@ -109,11 +140,55 @@ methods
 		end
 	end
 
-%TODO: Fix indentation throughout
+	function [acc,p_binom] = classifyBetweenWs(obj,WAs,WBs)
+		u		= obj.uopt;
+	P	= cvpartition(u.nRun,'LeaveOut');
+
+	res	= zeros(P.NumTestSets,1);
+	for kP=1:P.NumTestSets
+		WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
+		WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
+
+		WATest	= cellfun(@(W) reshape(W,1,[]), WAs(P.test(kP)),'uni',false);
+		WBTest	= cellfun(@(W) reshape(W,1,[]), WBs(P.test(kP)),'uni',false);
+
+		WATrain	= cat(1,WATrain{:});
+		WBTrain	= cat(1,WBTrain{:});
+		WATest	= cat(1,WATest{:});
+		WBTest	= cat(1,WBTest{:});
+
+		WTrain	= [WATrain; WBTrain];
+		WTest	= [WATest; WBTest];
+
+		lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
+		lblTest		= {'A';'B'};
+
+		sSVM	= svmtrain(WTrain,lblTrain);
+		pred	= svmclassify(sSVM,WTest);
+		res(kP)	= sum(strcmp(pred,lblTest));
+	end
+
+	%one-tailed binomial test
+		Nbin	= 2*u.nRun;
+		Pbin	= 0.5;
+		Xbin	= sum(res);
+		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
+	%accuracy
+		acc		= Xbin/Nbin;
+	end
+
+	function [block,target] = generateBlockDesign(obj)
+		u		= obj.uopt;
+		designSeed = randi(intmax('uint32'));
+		rngState = rng;
+		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
+		rng(rngState);
+		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
+	end
 
 	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ)
 		u		= obj.uopt;
-		nTRun	= numel(target{1});
+		nTRun	= numel(target{1}); %number of time points per run
 
 	[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
 	Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
@@ -151,6 +226,43 @@ methods
 		end
 	end
 	end
+
+	function [XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
+		u		= obj.uopt;
+%generate the functional signals
+	[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
+
+	if doDebug
+		showFunctionalSigStats(obj,X,Y);
+		showFunctionalSigPlot(obj,X,Y,block);
+	end
+
+		nTRun	= numel(target{1}); %number of time points per run
+	%total number of time points
+		nT		= nTRun*u.nRun;
+%mix between voxels
+	if u.doMixing
+		XMix	= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+		YMix	= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+	end
+
+%unmix and keep the top nSigCause components
+	if u.doMixing
+		%[CPCAX,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
+		[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
+		XUnMix			= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
+
+		%[CPCAY,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
+		[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
+		YUnMix			= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
+	else
+		[XUnMix,YUnMix]	= deal(X,Y);
+	end
+
+	XUnMix	= XUnMix(:,:,1:u.nSigCause);
+	YUnMix	= YUnMix(:,:,1:u.nSigCause);
+	end
+
 	function [cWCause,cW] = generateWs(obj,nW)
 		u		= obj.uopt;
 	[cWCause,cW]	= deal(cell(nW,1));
@@ -172,9 +284,18 @@ methods
 	end
 	end
 
+	function showBlockDesign(obj,block)
+		figure;
+		imagesc(block);
+		colormap('gray');
+		title('block design (blk=A, wht=B)');
+		xlabel('block');
+		ylabel('run');
+	end
+
 	function showFunctionalSigPlot(obj,X,Y,block)
 		u		= obj.uopt;
-		nTRun	= size(X,1);
+		nTRun	= size(X,1); %number of time points per run
 
 		tPlot	= reshape(1:nTRun,[],1);
 		xPlot	= X(:,1,1);
@@ -211,7 +332,7 @@ methods
 
 	function showFunctionalSigStats(obj,X,Y)
 		u		= obj.uopt;
-		nTRun	= size(X,1);
+		nTRun	= size(X,1); %number of time points per run
 
 		XCause	= X(:,:,1:u.nSigCause);
 		YCause	= Y(:,:,1:u.nSigCause);
@@ -246,7 +367,36 @@ methods
 		title(figTitle);
 	end
 
-	function accSubj = subjectTrainClassify(obj,doDebug)
+	function [meanAcc,stats,p_grouplevel] = simulateAll(obj)
+		u		= obj.uopt;
+		DEBUG	= u.DEBUG;
+
+%initialize pseudo-random-number generator
+	rng(u.seed,'twister');
+
+%run each subject
+	acc	= NaN(u.nSubject,1);
+
+	progress(u.nSubject,'label','simulating each subject');
+	for kS=1:u.nSubject
+		doDebug	= DEBUG && kS==1;
+		acc(kS)	= simulateSubject(obj,doDebug);
+
+	progress;
+	end
+
+	%evaluate the classifier accuracies
+		%[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
+
+		meanAcc	= mean(acc);
+		if DEBUG
+			fprintf('mean accuracy: %.2f%%\n',100*meanAcc);
+			fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+		end
+	end
+
+	function accSubj = simulateSubject(obj,doDebug)
 		u		= obj.uopt;
 
 %the two causality matrices (and other control causality matrices)
@@ -266,94 +416,23 @@ methods
 
 %derived parameters
 	%block design
-		designSeed = randi(intmax('uint32'));
-		rngState = rng;
-		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
-		rng(rngState);
-		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
+	[block,target] = generateBlockDesign(obj);
 
 	%number of time points per run
 		nTRun	= numel(target{1});
-	%total number of time points
-		nT		= nTRun*u.nRun;
 
 	if doDebug
 		fprintf('TRs per run: %d\n',nTRun);
-
-		figure;
-		imagesc(block);
-		colormap('gray');
-		title('block design (blk=A, wht=B)');
-		xlabel('block');
-		ylabel('run');
+		showBlockDesign(obj,block);
 	end
 
-%generate the functional signals
-	[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
-
-	if doDebug
-		showFunctionalSigStats(obj,X,Y);
-		showFunctionalSigPlot(obj,X,Y,block);
-	end
-
-%mix between voxels
-	if u.doMixing
-		XMix	= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-		YMix	= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-	end
-
-%unmix and keep the top nSigCause components
-	if u.doMixing
-		%[CPCAX,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
-		[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
-		XUnMix			= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
-
-		%[CPCAY,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
-		[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
-		YUnMix			= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
-	else
-		[XUnMix,YUnMix]	= deal(X,Y);
-	end
-
-	XUnMix	= XUnMix(:,:,1:u.nSigCause);
-	YUnMix	= YUnMix(:,:,1:u.nSigCause);
+	[XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
 
 %calculate W*
 	%calculate the Granger Causality from X components to Y components for each
 	%run and condition
-		[WAs,WBs]	= deal(repmat({zeros(u.nSigCause)},[u.nRun 1]));
-
-		for kR=1:u.nRun
-			kALag	= find(strcmp(target{kR},'A'));
-			kBLag	= find(strcmp(target{kR},'B'));
-
-			kA	= kALag + 1;
-			kB	= kBLag + 1;
-
-			for kX=1:u.nSigCause
-				XA		= XUnMix(kA,kR,kX);
-				XB		= XUnMix(kB,kR,kX);
-				XALag	= XUnMix(kALag,kR,kX);
-				XBLag	= XUnMix(kBLag,kR,kX);
-
-				for kY=1:u.nSigCause
-					YA		= YUnMix(kA,kR,kY);
-					YB		= YUnMix(kB,kR,kY);
-					YALag	= YUnMix(kALag,kR,kY);
-					YBLag	= YUnMix(kBLag,kR,kY);
-
-					WAs{kR}(kX,kY)	= GrangerCausality(XA,YA,...
-										'src_past'	, XALag	, ...
-										'dst_past'	, YALag	  ...
-										);
-
-					WBs{kR}(kX,kY)	= GrangerCausality(XB,YB,...
-										'src_past'	, XBLag	, ...
-										'dst_past'	, YBLag	  ...
-										);
-				end
-			end
-		end
+		WAs = calculateW_stars(obj,XUnMix,YUnMix,target,'A');
+		WBs = calculateW_stars(obj,XUnMix,YUnMix,target,'B');
 
 	if doDebug
 		mWAs	= mean(cat(3,WAs{:}),3);
@@ -365,75 +444,15 @@ methods
 	end
 
 %classify between W*A and W*B
-	P	= cvpartition(u.nRun,'LeaveOut');
-
-	res	= zeros(P.NumTestSets,1);
-	for kP=1:P.NumTestSets
-		WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
-		WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
-
-		WATest	= cellfun(@(W) reshape(W,1,[]), WAs(P.test(kP)),'uni',false);
-		WBTest	= cellfun(@(W) reshape(W,1,[]), WBs(P.test(kP)),'uni',false);
-
-		WATrain	= cat(1,WATrain{:});
-		WBTrain	= cat(1,WBTrain{:});
-		WATest	= cat(1,WATest{:});
-		WBTest	= cat(1,WBTest{:});
-
-		WTrain	= [WATrain; WBTrain];
-		WTest	= [WATest; WBTest];
-
-		lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
-		lblTest		= {'A';'B'};
-
-		sSVM	= svmtrain(WTrain,lblTrain);
-		pred	= svmclassify(sSVM,WTest);
-		res(kP)	= sum(strcmp(pred,lblTest));
-	end
-
-	%one-tailed binomial test
-		Nbin	= 2*u.nRun;
-		Pbin	= 0.5;
-		Xbin	= sum(res);
-		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
-	%accuracy
-		accSubj	= Xbin/Nbin;
+	[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
 
 	if doDebug
 		fprintf('accuracy: %.2f%%\n',100*accSubj);
 		fprintf('p(binom): %.3f\n',p_binom);
 	end
 	end
-
-	function [meanAcc,stats,p_grouplevel] = trainClassify(obj)
-		u		= obj.uopt;
-		DEBUG	= u.DEBUG;
-
-%initialize pseudo-random-number generator
-	rng(u.seed,'twister');
-
-%run each subject
-	acc	= NaN(u.nSubject,1);
-
-	progress(u.nSubject,'label','simulating each subject');
-	for kS=1:u.nSubject
-		doDebug	= DEBUG && kS==1;
-		acc(kS)	= subjectTrainClassify(obj,doDebug);
-
-	progress;
-	end
-
-	%evaluate the classifier accuracies
-		%[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
-		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
-
-		meanAcc	= mean(acc);
-		if DEBUG
-			fprintf('mean accuracy: %.2f%%\n',100*meanAcc);
-			fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
-		end
-	end
 end
+
 methods (Static)
 	% createDebugPipeline - static method for creating debug-pipeline
 	%
@@ -449,32 +468,32 @@ methods (Static)
 		pipeline = pipeline.changeDefaultsToDebug;
 	end
 
-	% debugTrainClassify - static method for running debug-pipeline
+	% debugSimulation - static method for running debug-pipeline
 	%
 	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
-	%				Pipeline.debugTrainClassify(<options>)
+	%				Pipeline.debugSimulation(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
-	function [meanAcc,stats,p_grouplevel] = debugTrainClassify(varargin)
+	function [meanAcc,stats,p_grouplevel] = debugSimulation(varargin)
 		pipeline = Pipeline.createDebugPipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.trainClassify;
+		[meanAcc,stats,p_grouplevel] = pipeline.simulateAll;
 	end
 
-	% runTrainClassify - static method for running pipeline
+	% runSimulation - static method for running pipeline
 	%
 	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
-	%				Pipeline.runTrainClassify(<options>)
+	%				Pipeline.runSimulation(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See Pipeline constructor above for description of <options>
 	%
-	function [meanAcc,stats,p_grouplevel] = runTrainClassify(varargin)
+	function [meanAcc,stats,p_grouplevel] = runSimulation(varargin)
 		pipeline = Pipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.trainClassify;
+		[meanAcc,stats,p_grouplevel] = pipeline.simulateAll;
 	end
 end
 end

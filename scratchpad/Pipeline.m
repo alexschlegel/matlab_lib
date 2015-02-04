@@ -121,9 +121,9 @@ methods
 					YcLag	= Yu(kLag,kR,kY);
 
 					W_stars{kR}(kX,kY)	= GrangerCausality(Xc,Yc,...
-										'src_past'	, XcLag	, ...
-										'dst_past'	, YcLag	  ...
-										);
+						'src_past'	, XcLag	, ...
+						'dst_past'	, YcLag	  ...
+						);
 				end
 			end
 		end
@@ -141,62 +141,62 @@ methods
 	end
 
 	function [acc,p_binom] = classifyBetweenWs(obj,WAs,WBs)
-		u		= obj.uopt;
-	P	= cvpartition(u.nRun,'LeaveOut');
+		u	= obj.uopt;
+		P	= cvpartition(u.nRun,'LeaveOut');
 
-	res	= zeros(P.NumTestSets,1);
-	for kP=1:P.NumTestSets
-		WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
-		WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
+		res	= zeros(P.NumTestSets,1);
+		for kP=1:P.NumTestSets
+			WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
+			WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
 
-		WATest	= cellfun(@(W) reshape(W,1,[]), WAs(P.test(kP)),'uni',false);
-		WBTest	= cellfun(@(W) reshape(W,1,[]), WBs(P.test(kP)),'uni',false);
+			WATest	= cellfun(@(W) reshape(W,1,[]), WAs(P.test(kP)),'uni',false);
+			WBTest	= cellfun(@(W) reshape(W,1,[]), WBs(P.test(kP)),'uni',false);
 
-		WATrain	= cat(1,WATrain{:});
-		WBTrain	= cat(1,WBTrain{:});
-		WATest	= cat(1,WATest{:});
-		WBTest	= cat(1,WBTest{:});
+			WATrain	= cat(1,WATrain{:});
+			WBTrain	= cat(1,WBTrain{:});
+			WATest	= cat(1,WATest{:});
+			WBTest	= cat(1,WBTest{:});
 
-		WTrain	= [WATrain; WBTrain];
-		WTest	= [WATest; WBTest];
+			WTrain	= [WATrain; WBTrain];
+			WTest	= [WATest; WBTest];
 
-		lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
-		lblTest		= {'A';'B'};
+			lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
+			lblTest		= {'A';'B'};
 
-		sSVM	= svmtrain(WTrain,lblTrain);
-		pred	= svmclassify(sSVM,WTest);
-		res(kP)	= sum(strcmp(pred,lblTest));
-	end
+			sSVM	= svmtrain(WTrain,lblTrain);
+			pred	= svmclassify(sSVM,WTest);
+			res(kP)	= sum(strcmp(pred,lblTest));
+		end
 
-	%one-tailed binomial test
+		%one-tailed binomial test
 		Nbin	= 2*u.nRun;
 		Pbin	= 0.5;
 		Xbin	= sum(res);
 		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
-	%accuracy
+		%accuracy
 		acc		= Xbin/Nbin;
 	end
 
 	function [block,target] = generateBlockDesign(obj)
-		u		= obj.uopt;
-		designSeed = randi(intmax('uint32'));
-		rngState = rng;
-		block	= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
+		u			= obj.uopt;
+		designSeed	= randi(intmax('uint32'));
+		rngState	= rng;
+		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
 		rng(rngState);
-		target	= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
+		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 	end
 
 	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ)
 		u		= obj.uopt;
 		nTRun	= numel(target{1}); %number of time points per run
 
-	[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
-	Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
+		[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
+		Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
 
-	for kR=1:u.nRun
-		W	= WBlank;
-		for kT=1:nTRun
-			%previous values
+		for kR=1:u.nRun
+			W	= WBlank;
+			for kT=1:nTRun
+				%previous values
 				if kT==1
 					xPrev	= randn(u.nSig,1);
 					yPrev	= randn(u.nSig,1);
@@ -207,14 +207,14 @@ methods
 					zPrev	= squeeze(Z(kT-1,kR,:,:));
 				end
 
-			%pre-source
+				%pre-source
 				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
-			%source
+				%source
 				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
-			%destination
+				%destination
 				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
 
-			%causality matrix for the next sample
+				%causality matrix for the next sample
 				switch target{kR}{kT}
 					case 'A'
 						W	= WA;
@@ -223,68 +223,65 @@ methods
 					otherwise
 						W	= WBlank;
 				end
+			end
 		end
-	end
 	end
 
 	function [XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
 		u		= obj.uopt;
-%generate the functional signals
-	[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
+		%generate the functional signals
+		[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
 
-	if doDebug
-		showFunctionalSigStats(obj,X,Y);
-		showFunctionalSigPlot(obj,X,Y,block);
-	end
+		if doDebug
+			showFunctionalSigStats(obj,X,Y);
+			showFunctionalSigPlot(obj,X,Y,block);
+		end
 
-		nTRun	= numel(target{1}); %number of time points per run
-	%total number of time points
-		nT		= nTRun*u.nRun;
-%mix between voxels
-	if u.doMixing
-		XMix	= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-		YMix	= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-	end
+		nTRun	= numel(target{1});	%number of time points per run
+		nT		= nTRun*u.nRun;		%total number of time points
+		%mix between voxels
+		if u.doMixing
+			XMix	= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+			YMix	= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+		end
 
-%unmix and keep the top nSigCause components
-	if u.doMixing
-		%[CPCAX,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
-		[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
-		XUnMix			= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
+		%unmix and keep the top nSigCause components
+		if u.doMixing
+			[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
+			XUnMix		= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
 
-		%[CPCAY,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
-		[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
-		YUnMix			= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
-	else
-		[XUnMix,YUnMix]	= deal(X,Y);
-	end
+			[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
+			YUnMix		= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
+		else
+			[XUnMix,YUnMix]	= deal(X,Y);
+		end
 
-	XUnMix	= XUnMix(:,:,1:u.nSigCause);
-	YUnMix	= YUnMix(:,:,1:u.nSigCause);
+		XUnMix	= XUnMix(:,:,1:u.nSigCause);
+		YUnMix	= YUnMix(:,:,1:u.nSigCause);
 	end
 
 	function [cWCause,cW] = generateWs(obj,nW)
-		u		= obj.uopt;
-	[cWCause,cW]	= deal(cell(nW,1));
+		u				= obj.uopt;
+		[cWCause,cW]	= deal(cell(nW,1));
 
-	for kW=1:nW
-		%generate a random W
+		for kW=1:nW
+			%generate a random W
 			W					= rand(u.nSigCause);
-		%make it sparse
+			%make it sparse
 			W(1-W>u.WFullness)	= 0;
-		%normalize each column to the specified mean
+			%normalize each column to the specified mean
 			W			= W*u.WSum./repmat(sum(W,1),[u.nSigCause 1]);
 			W(isnan(W))	= 0;
 
-		cWCause{kW}	= W;
+			cWCause{kW}	= W;
 
-		%insert into the full matrix
-		cW{kW}							= zeros(u.nSig);
-		cW{kW}(1:u.nSigCause,1:u.nSigCause)	= cWCause{kW};
-	end
+			%insert into the full matrix
+			cW{kW}								= zeros(u.nSig);
+			cW{kW}(1:u.nSigCause,1:u.nSigCause)	= cWCause{kW};
+		end
 	end
 
-	function showBlockDesign(obj,block)
+	function showBlockDesign(~,block)
 		figure;
 		imagesc(block);
 		colormap('gray');
@@ -302,11 +299,11 @@ methods
 		yPlot	= Y(:,1,1);
 
 		h		= alexplot(tPlot,{xPlot yPlot},...
-					'title'		, 'Run 1'		, ...
-					'xlabel'	, 't'			, ...
-					'ylabel'	, 'Amplitude'	, ...
-					'legend'	, {'X','Y'}		  ...
-					);
+			'title'		, 'Run 1'		, ...
+			'xlabel'	, 't'			, ...
+			'ylabel'	, 'Amplitude'	, ...
+			'legend'	, {'X','Y'}		  ...
+			);
 
 		yLim	= get(h.hA,'ylim');
 		yMin	= yLim(1);
@@ -346,7 +343,6 @@ methods
 		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
 		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
 
-		%[h,p,ci,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
 		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
 		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
 
@@ -357,8 +353,8 @@ methods
 	end
 
 	function showTwoWs(obj,W1,W2,figTitle)
-		u		= obj.uopt;
-		imDims	= [u.szIm NaN];
+		u				= obj.uopt;
+		imDims			= [u.szIm NaN];
 		graySeparator	= 0.8*ones(u.szIm,round(1.5*u.szIm/u.nSigCause));
 
 		im	= normalize([W1 W2]);
@@ -371,22 +367,21 @@ methods
 		u		= obj.uopt;
 		DEBUG	= u.DEBUG;
 
-%initialize pseudo-random-number generator
-	rng(u.seed,'twister');
+		%initialize pseudo-random-number generator
+		rng(u.seed,'twister');
 
-%run each subject
-	acc	= NaN(u.nSubject,1);
+		%run each subject
+		acc	= NaN(u.nSubject,1);
 
-	progress(u.nSubject,'label','simulating each subject');
-	for kS=1:u.nSubject
-		doDebug	= DEBUG && kS==1;
-		acc(kS)	= simulateSubject(obj,doDebug);
+		progress(u.nSubject,'label','simulating each subject');
+		for kS=1:u.nSubject
+			doDebug	= DEBUG && kS==1;
+			acc(kS)	= simulateSubject(obj,doDebug);
 
-	progress;
-	end
+			progress;
+		end
 
-	%evaluate the classifier accuracies
-		%[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+		%evaluate the classifier accuracies
 		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
 
 		meanAcc	= mean(acc);
@@ -397,59 +392,57 @@ methods
 	end
 
 	function accSubj = simulateSubject(obj,doDebug)
-		u		= obj.uopt;
+		u	= obj.uopt;
 
-%the two causality matrices (and other control causality matrices)
-	[cWCause,cW]	= generateWs(obj,4);
+		%the two causality matrices (and other control causality matrices)
+		[cWCause,cW]	= generateWs(obj,4);
 
-	[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
-	[WA,WB,WBlank,WZ]						= deal(cW{:});
+		[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+		[WA,WB,WBlank,WZ]						= deal(cW{:});
 
-	if doDebug
-		showTwoWs(obj,WACause,WBCause,'W_A and W_B');
-		showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
-		fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
-		fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
-		fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
-		fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
-	end
+		if doDebug
+			showTwoWs(obj,WACause,WBCause,'W_A and W_B');
+			showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
+			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
+			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
+			fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+			fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+		end
 
-%derived parameters
-	%block design
-	[block,target] = generateBlockDesign(obj);
+		%derived parameters
+		%block design
+		[block,target] = generateBlockDesign(obj);
 
-	%number of time points per run
-		nTRun	= numel(target{1});
+		if doDebug
+			nTRun	= numel(target{1});	%number of time points per run
+			fprintf('TRs per run: %d\n',nTRun);
+			showBlockDesign(obj,block);
+		end
 
-	if doDebug
-		fprintf('TRs per run: %d\n',nTRun);
-		showBlockDesign(obj,block);
-	end
+		[XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
 
-	[XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
-
-%calculate W*
-	%calculate the Granger Causality from X components to Y components for each
-	%run and condition
+		%calculate W*
+		%calculate the Granger Causality from X components to Y components for each
+		%run and condition
 		WAs = calculateW_stars(obj,XUnMix,YUnMix,target,'A');
 		WBs = calculateW_stars(obj,XUnMix,YUnMix,target,'B');
 
-	if doDebug
-		mWAs	= mean(cat(3,WAs{:}),3);
-		mWBs	= mean(cat(3,WBs{:}),3);
+		if doDebug
+			mWAs	= mean(cat(3,WAs{:}),3);
+			mWBs	= mean(cat(3,WBs{:}),3);
 
-		showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
-		fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
-		fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
-	end
+			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
+			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
+			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
+		end
 
-%classify between W*A and W*B
-	[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
+		%classify between W*A and W*B
+		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
 
-	if doDebug
-		fprintf('accuracy: %.2f%%\n',100*accSubj);
-		fprintf('p(binom): %.3f\n',p_binom);
-	end
+		if doDebug
+			fprintf('accuracy: %.2f%%\n',100*accSubj);
+			fprintf('p(binom): %.3f\n',p_binom);
+		end
 	end
 end
 

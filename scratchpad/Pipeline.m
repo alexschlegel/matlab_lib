@@ -30,7 +30,7 @@ properties (SetAccess = private)
 end
 
 methods
-	% Pipeline - Constructor for Pipeline class
+	% Pipeline - constructor for Pipeline class
 	%
 	% Syntax:	pipeline = Pipeline(<options>)
 	%
@@ -92,13 +92,11 @@ methods
 			'WFullness'	, 0.1		, ...
 			'WSum'		, 0.1		, ...
 			'doMixing'	, true		, ...
-			'noiseMix'	, 0.1	  ...
+			'noiseMix'	, 0.1		  ...
 			);
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 	end
-
-%TODO: Fix indentation throughout
 
 	%calculate the Granger Causality from X components to Y components for each
 	%run and condition
@@ -188,7 +186,7 @@ methods
 
 	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ)
 		u		= obj.uopt;
-		nTRun	= numel(target{1}); %number of time points per run
+		nTRun	= numel(target{1});	%number of time points per run
 
 		[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
 		Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
@@ -292,7 +290,7 @@ methods
 
 	function showFunctionalSigPlot(obj,X,Y,block)
 		u		= obj.uopt;
-		nTRun	= size(X,1); %number of time points per run
+		nTRun	= size(X,1);	%number of time points per run
 
 		tPlot	= reshape(1:nTRun,[],1);
 		xPlot	= X(:,1,1);
@@ -329,7 +327,7 @@ methods
 
 	function showFunctionalSigStats(obj,X,Y)
 		u		= obj.uopt;
-		nTRun	= size(X,1); %number of time points per run
+		nTRun	= size(X,1);	%number of time points per run
 
 		XCause	= X(:,:,1:u.nSigCause);
 		YCause	= Y(:,:,1:u.nSigCause);

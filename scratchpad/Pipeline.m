@@ -66,6 +66,7 @@ methods
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSum:		(0.1) sum of W columns (sum(W)/sqrt(nSigCause)+CRecurY/X must be <=1)
+	%		ZPolicy:	(1) 1 = original; 2 = single-column rev1; 3 = single-column rev2
 	%
 	%					-- Mixing:
 	%
@@ -91,6 +92,7 @@ methods
 			'CRecurZ'	, 0.5		, ...
 			'WFullness'	, 0.1		, ...
 			'WSum'		, 0.1		, ...
+			'ZPolicy'	, 1			, ...
 			'doMixing'	, true		, ...
 			'noiseMix'	, 0.1		  ...
 			);
@@ -189,7 +191,11 @@ methods
 		nTRun	= numel(target{1});	%number of time points per run
 
 		[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
-		Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
+		if u.ZPolicy == 1
+			Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
+		else
+			Z		= zeros(nTRun,u.nRun,u.nSig);
+		end
 
 		for kR=1:u.nRun
 			W	= WBlank;
@@ -198,17 +204,41 @@ methods
 				if kT==1
 					xPrev	= randn(u.nSig,1);
 					yPrev	= randn(u.nSig,1);
-					zPrev	= randn(u.nSig,u.nSig);
+					if u.ZPolicy < 3
+						zPrev	= randn(u.nSig,u.nSig);
+						if u.ZPolicy == 2
+							zPrev	= sum(zPrev,2);
+						end
+					else
+						zPrev	= randn(u.nSig,1);
+					end
 				else
 					xPrev	= squeeze(X(kT-1,kR,:));
 					yPrev	= squeeze(Y(kT-1,kR,:));
-					zPrev	= squeeze(Z(kT-1,kR,:,:));
+					if u.ZPolicy == 1
+						zPrev	= squeeze(Z(kT-1,kR,:,:));
+					else
+						zPrev	= squeeze(Z(kT-1,kR,:));
+					end
 				end
 
 				%pre-source
-				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+				if u.ZPolicy == 1
+					Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+				else
+					if u.ZPolicy == 2
+						Zrand		= sum(randn(u.nSig,u.nSig),2);
+					else
+						Zrand		= randn(u.nSig,1);
+					end
+					Z(kT,kR,:)		= u.CRecurZ.*zPrev + (1-u.CRecurZ).*Zrand;
+				end
 				%source
-				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
+				if u.ZPolicy == 1
+					X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
+				else
+					X(kT,kR,:)		= u.CRecurX.*xPrev + WZ'*zPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
+				end
 				%destination
 				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
 

@@ -41,6 +41,7 @@ methods
 	%		DEBUG		(false) Display debugging information
 	%		seed:		(randseed2) the seed to use for randomizing
 	%		szIm:		(200) pixel height of debug images
+	%		verbosity:	(0) Extra diagnostic output level
 	%
 	%					-- Subjects
 	%
@@ -78,6 +79,7 @@ methods
 			'DEBUG'		, false		, ...
 			'seed'		, randseed2	, ...
 			'szIm'		, 200		, ...
+			'verbosity'	, 0			, ...
 			'nSubject'	, 20		, ...
 			'nSig'		, 10		, ...
 			'nSigCause'	, 10		, ...
@@ -184,7 +186,7 @@ methods
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 	end
 
-	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ)
+	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ,doDebug)
 		u		= obj.uopt;
 		nTRun	= numel(target{1});	%number of time points per run
 
@@ -212,6 +214,13 @@ methods
 				%destination
 				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
 
+				if doDebug && u.verbosity > 0 && kR == 1 && kT <= 3
+					XCoeffSums	= (sum(WZ',2) + 1-u.WSum/sqrt(u.nSigCause)).';
+					YCoeffSums	= (sum(W',2) + 1-u.WSum/sqrt(u.nSigCause)).';
+					display(XCoeffSums);
+					display(YCoeffSums);
+				end
+
 				%causality matrix for the next sample
 				switch target{kR}{kT}
 					case 'A'
@@ -228,7 +237,7 @@ methods
 	function [XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
 		u		= obj.uopt;
 		%generate the functional signals
-		[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ);
+		[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ,doDebug);
 
 		if doDebug
 			showFunctionalSigStats(obj,X,Y);

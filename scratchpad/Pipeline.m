@@ -74,6 +74,8 @@ methods
 	%		simMode:	('alex') simulation mode:  'alex', 'lizier', or 'seth'
 	%		doMixing:	(true) should we even mix into voxels? (default true only for 'alex')
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
+	%		Kraskov_K:	('4') Kraskov K for Lizier's multivariate transfer entropy calculation
+	%		TE_ttest:	('1') Whether to use ttest or ttest2 for Lizier TE comparisons
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -97,7 +99,9 @@ methods
 			'WSum'		, 0.1		, ...
 			'simMode'	, 'alex'	, ...
 			'doMixing'	, true		, ...
-			'noiseMix'	, 0.1		  ...
+			'noiseMix'	, 0.1		, ...
+			'Kraskov_K'	, '4'		, ...
+			'TE_ttest'	, '1'		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -105,13 +109,20 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
+		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$'))
+			error('Kraskov_K must be a digit string');
+		end
 		opt.simMode				= CheckInput(opt.simMode,'simMode',{'alex','lizier','seth'});
+		opt.TE_ttest			= CheckInput(opt.TE_ttest,'TE_ttest',{'1','2'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		obj						= obj.changeOptionDefault('doMixing',strcmp(opt.simMode,'alex'));
-		if strcmp(opt.simMode,'lizier')
-			if isempty(obj.infodyn_teCalc)
+		if isempty(obj.infodyn_teCalc)
+			try
 				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
+			catch err
+				fprintf('Warning:  Instantiation of infodynamics TE calculator raised error:\n');
+				disp(err);
 			end
 		end
 	end
@@ -184,24 +195,33 @@ methods
 			end
 		end
 
+		switch u.TE_ttest
+			case '1'
+				[h,p]	= ttest(TEs(1,:),TEs(2,:));
+			case '2'
+				[h,p]	= ttest2(TEs(1,:),TEs(2,:));
+		end
+
 		if doDebug
 			display(TEs);
 		end
 
-		accSubj	= NaN;
-		p_binom	= NaN;
+		% TODO: Temporary fudges--fix them
+		accSubj	= h;
+		p_binom	= p;
 	end
 
 	function TE = calculateLizierMVCTE(obj,X,Y)
+		u		= obj.uopt;
 		teCalc	= obj.infodyn_teCalc;
 		teCalc.initialise(1,size(X,2),size(Y,2)); % Use history length 1 (Schreiber k=1)
-		teCalc.setProperty('k','4'); % Use Kraskov parameter K=4 for 4 nearest points
+		teCalc.setProperty('k',u.Kraskov_K); % Use Kraskov parameter K=4 for 4 nearest points
 		teCalc.setObservations(X,Y);
-		TE	= teCalc.computeAverageLocalOfObservations();
+		TE		= teCalc.computeAverageLocalOfObservations();
 	end
 
 	%calculate the Granger Causality from X components to Y components for each
-	%run and condition
+	%run and for the specified condition
 	% conditionName is 'A' or 'B'
 	function W_stars = calculateW_stars(obj,target,X,Y,conditionName)
 		u		= obj.uopt;

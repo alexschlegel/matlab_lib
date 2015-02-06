@@ -75,7 +75,7 @@ methods
 	%		doMixing:	(true) should we even mix into voxels? (default true only for 'alex')
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%		Kraskov_K:	('4') Kraskov K for Lizier's multivariate transfer entropy calculation
-	%		TE_ttest:	('1') Whether to use ttest or ttest2 for Lizier TE comparisons
+	%		TE_ttest:	('2') Whether to use ttest or ttest2 for Lizier TE comparisons
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -101,7 +101,7 @@ methods
 			'doMixing'	, true		, ...
 			'noiseMix'	, 0.1		, ...
 			'Kraskov_K'	, '4'		, ...
-			'TE_ttest'	, '1'		  ...
+			'TE_ttest'	, '2'		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);

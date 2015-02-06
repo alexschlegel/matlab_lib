@@ -27,6 +27,7 @@ properties
 end
 properties (SetAccess = private)
 	explicitOptionNames
+	infodyn_teCalc
 end
 
 methods
@@ -68,9 +69,10 @@ methods
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSum:		(0.1) sum of W columns (sum(W)/sqrt(nSigCause)+CRecurY/X must be <=1)
 	%
-	%					-- Mixing:
+	%					-- Simulation mode and mixing:
 	%
-	%		doMixing:	(true) should we even mix into voxels?
+	%		simMode:	('alex') simulation mode:  'alex', 'lizier', or 'seth'
+	%		doMixing:	(true) should we even mix into voxels? (default true only for 'alex')
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%
 	function obj = Pipeline(varargin)
@@ -93,36 +95,130 @@ methods
 			'CRecurZ'	, 0.5		, ...
 			'WFullness'	, 0.1		, ...
 			'WSum'		, 0.1		, ...
+			'simMode'	, 'alex'	, ...
 			'doMixing'	, true		, ...
 			'noiseMix'	, 0.1		  ...
 			);
+		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
+			extraOpts	= opt2cell(opt.opt_extra);
+			if numel(extraOpts) > 0
+				error('Unrecognized option ''%s''',extraOpts{1});
+			end
+		end
+		opt.simMode				= CheckInput(opt.simMode,'simMode',{'alex','lizier','seth'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
+		obj						= obj.changeOptionDefault('doMixing',strcmp(opt.simMode,'alex'));
+		if strcmp(opt.simMode,'lizier')
+			if isempty(obj.infodyn_teCalc)
+				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
+			end
+		end
+	end
+
+	function [accSubj,p_binom] = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
+		u		= obj.uopt;
+
+		switch u.simMode
+			case 'alex'
+				[accSubj,p_binom] = analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
+			case 'lizier'
+				[accSubj,p_binom] = analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
+			case 'seth'
+				error('Seth not implemented');
+		end
+	end
+
+	function [accSubj,p_binom] = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
+		u		= obj.uopt;
+
+		if u.doMixing
+			%unmix and keep the top nSigCause components
+			nTRun	= numel(target{1});	%number of time points per run
+			nT		= nTRun*u.nRun;		%total number of time points
+
+			[~,XUnMix]	= pca(reshape(XTest,nT,u.nVoxel));
+			XUnMix		= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
+
+			[~,YUnMix]	= pca(reshape(YTest,nT,u.nVoxel));
+			YUnMix		= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
+		else
+			[XUnMix,YUnMix]	= deal(XTest,YTest);
+		end
+
+		XUnMix	= XUnMix(:,:,1:u.nSigCause);
+		YUnMix	= YUnMix(:,:,1:u.nSigCause);
+
+		%calculate W*
+		%calculate the Granger Causality from X components to Y components for each
+		%run and condition
+		WAs = calculateW_stars(obj,target,XUnMix,YUnMix,'A');
+		WBs = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
+
+		if doDebug
+			mWAs	= mean(cat(3,WAs{:}),3);
+			mWBs	= mean(cat(3,WBs{:}),3);
+
+			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
+			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
+			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
+		end
+
+		%classify between W*A and W*B
+		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
+	end
+
+	%XTest,YTest dims are time, run, signal
+	function [accSubj,p_binom] = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
+		u		= obj.uopt;
+		conds	= {'A' 'B'};
+		TEs		= zeros(numel(conds),u.nRun);
+
+		for kC=1:numel(conds)
+			sigs	= extractSignalsForCondition(obj,target,XTest,YTest,conds{kC});
+			for kR=1:u.nRun
+				s			= sigs{kR};
+				TEs(kC,kR)	= calculateLizierMVCTE(obj,...
+					squeeze(s.XFudge),...
+					squeeze(s.YFudge));
+			end
+		end
+
+		if doDebug
+			display(TEs);
+		end
+
+		accSubj	= NaN;
+		p_binom	= NaN;
+	end
+
+	function TE = calculateLizierMVCTE(obj,X,Y)
+		teCalc	= obj.infodyn_teCalc;
+		teCalc.initialise(1,size(X,2),size(Y,2)); % Use history length 1 (Schreiber k=1)
+		teCalc.setProperty('k','4'); % Use Kraskov parameter K=4 for 4 nearest points
+		teCalc.setObservations(X,Y);
+		TE	= teCalc.computeAverageLocalOfObservations();
 	end
 
 	%calculate the Granger Causality from X components to Y components for each
 	%run and condition
-	% Xu for XUnMix, Yu for YUnMix
-	% condLetter is 'A' or 'B'
-	function W_stars = calculateW_stars(obj,Xu,Yu,target,condLetter)
+	% conditionName is 'A' or 'B'
+	function W_stars = calculateW_stars(obj,target,X,Y,conditionName)
 		u		= obj.uopt;
+		sigs	= extractSignalsForCondition(obj,target,X,Y,conditionName);
 		W_stars	= repmat({zeros(u.nSigCause)},[u.nRun 1]);
 
 		for kR=1:u.nRun
-			kLag	= find(strcmp(target{kR},condLetter));
-			k		= kLag + 1;
+			s	= sigs{kR};
 
 			for kX=1:u.nSigCause
-				Xc		= Xu(k,kR,kX);
-				XcLag	= Xu(kLag,kR,kX);
-
 				for kY=1:u.nSigCause
-					Yc		= Yu(k,kR,kY);
-					YcLag	= Yu(kLag,kR,kY);
 
-					W_stars{kR}(kX,kY)	= GrangerCausality(Xc,Yc,...
-						'src_past'	, XcLag	, ...
-						'dst_past'	, YcLag	  ...
+					W_stars{kR}(kX,kY)	= GrangerCausality(...
+						s.X(:,:,kX)	, ...
+						s.Y(:,:,kY)	, ...
+						'src_past'	, s.XLag(:,:,kX)	, ...
+						'dst_past'	, s.YLag(:,:,kY)	  ...
 						);
 				end
 			end
@@ -177,6 +273,33 @@ methods
 		acc		= Xbin/Nbin;
 	end
 
+	% TODO: clean up comments
+	% X,Y dims are [time, run, which_signal].
+	% conditionName is 'A' or 'B'
+	%
+	% Return cell array indexed by run.  Each cell holds a struct with
+	%   X,Y,XLag,YLag,XFudge,YFudge corresponding to specified condition.
+	%   Dimensions of these signal slices are [time, 1, which_signal].
+	function signals = extractSignalsForCondition(obj,target,X,Y,conditionName)
+		u		= obj.uopt;
+		signals = cell(u.nRun,1);
+
+		for kR=1:u.nRun
+			ind			= strcmp(target{kR},conditionName);
+			indshift	= [0; ind(1:end-1)];
+			kLag		= find(ind);
+			k			= find(indshift);	% i.e., kLag + 1;
+			kFudge		= find(ind | indshift);
+			sigs.X		= X(k,kR,:);
+			sigs.Y		= Y(k,kR,:);
+			sigs.XLag	= X(kLag,kR,:);
+			sigs.YLag	= Y(kLag,kR,:);
+			sigs.XFudge	= X(kFudge,kR,:);
+			sigs.YFudge	= Y(kFudge,kR,:);
+			signals{kR}	= sigs;
+		end
+	end
+
 	function [block,target] = generateBlockDesign(obj)
 		u			= obj.uopt;
 		designSeed	= randi(intmax('uint32'));
@@ -186,7 +309,7 @@ methods
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 	end
 
-	function [X,Y] = generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ,doDebug)
+	function [X,Y] = generateFunctionalSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
 		u		= obj.uopt;
 		nTRun	= numel(target{1});	%number of time points per run
 
@@ -215,8 +338,8 @@ methods
 				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
 
 				if doDebug && u.verbosity > 0 && kR == 1 && kT <= 3
-					XCoeffSums	= (sum(WZ',2) + 1-u.WSum/sqrt(u.nSigCause)).';
-					YCoeffSums	= (sum(W',2) + 1-u.WSum/sqrt(u.nSigCause)).';
+					XCoeffSums	= sum(WZ,1) + 1-u.WSum/sqrt(u.nSigCause);
+					YCoeffSums	= sum(W,1) + 1-u.WSum/sqrt(u.nSigCause);
 					display(XCoeffSums);
 					display(YCoeffSums);
 				end
@@ -232,39 +355,26 @@ methods
 				end
 			end
 		end
-	end
-
-	function [XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
-		u		= obj.uopt;
-		%generate the functional signals
-		[X,Y]	= generateFunctionalSignals(obj,target,WA,WB,WBlank,WZ,doDebug);
 
 		if doDebug
 			showFunctionalSigStats(obj,X,Y);
 			showFunctionalSigPlot(obj,X,Y,block);
 		end
+	end
 
-		nTRun	= numel(target{1});	%number of time points per run
-		nT		= nTRun*u.nRun;		%total number of time points
-		%mix between voxels
+	function [X,Y] = generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
+		u		= obj.uopt;
+
+		%generate the functional signals
+		[X,Y]	= generateFunctionalSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
+
+		%mix between voxels (if applicable)
 		if u.doMixing
-			XMix	= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-			YMix	= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+			nTRun	= numel(target{1});	%number of time points per run
+			nT		= nTRun*u.nRun;		%total number of time points
+			X		= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+			Y		= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
 		end
-
-		%unmix and keep the top nSigCause components
-		if u.doMixing
-			[~,XUnMix]	= pca(reshape(XMix,nT,u.nVoxel));
-			XUnMix		= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
-
-			[~,YUnMix]	= pca(reshape(YMix,nT,u.nVoxel));
-			YUnMix		= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
-		else
-			[XUnMix,YUnMix]	= deal(X,Y);
-		end
-
-		XUnMix	= XUnMix(:,:,1:u.nSigCause);
-		YUnMix	= YUnMix(:,:,1:u.nSigCause);
 	end
 
 	function [cWCause,cW] = generateWs(obj,nW)
@@ -416,7 +526,6 @@ methods
 			fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
 		end
 
-		%derived parameters
 		%block design
 		[block,target] = generateBlockDesign(obj);
 
@@ -426,25 +535,11 @@ methods
 			showBlockDesign(obj,block);
 		end
 
-		[XUnMix,YUnMix] = generateMixAndUnmixSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
+		%generate test signals
+		[XTest,YTest]	= generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
 
-		%calculate W*
-		%calculate the Granger Causality from X components to Y components for each
-		%run and condition
-		WAs = calculateW_stars(obj,XUnMix,YUnMix,target,'A');
-		WBs = calculateW_stars(obj,XUnMix,YUnMix,target,'B');
-
-		if doDebug
-			mWAs	= mean(cat(3,WAs{:}),3);
-			mWBs	= mean(cat(3,WBs{:}),3);
-
-			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
-			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
-			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
-		end
-
-		%classify between W*A and W*B
-		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
+		%preprocess and analyze test signals according to simulation mode
+		[accSubj,p_binom] = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
 
 		if doDebug
 			fprintf('accuracy: %.2f%%\n',100*accSubj);

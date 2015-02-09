@@ -67,12 +67,12 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
-	%		WSum:		(0.1) sum of W columns (sum(W)/sqrt(nSigCause)+CRecurY/X must be <=1)
+	%		WSum:		(0.1) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%
 	%					-- Simulation mode and mixing:
 	%
 	%		simMode:	('alex') simulation mode:  'alex', 'lizier', or 'seth'
-	%		doMixing:	(true) should we even mix into voxels? (default true only for 'alex')
+	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%		Kraskov_K:	('4') Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		TE_ttest:	('2') Whether to use ttest or ttest2 for Lizier TE comparisons
@@ -109,14 +109,13 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
-		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$'))
+		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$','once'))
 			error('Kraskov_K must be a digit string');
 		end
 		opt.simMode				= CheckInput(opt.simMode,'simMode',{'alex','lizier','seth'});
 		opt.TE_ttest			= CheckInput(opt.TE_ttest,'TE_ttest',{'1','2'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
-		obj						= obj.changeOptionDefault('doMixing',strcmp(opt.simMode,'alex'));
 		if isempty(obj.infodyn_teCalc)
 			try
 				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
@@ -353,13 +352,13 @@ methods
 				%pre-source
 				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 				%source
-				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurX).*randn(u.nSig,1);
+				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum-u.CRecurX).*randn(u.nSig,1);
 				%destination
-				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum/sqrt(u.nSigCause)-u.CRecurY).*randn(u.nSig,1);
+				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum-u.CRecurY).*randn(u.nSig,1);
 
 				if doDebug && u.verbosity > 0 && kR == 1 && kT <= 3
-					XCoeffSums	= sum(WZ,1) + 1-u.WSum/sqrt(u.nSigCause);
-					YCoeffSums	= sum(W,1) + 1-u.WSum/sqrt(u.nSigCause);
+					XCoeffSums	= sum(WZ,1) + 1-u.WSum;
+					YCoeffSums	= sum(W,1) + 1-u.WSum;
 					display(XCoeffSums);
 					display(YCoeffSums);
 				end
@@ -405,7 +404,7 @@ methods
 			%generate a random W
 			W					= rand(u.nSigCause);
 			%make it sparse
-			W(1-W>u.WFullness)	= 0;
+			W(W>u.WFullness)	= 0;
 			%normalize each column to the specified mean
 			W			= W*u.WSum./repmat(sum(W,1),[u.nSigCause 1]);
 			W(isnan(W))	= 0;

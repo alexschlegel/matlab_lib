@@ -10,25 +10,36 @@ function stl = FreeSurferSTL(strDirSubject,cLabel,varargin)
 % 	strDirSubject	- the base FreeSurfer directory for the subject
 % 	cLabel			- a string or cell of strings specifying the structures to 
 % 					  extract and merge (see the aseg and a2009s labels in
-% 					  FreeSurferLabels.
+% 					  FreeSurferLabels).
 %	[isoval]		- the isosurface value
 %	<options>:
 %		name:		(<auto>) the STL name
+%		crop:		(<no crop>) the fractional bounding box to crop from the
+%					merged mask, or a cell of bounding boxes to crop before
+%					merging the structures (see MRIMaskCrop)
 %		resample:	(1) the resampling factor
 % 
 % Out:
 % 	stl	- the STL struct
 % 
-% Updated: 2013-03-15
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-01-29
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 stl	= [];
 
 [isoval,opt]	= ParseArgs(varargin,[],...
 					'name'		, []	, ...
+					'crop'		, []	, ...
 					'resample'	, 1		  ...
 					);
+
+bCropBefore	= ~isempty(opt.crop) && iscell(opt.crop);
+bCropAfter	= ~isempty(opt.crop) && ~bCropBefore;
+
+cLabel	= ForceCell(cLabel);
+szLabel	= size(cLabel);
+nLabel	= numel(cLabel);
 
 strDirMRI		= DirAppend(strDirSubject,'mri');
 
@@ -50,12 +61,28 @@ strDirMRI		= DirAppend(strDirSubject,'mri');
 	end
 %load aseg and brain
 	niiSeg	= NIfTIRead(strPathSeg);
-	bKeep	= ismember(niiSeg.data,kLabel);
-	
-	nii					= NIfTIRead(strPathBrain);
-	nii.data(~bKeep)	= 0;
+	nii		= NIfTIRead(strPathBrain);
 	
 	M	= FreeSurferSurfaceMAT(strPathBrain);
+%OR the individual masks
+	if bCropBefore
+		bKeep	= false(size(niiSeg.data));
+		
+		for kL=1:nLabel
+			mskCur	= niiSeg.data==kLabel(kL);
+			bKeep	= bKeep | MRIMaskCrop(mskCur,opt.crop{kL});
+		end
+	else
+		bKeep	= ismember(niiSeg.data,kLabel);
+	end
+	
+	clear niiSeg;
+%crop the merged mask
+	if bCropAfter
+		bKeep	= MRIMaskCrop(bKeep,opt.crop);
+	end
+%keep only the specified mask
+	nii.data(~bKeep)	= 0;
 %optionally resample
 	if opt.resample~=1
 		[sX,sY,sZ]	= size(nii.data);

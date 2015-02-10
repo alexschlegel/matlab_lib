@@ -26,6 +26,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
+	simModes			= {'alex','lizier','seth'}
 	explicitOptionNames
 	infodyn_teCalc
 end
@@ -71,11 +72,10 @@ methods
 	%
 	%					-- Simulation mode and mixing:
 	%
-	%		simMode:	('alex') simulation mode:  'alex', 'lizier', or 'seth'
+	%		simMode:	('total') simulation mode:  'alex', 'lizier', 'seth', or 'total'
 	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%		Kraskov_K:	('4') Kraskov K for Lizier's multivariate transfer entropy calculation
-	%		TE_ttest:	('2') Whether to use ttest or ttest2 for Lizier TE comparisons
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -97,11 +97,10 @@ methods
 			'CRecurZ'	, 0.5		, ...
 			'WFullness'	, 0.1		, ...
 			'WSum'		, 0.1		, ...
-			'simMode'	, 'alex'	, ...
+			'simMode'	, 'total'	, ...
 			'doMixing'	, true		, ...
 			'noiseMix'	, 0.1		, ...
-			'Kraskov_K'	, '4'		, ...
-			'TE_ttest'	, '2'		  ...
+			'Kraskov_K'	, '4'		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -112,8 +111,7 @@ methods
 		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$','once'))
 			error('Kraskov_K must be a digit string');
 		end
-		opt.simMode				= CheckInput(opt.simMode,'simMode',{'alex','lizier','seth'});
-		opt.TE_ttest			= CheckInput(opt.TE_ttest,'TE_ttest',{'1','2'});
+		opt.simMode				= CheckInput(opt.simMode,'simMode',[obj.simModes 'total']);
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc)
@@ -126,16 +124,27 @@ methods
 		end
 	end
 
-	function [accSubj,p_binom] = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
+	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
+		modeInds	= cellfun(@(m) any(strcmp(u.simMode,{m,'total'})),obj.simModes);
+		modes		= obj.simModes(modeInds);
+		for i = 1:numel(modes)
+			switch modes{i}
+				case 'alex'
+					subjectStats.accSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
+				case 'lizier'
+					subjectStats.lizier		= analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
+				case 'seth'
+					subjectStats.seth		= [];
+			end
+		end
+		% FIXME: Following switch is a temporary fudge, to be removed
 		switch u.simMode
-			case 'alex'
-				[accSubj,p_binom] = analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 			case 'lizier'
-				[accSubj,p_binom] = analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
+				subjectStats.accSubj	= subjectStats.lizier;
 			case 'seth'
-				error('Seth not implemented');
+				subjectStats.accSubj	= 0;
 		end
 	end
 
@@ -165,6 +174,9 @@ methods
 		WAs = calculateW_stars(obj,target,XUnMix,YUnMix,'A');
 		WBs = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
 
+		%classify between W*A and W*B
+		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
+
 		if doDebug
 			mWAs	= mean(cat(3,WAs{:}),3);
 			mWBs	= mean(cat(3,WBs{:}),3);
@@ -172,10 +184,9 @@ methods
 			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
 			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
 			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
+			fprintf('accuracy: %.2f%%\n',100*accSubj);
+			fprintf('p(binom): %.3f\n',p_binom);
 		end
-
-		%classify between W*A and W*B
-		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
 	end
 
 	%XTest,YTest dims are time, run, signal
@@ -194,15 +205,13 @@ methods
 			end
 		end
 
-		switch u.TE_ttest
-			case '1'
-				[h,p]	= ttest(TEs(1,:),TEs(2,:));
-			case '2'
-				[h,p]	= ttest2(TEs(1,:),TEs(2,:));
-		end
+		[h,p]	= ttest2(TEs(1,:),TEs(2,:));
 
 		if doDebug
 			display(TEs);
+			% TODO: Temporary fudges--remove them
+			fprintf('accuracy: %.2f%%\n',100*h);
+			fprintf('p(binom): %.3f\n',p);
 		end
 
 		% TODO: Temporary fudges--fix them
@@ -499,7 +508,7 @@ methods
 		title(figTitle);
 	end
 
-	function [meanAcc,stats,p_grouplevel] = simulateAll(obj)
+	function [meanAcc,stats,p_grouplevel] = simulateAllSubjects(obj)
 		u		= obj.uopt;
 		DEBUG	= u.DEBUG;
 
@@ -507,17 +516,18 @@ methods
 		rng(u.seed,'twister');
 
 		%run each subject
-		acc	= NaN(u.nSubject,1);
+		results	= cell(u.nSubject,1);
 
 		progress(u.nSubject,'label','simulating each subject');
 		for kS=1:u.nSubject
-			doDebug	= DEBUG && kS==1;
-			acc(kS)	= simulateSubject(obj,doDebug);
+			doDebug		= DEBUG && kS==1;
+			results{kS}	= simulateSubject(obj,doDebug);
 
 			progress;
 		end
 
 		%evaluate the classifier accuracies
+		acc							= cellfun(@(r) r.accSubj,results);
 		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
 
 		meanAcc	= mean(acc);
@@ -527,7 +537,7 @@ methods
 		end
 	end
 
-	function accSubj = simulateSubject(obj,doDebug)
+	function subjectStats = simulateSubject(obj,doDebug)
 		u	= obj.uopt;
 
 		%the two causality matrices (and other control causality matrices)
@@ -558,12 +568,7 @@ methods
 		[XTest,YTest]	= generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
 
 		%preprocess and analyze test signals according to simulation mode
-		[accSubj,p_binom] = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
-
-		if doDebug
-			fprintf('accuracy: %.2f%%\n',100*accSubj);
-			fprintf('p(binom): %.3f\n',p_binom);
-		end
+		subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
 	end
 end
 
@@ -593,7 +598,7 @@ methods (Static)
 	%
 	function [meanAcc,stats,p_grouplevel] = debugSimulation(varargin)
 		pipeline = Pipeline.createDebugPipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.simulateAll;
+		[meanAcc,stats,p_grouplevel] = pipeline.simulateAllSubjects;
 	end
 
 	% runSimulation - static method for running pipeline
@@ -607,7 +612,7 @@ methods (Static)
 	%
 	function [meanAcc,stats,p_grouplevel] = runSimulation(varargin)
 		pipeline = Pipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.simulateAll;
+		[meanAcc,stats,p_grouplevel] = pipeline.simulateAllSubjects;
 	end
 end
 end

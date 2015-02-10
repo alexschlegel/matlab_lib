@@ -108,10 +108,10 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
+		opt.simMode				= CheckInput(opt.simMode,'simMode',[obj.simModes 'total']);
 		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$','once'))
 			error('Kraskov_K must be a digit string');
 		end
-		opt.simMode				= CheckInput(opt.simMode,'simMode',[obj.simModes 'total']);
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc)
@@ -132,23 +132,16 @@ methods
 		for i = 1:numel(modes)
 			switch modes{i}
 				case 'alex'
-					subjectStats.accSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
+					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 				case 'lizier'
-					subjectStats.lizier		= analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
+					subjectStats.lizierTEs		= analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
 				case 'seth'
-					subjectStats.seth		= [];
+					subjectStats.sethTEs		= zeros(2,1);
 			end
-		end
-		% FIXME: Following switch is a temporary fudge, to be removed
-		switch u.simMode
-			case 'lizier'
-				subjectStats.accSubj	= subjectStats.lizier;
-			case 'seth'
-				subjectStats.accSubj	= 0;
 		end
 	end
 
-	function [accSubj,p_binom] = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
+	function alexAccSubj = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
 		if u.doMixing
@@ -175,7 +168,7 @@ methods
 		WBs = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
 
 		%classify between W*A and W*B
-		[accSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
+		[alexAccSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
 
 		if doDebug
 			mWAs	= mean(cat(3,WAs{:}),3);
@@ -184,39 +177,32 @@ methods
 			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
 			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
 			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
-			fprintf('accuracy: %.2f%%\n',100*accSubj);
+			fprintf('accuracy: %.2f%%\n',100*alexAccSubj);
 			fprintf('p(binom): %.3f\n',p_binom);
 		end
 	end
 
 	%XTest,YTest dims are time, run, signal
-	function [accSubj,p_binom] = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
-		u		= obj.uopt;
+	%return one TE for each condition
+	function TEs = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
 		conds	= {'A' 'B'};
-		TEs		= zeros(numel(conds),u.nRun);
+		TEs		= zeros(numel(conds),1);
+
+		%concatenate data for all runs to create a single hypothetical megarun
+		megatarget	= {cat(1,target{:})};
+		megaX		= reshape(XTest,[],1,size(XTest,3));
+		megaY		= reshape(YTest,[],1,size(YTest,3));
 
 		for kC=1:numel(conds)
-			sigs	= extractSignalsForCondition(obj,target,XTest,YTest,conds{kC});
-			for kR=1:u.nRun
-				s			= sigs{kR};
-				TEs(kC,kR)	= calculateLizierMVCTE(obj,...
-					squeeze(s.XFudge),...
-					squeeze(s.YFudge));
-			end
+			sigs	= extractSignalsForCondition(obj,megatarget,megaX,megaY,conds{kC});
+			s		= sigs{1};
+			TEs(kC)	= calculateLizierMVCTE(obj,...
+				squeeze(s.XFudge),...
+				squeeze(s.YFudge));
 		end
-
-		[h,p]	= ttest2(TEs(1,:),TEs(2,:));
-
 		if doDebug
 			display(TEs);
-			% TODO: Temporary fudges--remove them
-			fprintf('accuracy: %.2f%%\n',100*h);
-			fprintf('p(binom): %.3f\n',p);
 		end
-
-		% TODO: Temporary fudges--fix them
-		accSubj	= h;
-		p_binom	= p;
 	end
 
 	function TE = calculateLizierMVCTE(obj,X,Y)
@@ -308,11 +294,11 @@ methods
 	% Return cell array indexed by run.  Each cell holds a struct with
 	%   X,Y,XLag,YLag,XFudge,YFudge corresponding to specified condition.
 	%   Dimensions of these signal slices are [time, 1, which_signal].
-	function signals = extractSignalsForCondition(obj,target,X,Y,conditionName)
-		u		= obj.uopt;
-		signals = cell(u.nRun,1);
+	function signals = extractSignalsForCondition(~,target,X,Y,conditionName)
+		nRun	= numel(target);
+		signals = cell(nRun,1);
 
-		for kR=1:u.nRun
+		for kR=1:nRun
 			ind			= strcmp(target{kR},conditionName);
 			indshift	= [0; ind(1:end-1)];
 			kLag		= find(ind);
@@ -508,9 +494,10 @@ methods
 		title(figTitle);
 	end
 
-	function [meanAcc,stats,p_grouplevel] = simulateAllSubjects(obj)
+	function summary = simulateAllSubjects(obj)
 		u		= obj.uopt;
 		DEBUG	= u.DEBUG;
+		summary	= struct;
 
 		%initialize pseudo-random-number generator
 		rng(u.seed,'twister');
@@ -527,13 +514,29 @@ methods
 		end
 
 		%evaluate the classifier accuracies
-		acc							= cellfun(@(r) r.accSubj,results);
-		[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
+		if isfield(results{1},'alexAccSubj')
+			acc							= cellfun(@(r) r.alexAccSubj,results);
+			[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
 
-		meanAcc	= mean(acc);
-		if DEBUG
-			fprintf('mean accuracy: %.2f%%\n',100*meanAcc);
-			fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+			summary.alexAcc	= mean(acc);
+			if DEBUG
+				fprintf('mean accuracy: %.2f%%\n',100*summary.alexAcc);
+				fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+			end
+		end
+		if isfield(results{1},'lizierTEs')
+			TEsCondA					= cellfun(@(r) r.lizierTEs(1),results);
+			TEsCondB					= cellfun(@(r) r.lizierTEs(2),results);
+			[h,p_grouplevel,ci,stats]	= ttest(TEsCondA,TEsCondB);
+			summary.lizier_h			= h;
+			if DEBUG
+				%display(TEsCondA);
+				%display(TEsCondB);
+				fprintf('Lizier h: %.2f%%  (ci=[%.2f,%.2f])\n',100*h,ci(1),ci(2));
+				fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+			end
+		end
+		if isfield(results{1},'sethTEs')
 		end
 	end
 
@@ -583,36 +586,34 @@ methods (Static)
 	%		but note that this method overrides the default debugging options
 	%
 	function pipeline = createDebugPipeline(varargin)
-		pipeline = Pipeline(varargin{:});
-		pipeline = pipeline.changeDefaultsToDebug;
+		pipeline	= Pipeline(varargin{:});
+		pipeline	= pipeline.changeDefaultsToDebug;
 	end
 
 	% debugSimulation - static method for running debug-pipeline
 	%
-	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
-	%				Pipeline.debugSimulation(<options>)
+	% Syntax:	summary = Pipeline.debugSimulation(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
-	function [meanAcc,stats,p_grouplevel] = debugSimulation(varargin)
-		pipeline = Pipeline.createDebugPipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.simulateAllSubjects;
+	function summary = debugSimulation(varargin)
+		pipeline	= Pipeline.createDebugPipeline(varargin{:});
+		summary		= pipeline.simulateAllSubjects;
 	end
 
 	% runSimulation - static method for running pipeline
 	%
-	% Syntax:	[meanAcc,stats,p_grouplevel] = ...
-	%				Pipeline.runSimulation(<options>)
+	% Syntax:	summary = Pipeline.runSimulation(<options>)
 	%
 	% In:
 	%	<options>:
 	%		See Pipeline constructor above for description of <options>
 	%
-	function [meanAcc,stats,p_grouplevel] = runSimulation(varargin)
-		pipeline = Pipeline(varargin{:});
-		[meanAcc,stats,p_grouplevel] = pipeline.simulateAllSubjects;
+	function summary = runSimulation(varargin)
+		pipeline	= Pipeline(varargin{:});
+		summary		= pipeline.simulateAllSubjects;
 	end
 end
 end

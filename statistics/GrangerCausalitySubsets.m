@@ -11,11 +11,10 @@ function [gc,subSrc,subDst] = GrangerCausalitySubsets(src, dst, varargin)
 % 	src	- an nSample x nVariableSrc source data array
 %	dst	- an nSample x nVariableDst destination data array
 %	<options>:
-%		size:				(1) the maximum number of variables to put in each
-%							subset (ONLY 1 IS SUPPORTED CURRENTLY)
-%		history:			(1) the number of lags to use for the GC calculation
-%		signal_block:		([]) NOT IMPLEMENTED
-%		silent:				(false) true to suppress status messages
+%		size:	(1) the maximum number of variables to put in each subset (ONLY
+%				1 IS SUPPORTED CURRENTLY)
+%		lag:	(1) the number of lags to use for the GC calculation
+%		silent:	(false) true to suppress status messages
 % 
 % Out:
 % 	gc		- an nSubsetSrc x nSubsetDst array of multivariate granger
@@ -25,22 +24,21 @@ function [gc,subSrc,subDst] = GrangerCausalitySubsets(src, dst, varargin)
 %	subDst	- an nSubsetDst x opt.size array of the variables included in each
 %			  destination subset
 % 
-% Updated: 2014-03-28
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-02-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
-		'size'				, 1		, ...
-		'history'			, 1		, ...
-		'signal_block'		, []	, ...
-		'silent'			, false	  ...
+		'size'		, 1		, ...
+		'lag'		, 1		, ...
+		'silent'	, false	  ...
 		);
 
 if ~isequal(opt.size,1)
 	error('"size" option must be 1.');
 end
 
-cOptGC	= opt2cell(structsub(opt,{'history','signal_block'}));
+cOptGC	= opt2cell(structsub(opt,{'lag'}));
 
 nVariableSrc	= size(src,2);
 nVariableDst	= size(dst,2);

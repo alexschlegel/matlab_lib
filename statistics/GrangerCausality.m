@@ -97,57 +97,49 @@ function xPast = ConstructPast(x,lag)
 	xPast	= demean(x(kSampleNext - lag,:));
 end
 %------------------------------------------------------------------------------%
-function X = lyapslv(~,A,~,Q)
-% copied from mvgc/utils/control/lyapslv.m
-	n = size(A,1);
-	assert(size(A,2) == n,'matrix A not square');
-	assert(isequal(size(Q),size(A)),'matrix Q does not match matrix A');
+function X = lyapslv(A,Q)
+% modified from mvgc/utils/control/lyapslv.m
+	n	= size(A,1);
 	
-	% Schur factorisation
+	%Schur factorisation
+		[U,T]	= schur(A);
+		Q		= -U'*Q*U;
 	
-	[U,T] = schur(A);
-	Q = -U'*Q*U;
-	
-	% solve the equation column ~by column
-	
-	X = zeros(n);
-	j = n;
-	while j > 0
-		j1 = j;
-	
-		% check Schur block size
-	
-		if j == 1
-			bsiz = 1;
-		elseif T(j,j-1) ~= 0
-			bsiz = 2;
+	%solve the equation column ~by column
+		X	= zeros(n);
+		j	= n;
+		while j>0
+			j1	= j;
+		
+			%check Schur block size
+				if j~=1 && T(j,j-1)~=0
+					bsiz = 2;
+					j = j-1;
+				else
+					bsiz = 1;
+				end
+				bsizn	= bsiz*n;
+		
+			Ajj	= kron(T(j:j1,j:j1),T) - eye(bsizn);
+		
+			rhs	= reshape(Q(:,j:j1),bsizn,1);
+		
+			if j1<n
+				rhs	= rhs + reshape(T*(X(:,j1+1:n)*T(j:j1,j1+1:n)'),bsizn,1);
+			end
+		
+			v		= -Ajj\rhs;
+			X(:,j)	= v(1:n);
+		
+			if bsiz==2
+				X(:,j1)	= v(n+1:bsizn);
+			end
+		
 			j = j-1;
-		else
-			bsiz = 1;
-		end
-		bsizn = bsiz*n;
-	
-		Ajj = kron(T(j:j1,j:j1),T)-eye(bsizn);
-	
-		rhs = reshape(Q(:,j:j1),bsizn,1);
-	
-		if j1 < n
-			rhs = rhs + reshape(T*(X(:,(j1+1):n)*T(j:j1,(j1+1):n)'),bsizn,1);
 		end
 	
-		v = -Ajj\rhs;
-		X(:,j) = v(1:n);
-	
-		if bsiz == 2
-			X(:,j1) = v((n+1):bsizn);
-		end
-	
-		j = j-1;
-	end
-	
-	% transform back to original coordinates
-	
-	X = U*X*U';
+	%transform back to original coordinates
+		X	= U*X*U';
 end
 %------------------------------------------------------------------------------%
 function [A,SIG] = FitVARModel(srcPast,srcNext,dstPast,dstNext)
@@ -173,7 +165,7 @@ function G = Var2AutoCov(A,SIG)
 	
 	A1		= [A; eye(pn1) zeros(pn1,n)];
 	SIG1	= [SIG zeros(n,pn1); zeros(pn1,n) zeros(pn1)];
-	G1		= lyapslv('D',A1,[],-SIG1);
+	G1		= lyapslv(A1,-SIG1);
 	
 	acdectol	= 1e-8;
 	rho			= max(abs(eig(A1)));
@@ -182,13 +174,13 @@ function G = Var2AutoCov(A,SIG)
 	q	= aclags;
 	q1	= q+1;
 	
-	G = cat(3,reshape(G1(1:n,:),n,n,p),zeros(n,n,q1-p));   % autocov forward  sequence
-	B = [zeros((q1-p)*n,n); G1(:,end-n+1:end)];            % autocov backward sequence
-	A = reshape(A,n,pn);                                   % coefficients
+	G	= cat(3,reshape(G1(1:n,:),n,n,p),zeros(n,n,q1-p));	%autocov forward  sequence
+	B	= [zeros((q1-p)*n,n); G1(:,end-n+1:end)];	%autocov backward sequence
+	A	= reshape(A,n,pn);	%coefficients
 	for k = p:q
-		r = q1-k;
-		G(:,:,k+1) = A*B(r*n+1:r*n+pn,:);
-		B((r-1)*n+1:r*n,:) = G(:,:,k+1);
+		r					= q1-k;
+		G(:,:,k+1)			= A*B(r*n+1:r*n+pn,:);
+		B((r-1)*n+1:r*n,:)	= G(:,:,k+1);
 	end
 end
 %------------------------------------------------------------------------------%
@@ -198,26 +190,26 @@ function [A,SIG] = AutoCov2Var(G)
 	q			= q1-1;
 	qn			= q*n;
 	
-	G0	= G(:,:,1);                                               % covariance
-	GF	= reshape(G(:,:,2:end),n,qn)';                            % forward  autocov sequence
-	GB	= reshape(permute(flipdim(G(:,:,2:end),3),[1 3 2]),qn,n); % backward autocov sequence
+	G0	= G(:,:,1);	%covariance
+	GF	= reshape(G(:,:,2:end),n,qn)';	%forward  autocov sequence
+	GB	= reshape(permute(flipdim(G(:,:,2:end),3),[1 3 2]),qn,n);	%backward autocov sequence
 	
 	%forward and backward coefficients
 		[AF,AB]	= deal(zeros(n,qn));
 	
 	%initialise recursion
-		k	= 1;            % model order
+		k	= 1; %model order
 		
 		r	= q-k;
-		kf	= 1:k*n;       % forward  indices
-		kb	= r*n+1:qn;    % backward indices
+		kf	= 1:k*n; %forward  indices
+		kb	= r*n+1:qn; %backward indices
 		
 		AF(:,kf)	= GB(kb,:)/G0;
 		AB(:,kb)	= GF(kf,:)/G0;
 	
 	for k=2:q
-		AAF	= (GB((r-1)*n+1:r*n,:)-AF(:,kf)*GB(kb,:))/(G0-AB(:,kb)*GB(kb,:)); % DF/VB
-		AAB	= (GF((k-1)*n+1:k*n,:)-AB(:,kb)*GF(kf,:))/(G0-AF(:,kf)*GF(kf,:)); % DB/VF
+		AAF	= (GB((r-1)*n+1:r*n,:)-AF(:,kf)*GB(kb,:))/(G0-AB(:,kb)*GB(kb,:)); %DF/VB
+		AAB	= (GF((k-1)*n+1:k*n,:)-AB(:,kb)*GF(kf,:))/(G0-AF(:,kf)*GF(kf,:)); %DB/VF
 	
 		AFPREV	= AF(:,kf);
 		ABPREV	= AB(:,kb);
@@ -241,11 +233,11 @@ function gc = CalcMVGC(G)
 	xy	= [x y];
 	
 	%full and reduced regressions
-		[~,SIG]		= autocov_to_var(G(xy,xy,:));
-		[~,SIGR]	= autocov_to_var(G(x,x,:));
+		[~,SIG]		= AutoCov2Var(G(xy,xy,:));
+		[~,SIGR]	= AutoCov2Var(G(x,x,:));
 	
 	x	= 1:numel(x);
-	gc	= log(det(SIGR(x,x)))-log(det(SIG(x,x)));
+	gc	= log(det(SIGR(x,x))) - log(det(SIG(x,x)));
 end
 %------------------------------------------------------------------------------%
 

@@ -15,6 +15,7 @@ function gc = GrangerCausality(src,dst,varargin)
 %					lagged signals.
 %		samples:	(<all>) the samples to consider in the computation. these
 %					samples define the 'next' signal in the regression.
+%		max_aclags:	(1000) bound on autocov lags to limit running time.
 % 
 % Out:
 % 	gc	- the multivariate granger causality from src to dst
@@ -40,13 +41,14 @@ function gc = GrangerCausality(src,dst,varargin)
 % 		'legend'	, {'GC','GCu','TE'}	  ...
 % 		);
 % 
-% Updated: 2015-02-09
+% Updated: 2015-02-11
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
-		'lag'		, 1		, ...
-		'samples'	, []	  ...
+		'lag'			, 1		, ...
+		'samples'		, []	, ...
+		'max_aclags'	, 1000	  ...
 		);
 
 [nSample,ndSrc]		= size(src);
@@ -171,7 +173,7 @@ function G = Var2AutoCov(A,SIG)
 	rho			= max(abs(eig(A1)));
 	aclags		= ceil(log(acdectol)/log(rho)); % minimum lags to achieve specified tolerance
 	
-	q	= aclags;
+	q	= max(p,min(aclags,opt.max_aclags));
 	q1	= q+1;
 	
 	G	= cat(3,reshape(G1(1:n,:),n,n,p),zeros(n,n,q1-p));	%autocov forward  sequence
@@ -236,8 +238,14 @@ function gc = CalcMVGC(G)
 		[~,SIG]		= AutoCov2Var(G(xy,xy,:));
 		[~,SIGR]	= AutoCov2Var(G(x,x,:));
 	
-	x	= 1:numel(x);
-	gc	= log(det(SIGR(x,x))) - log(det(SIG(x,x)));
+	x			= 1:numel(x);
+	detSIGR		= det(SIGR(x,x));
+	detSIG		= det(SIG(x,x));
+	if detSIGR <= 0 || detSIG <= 0
+		gc		= 0;
+	else
+		gc		= log(detSIGR) - log(detSIG);
+	end
 end
 %------------------------------------------------------------------------------%
 

@@ -38,16 +38,18 @@ methods
 	%
 	% In:
 	%	<options>:
-	%					-- Debugging options:
+	%					-- Debugging/diagnostic options:
 	%
-	%		DEBUG		(false) Display debugging information
+	%		DEBUG:		(false) Display debugging information
+	%		nofigures:	(false) Suppress figures
+	%		progress:	(true) Show progress
 	%		seed:		(randseed2) the seed to use for randomizing
 	%		szIm:		(200) pixel height of debug images
 	%		verbosity:	(0) Extra diagnostic output level
 	%
 	%					-- Subjects
 	%
-	%		nSubject	(20) number of subjects
+	%		nSubject:	(20) number of subjects
 	%
 	%					-- Size of the various spaces:
 	%
@@ -81,6 +83,8 @@ methods
 		%user-defined parameters (with defaults)
 		opt	= ParseArgs(varargin,...
 			'DEBUG'		, false		, ...
+			'nofigures'	, false		, ...
+			'progress'	, true		, ...
 			'seed'		, randseed2	, ...
 			'szIm'		, 200		, ...
 			'verbosity'	, 0			, ...
@@ -226,14 +230,12 @@ methods
 			s	= sigs{kR};
 
 			for kX=1:u.nSigCause
-				for kY=1:u.nSigCause
+				X	= s.Xall(:,:,kX);
 
-					W_stars{kR}(kX,kY)	= GrangerCausality(...
-						s.X(:,:,kX)	, ...
-						s.Y(:,:,kY)	, ...
-						'src_past'	, s.XLag(:,:,kX)	, ...
-						'dst_past'	, s.YLag(:,:,kY)	  ...
-						);
+				for kY=1:u.nSigCause
+					Y					= s.Yall(:,:,kY);
+					W_stars{kR}(kX,kY)	= GrangerCausality(X,Y,...
+						'samples', s.kNext);
 				end
 			end
 		end
@@ -304,6 +306,9 @@ methods
 			kLag		= find(ind);
 			k			= find(indshift);	% i.e., kLag + 1;
 			kFudge		= find(ind | indshift);
+			sigs.kNext	= k;
+			sigs.Xall	= X(:,kR,:);
+			sigs.Yall	= Y(:,kR,:);
 			sigs.X		= X(k,kR,:);
 			sigs.Y		= Y(k,kR,:);
 			sigs.XLag	= X(kLag,kR,:);
@@ -412,7 +417,10 @@ methods
 		end
 	end
 
-	function showBlockDesign(~,block)
+	function showBlockDesign(obj,block)
+		if obj.uopt.nofigures
+			return;
+		end
 		figure;
 		imagesc(block);
 		colormap('gray');
@@ -422,6 +430,9 @@ methods
 	end
 
 	function showFunctionalSigPlot(obj,X,Y,block)
+		if obj.uopt.nofigures
+			return;
+		end
 		u		= obj.uopt;
 		nTRun	= size(X,1);	%number of time points per run
 
@@ -484,6 +495,9 @@ methods
 	end
 
 	function showTwoWs(obj,W1,W2,figTitle)
+		if obj.uopt.nofigures
+			return;
+		end
 		u				= obj.uopt;
 		imDims			= [u.szIm NaN];
 		graySeparator	= 0.8*ones(u.szIm,round(1.5*u.szIm/u.nSigCause));
@@ -505,7 +519,9 @@ methods
 		%run each subject
 		results	= cell(u.nSubject,1);
 
-		progress(u.nSubject,'label','simulating each subject');
+		progresstypes	= {'figure','commandline'};
+		progress(u.nSubject,'label','simulating each subject',...
+				'type',progresstypes{1+u.nofigures},'silent',~u.progress);
 		for kS=1:u.nSubject
 			doDebug		= DEBUG && kS==1;
 			results{kS}	= simulateSubject(obj,doDebug);
@@ -520,8 +536,8 @@ methods
 
 			summary.alexAcc	= mean(acc);
 			if DEBUG
-				fprintf('mean accuracy: %.2f%%\n',100*summary.alexAcc);
-				fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+				fprintf('Alex mean accuracy: %.2f%%\n',100*summary.alexAcc);
+				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
 		if isfield(results{1},'lizierTEs')
@@ -532,8 +548,8 @@ methods
 			if DEBUG
 				%display(TEsCondA);
 				%display(TEsCondB);
-				fprintf('Lizier h: %.2f%%  (ci=[%.2f,%.2f])\n',100*h,ci(1),ci(2));
-				fprintf('group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
+				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
 		if isfield(results{1},'sethTEs')

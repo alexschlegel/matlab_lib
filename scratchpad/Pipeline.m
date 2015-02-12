@@ -72,12 +72,13 @@ methods
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSum:		(0.1) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%
-	%					-- Simulation mode and mixing:
+	%					-- Mixing and analysis
 	%
 	%		simMode:	('total') simulation mode:  'alex', 'lizier', 'seth', or 'total'
 	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
-	%		Kraskov_K:	('4') Kraskov K for Lizier's multivariate transfer entropy calculation
+	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
+	%		max_aclags: (1000) GrangerCausality parameter to limit running time
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -104,7 +105,8 @@ methods
 			'simMode'	, 'total'	, ...
 			'doMixing'	, true		, ...
 			'noiseMix'	, 0.1		, ...
-			'Kraskov_K'	, '4'		  ...
+			'kraskov_k'		, 4			, ...
+			'max_aclags'	, 1000		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -113,9 +115,6 @@ methods
 			end
 		end
 		opt.simMode				= CheckInput(opt.simMode,'simMode',[obj.simModes 'total']);
-		if ~ischar(opt.Kraskov_K) || isempty(regexp(opt.Kraskov_K,'^\d+$','once'))
-			error('Kraskov_K must be a digit string');
-		end
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc)
@@ -188,9 +187,11 @@ methods
 
 	%XTest,YTest dims are time, run, signal
 	%return one TE for each condition
+	%FIXME: Temporary: return a second TE for each condition, namely, the *old* TE
 	function TEs = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
+		u		= obj.uopt;
 		conds	= {'A' 'B'};
-		TEs		= zeros(numel(conds),1);
+		TEs		= zeros(numel(conds),2); % FIXME: 2 == cardinality of {new,old}; to be changed to 1
 
 		%concatenate data for all runs to create a single hypothetical megarun
 		megatarget	= {cat(1,target{:})};
@@ -200,7 +201,11 @@ methods
 		for kC=1:numel(conds)
 			sigs	= extractSignalsForCondition(obj,megatarget,megaX,megaY,conds{kC});
 			s		= sigs{1};
-			TEs(kC)	= calculateLizierMVCTE(obj,...
+			TEs(kC,1) = TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
+				'samples',s.kNext,'kraskov_k',u.kraskov_k);
+			% FIXME: To be removed, second subscript above, thus:  TEs(kC) = ....
+			% FIXME: Temporary: include old calculation as well:
+			TEs(kC,2) = calculateLizierMVCTE(obj,...
 				squeeze(s.XFudge),...
 				squeeze(s.YFudge));
 		end
@@ -213,7 +218,7 @@ methods
 		u		= obj.uopt;
 		teCalc	= obj.infodyn_teCalc;
 		teCalc.initialise(1,size(X,2),size(Y,2)); % Use history length 1 (Schreiber k=1)
-		teCalc.setProperty('k',u.Kraskov_K); % Use Kraskov parameter K=4 for 4 nearest points
+		teCalc.setProperty('k',num2str(u.kraskov_k)); % Use Kraskov parameter K=4 for 4 nearest points
 		teCalc.setObservations(X,Y);
 		TE		= teCalc.computeAverageLocalOfObservations();
 	end
@@ -235,7 +240,7 @@ methods
 				for kY=1:u.nSigCause
 					Y					= s.Yall(:,:,kY);
 					W_stars{kR}(kX,kY)	= GrangerCausality(X,Y,...
-						'samples', s.kNext);
+						'samples',s.kNext,'max_aclags',u.max_aclags);
 				end
 			end
 		end
@@ -546,8 +551,13 @@ methods
 			[h,p_grouplevel,ci,stats]	= ttest(TEsCondA,TEsCondB);
 			summary.lizier_h			= h;
 			if DEBUG
-				%display(TEsCondA);
-				%display(TEsCondB);
+				%FIXME: lizierNewOld[AB] are temporary diagnostics
+				oldTEsCondA				= cellfun(@(r) r.lizierTEs(1,2),results);
+				oldTEsCondB				= cellfun(@(r) r.lizierTEs(2,2),results);
+				lizierNewOldA			= [TEsCondA oldTEsCondA]';
+				lizierNewOldB			= [TEsCondB oldTEsCondB]';
+				display(lizierNewOldA);
+				display(lizierNewOldB);
 				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
 				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
@@ -629,6 +639,21 @@ methods (Static)
 	%
 	function summary = runSimulation(varargin)
 		pipeline	= Pipeline(varargin{:});
+		summary		= pipeline.simulateAllSubjects;
+	end
+
+	% textOnlyDebugSimulation - static method for running figure-free
+	%                           debug-pipeline
+	%
+	% Syntax:	summary = Pipeline.textOnlyDebugSimulation(<options>)
+	%
+	% In:
+	%	<options>:
+	%		See createDebugPipeline above for description of <options>
+	%
+	function summary = textOnlyDebugSimulation(varargin)
+		pipeline	= Pipeline.createDebugPipeline(varargin{:});
+		pipeline	= pipeline.changeOptionDefault('nofigures',true);
 		summary		= pipeline.simulateAllSubjects;
 	end
 end

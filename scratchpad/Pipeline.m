@@ -132,8 +132,8 @@ methods
 
 		modeInds	= cellfun(@(m) any(strcmp(u.simMode,{m,'total'})),obj.simModes);
 		modes		= obj.simModes(modeInds);
-		for i = 1:numel(modes)
-			switch modes{i}
+		for kMode=1:numel(modes)
+			switch modes{kMode}
 				case 'alex'
 					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 				case 'lizier'
@@ -200,7 +200,7 @@ methods
 		for kC=1:numel(conds)
 			sigs	= extractSignalsForCondition(obj,megatarget,megaX,megaY,conds{kC});
 			s		= sigs{1};
-			TEs(kC) = TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
+			TEs(kC)	= TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
 				'samples',s.kNext,'kraskov_k',u.kraskov_k);
 		end
 		if doDebug
@@ -395,25 +395,19 @@ methods
 		end
 	end
 
-	function [cWCause,cW] = generateWs(obj,nW)
-		u				= obj.uopt;
-		[cWCause,cW]	= deal(cell(nW,1));
+	function [W,WCause] = generateW(obj)
+		u								= obj.uopt;
+		%generate a random WCause
+		WCause							= rand(u.nSigCause);
+		%make it sparse
+		WCause(WCause>u.WFullness)		= 0;
+		%normalize each column to the specified mean
+		WCause							= WCause*u.WSum./repmat(sum(WCause,1),[u.nSigCause 1]);
+		WCause(isnan(WCause))			= 0;
 
-		for kW=1:nW
-			%generate a random W
-			W					= rand(u.nSigCause);
-			%make it sparse
-			W(W>u.WFullness)	= 0;
-			%normalize each column to the specified mean
-			W			= W*u.WSum./repmat(sum(W,1),[u.nSigCause 1]);
-			W(isnan(W))	= 0;
-
-			cWCause{kW}	= W;
-
-			%insert into the full matrix
-			cW{kW}								= zeros(u.nSig);
-			cW{kW}(1:u.nSigCause,1:u.nSigCause)	= cWCause{kW};
-		end
+		%insert into the full matrix
+		W								= zeros(u.nSig);
+		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
 	end
 
 	function showBlockDesign(obj,block)
@@ -557,10 +551,14 @@ methods
 		u	= obj.uopt;
 
 		%the two causality matrices (and other control causality matrices)
-		[cWCause,cW]	= generateWs(obj,4);
-
-		[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+		%(four causality matrices altogether)
+		nW										= 4;
+		[cW,cWCause]							= deal(cell(nW,1));
+		for kW=1:nW
+			[cW{kW},cWCause{kW}]				= generateW(obj);
+		end
 		[WA,WB,WBlank,WZ]						= deal(cW{:});
+		[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
 
 		if doDebug
 			showTwoWs(obj,WACause,WBCause,'W_A and W_B');

@@ -187,11 +187,10 @@ methods
 
 	%XTest,YTest dims are time, run, signal
 	%return one TE for each condition
-	%FIXME: Temporary: return a second TE for each condition, namely, the *old* TE
 	function TEs = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 		conds	= {'A' 'B'};
-		TEs		= zeros(numel(conds),2); % FIXME: 2 == cardinality of {new,old}; to be changed to 1
+		TEs		= zeros(numel(conds),1);
 
 		%concatenate data for all runs to create a single hypothetical megarun
 		megatarget	= {cat(1,target{:})};
@@ -201,13 +200,8 @@ methods
 		for kC=1:numel(conds)
 			sigs	= extractSignalsForCondition(obj,megatarget,megaX,megaY,conds{kC});
 			s		= sigs{1};
-			TEs(kC,1) = TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
+			TEs(kC) = TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
 				'samples',s.kNext,'kraskov_k',u.kraskov_k);
-			% FIXME: To be removed, second subscript above, thus:  TEs(kC) = ....
-			% FIXME: Temporary: include old calculation as well:
-			TEs(kC,2) = calculateLizierMVCTE(obj,...
-				squeeze(s.XFudge),...
-				squeeze(s.YFudge));
 		end
 		if doDebug
 			display(TEs);
@@ -551,13 +545,6 @@ methods
 			[h,p_grouplevel,ci,stats]	= ttest(TEsCondA,TEsCondB);
 			summary.lizier_h			= h;
 			if DEBUG
-				%FIXME: lizierNewOld[AB] are temporary diagnostics
-				oldTEsCondA				= cellfun(@(r) r.lizierTEs(1,2),results);
-				oldTEsCondB				= cellfun(@(r) r.lizierTEs(2,2),results);
-				lizierNewOldA			= [TEsCondA oldTEsCondA]';
-				lizierNewOldB			= [TEsCondB oldTEsCondB]';
-				display(lizierNewOldA);
-				display(lizierNewOldB);
 				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
 				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end

@@ -208,11 +208,21 @@ methods
 		end
 	end
 
-	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,W,WZ,sourceIn,destIn,preSourceIn)
+	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,W,WZ,sourceIn,destIn,preSourceIn,doDebug)
 		u				= obj.uopt;
+		sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
+		destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
 		preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
-		sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-u.WSum-u.CRecurX).*randn(u.nSig,1);
-		destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-u.WSum-u.CRecurY).*randn(u.nSig,1);
+
+		if doDebug
+			coeffsumx	= u.CRecurX.*ones(size(sourceIn)) + sum(WZ'.*ones(size(preSourceIn)),2) + (1-sum(WZ,1)'-u.CRecurX).*ones(u.nSig,1);
+			coeffsumy	= u.CRecurY.*ones(size(destIn)) + W'*ones(size(sourceIn)) + (1-sum(W,1)'-u.CRecurY).*ones(u.nSig,1);
+			coeffsumz	= u.CRecurZ.*ones(size(preSourceIn)) + (1-u.CRecurZ).*ones(u.nSig,u.nSig);
+			errors		= abs([coeffsumx coeffsumy coeffsumz] - 1);
+			if any(errors > 1e-8)
+				error('Coefficients do not add to one.');
+			end
+		end
 	end
 
 	function TE = calculateLizierMVCTE(obj,X,Y)
@@ -356,14 +366,7 @@ methods
 				end
 
 				%X=source, Y=destination, Z=pre-source
-				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,W,WZ,xPrev,yPrev,zPrev);
-
-				if doDebug && u.verbosity > 0 && kR == 1 && kT <= 3
-					XCoeffSums	= sum(WZ,1) + 1-u.WSum;
-					YCoeffSums	= sum(W,1) + 1-u.WSum;
-					display(XCoeffSums);
-					display(YCoeffSums);
-				end
+				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,W,WZ,xPrev,yPrev,zPrev,doDebug);
 
 				%causality matrix for the next sample
 				switch target{kR}{kT}

@@ -208,6 +208,13 @@ methods
 		end
 	end
 
+	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,W,WZ,sourceIn,destIn,preSourceIn)
+		u				= obj.uopt;
+		preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+		sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-u.WSum-u.CRecurX).*randn(u.nSig,1);
+		destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-u.WSum-u.CRecurY).*randn(u.nSig,1);
+	end
+
 	function TE = calculateLizierMVCTE(obj,X,Y)
 		u		= obj.uopt;
 		teCalc	= obj.infodyn_teCalc;
@@ -348,12 +355,8 @@ methods
 					zPrev	= squeeze(Z(kT-1,kR,:,:));
 				end
 
-				%pre-source
-				Z(kT,kR,:,:)	= u.CRecurZ.*zPrev + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
-				%source
-				X(kT,kR,:)		= u.CRecurX.*xPrev + sum(WZ'.*zPrev,2) + (1-u.WSum-u.CRecurX).*randn(u.nSig,1);
-				%destination
-				Y(kT,kR,:)		= u.CRecurY.*yPrev + W'*xPrev + (1-u.WSum-u.CRecurY).*randn(u.nSig,1);
+				%X=source, Y=destination, Z=pre-source
+				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,W,WZ,xPrev,yPrev,zPrev);
 
 				if doDebug && u.verbosity > 0 && kR == 1 && kT <= 3
 					XCoeffSums	= sum(WZ,1) + 1-u.WSum;

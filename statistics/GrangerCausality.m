@@ -15,6 +15,7 @@ function gc = GrangerCausality(src,dst,varargin)
 %					lagged signals.
 %		samples:	(<all>) the samples to consider in the computation. these
 %					samples define the 'next' signal in the regression.
+%		max_aclags:	(1000) bound on autocov lags to limit running time.
 % 
 % Out:
 % 	gc	- the multivariate granger causality from src to dst
@@ -40,13 +41,16 @@ function gc = GrangerCausality(src,dst,varargin)
 % 		'legend'	, {'GC','GCu','TE'}	  ...
 % 		);
 % 
-% Updated: 2015-02-09
+% Updated: 2015-02-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+dbg	= struct;
+
 opt	= ParseArgs(varargin,...
-		'lag'		, 1		, ...
-		'samples'	, []	  ...
+		'lag'			, 1		, ...
+		'samples'		, []	, ...
+		'max_aclags'	, 1000	  ...
 		);
 
 [nSample,ndSrc]		= size(src);
@@ -68,34 +72,40 @@ end
 			kSampleNext	= kStartNext:kEndNext;
 		else
 			kSampleNext	= opt.samples(opt.samples>=kStartNext & opt.samples<=kEndNext);
+			kSampleNext	= reshape(kSampleNext,1,[]);
 		end
+	%demean the data that will be used
+		kSampleMin			= min(kSampleNext);
+		kSampleAll			= [kSampleMin-maxLag:kSampleMin-1 kSampleNext];
+		src(kSampleAll,:)	= demean(src(kSampleAll,:),1);
+		dst(kSampleAll,:)	= demean(dst(kSampleAll,:),1);
 	
 	%construct past and next signals
-		srcPast	= ConstructPasts(src);
-		srcNext	= ConstructPast(src,0);
-		dstPast	= ConstructPasts(dst);
-		dstNext	= ConstructPast(dst,0);
+		srcPast	= ConstructPasts(src,opt.lag,kSampleNext);
+		srcNext	= ConstructPast(src,0,kSampleNext);
+		dstPast	= ConstructPasts(dst,opt.lag,kSampleNext);
+		dstNext	= ConstructPast(dst,0,kSampleNext);
 
 %fit a VAR model to the data
 	[A,SIG]	= FitVARModel(srcPast,srcNext,dstPast,dstNext);
 
 %calculate the autocovariance sequence for the model
-	G	= Var2AutoCov(A,SIG);
+	G	= Var2AutoCov(A,SIG,nLag,opt.max_aclags);
 
 %calculate the MVGC
-	gc	= CalcMVGC(G);
+	gc	= CalcMVGC(G,ndSrc,ndDst);
 
 %------------------------------------------------------------------------------%
-function xPast = ConstructPasts(x)
+function xPast = ConstructPasts(x,lags,kSampleNext)
 %construct the set of past (lagged) signals. output is nSample x nLag.
-	xPast	= arrayfun(@(lag) ConstructPast(x,lag),opt.lag,'uni',false);
+	xPast	= arrayfun(@(lag) ConstructPast(x,lag,kSampleNext),lags,'uni',false);
 	xPast	= cat(2,xPast{:});
-end
+
 %------------------------------------------------------------------------------%
-function xPast = ConstructPast(x,lag)
+function xPast = ConstructPast(x,lag,kSampleNext)
 %construct a single past signal
-	xPast	= demean(x(kSampleNext - lag,:));
-end
+	xPast	= x(kSampleNext - lag,:);
+
 %------------------------------------------------------------------------------%
 function X = lyapslv(A,Q)
 % modified from mvgc/utils/control/lyapslv.m
@@ -140,24 +150,27 @@ function X = lyapslv(A,Q)
 	
 	%transform back to original coordinates
 		X	= U*X*U';
-end
+
 %------------------------------------------------------------------------------%
 function [A,SIG] = FitVARModel(srcPast,srcNext,dstPast,dstNext)
 % modified from tsdata_to_var in the MVGC toolbox
-	xNext	= [srcNext dstNext];
-	xPast	= [srcPast dstPast];
+	nSample	= size(srcPast,1);
 	
-	%transpose A and SIG here since we are using nSample x nd signals and the
-	%MVGC toolbox expects nd x nSample signals
+	%transpose the signals here since we are using nSample x nd signals and the
+	%MVGC toolbox expects nd x nSample signals. also for some reason Seth puts
+	%destination signals before source signals (annoying)
 	
-	A		= (xPast\xNext)';
-	err		= xNext' - A*xPast';
+	xNext	= [dstNext srcNext]';
+	xPast	= [dstPast srcPast]';
+	
+	A	= xNext/xPast;
+	err	= xNext - A*xPast;
 	
 	%how is this different from cov(err,1)?
-	SIG		= err*err'/(size(xNext,1)-1);
-end
+	SIG	= err*err'/(nSample-1);
+
 %------------------------------------------------------------------------------%
-function G = Var2AutoCov(A,SIG)
+function G = Var2AutoCov(A,SIG,nLag,maxACLags)
 % modified from var_to_autocov in the MVGC toolbox
 	[n,pn]	= size(A);
 	p		= nLag;
@@ -171,7 +184,7 @@ function G = Var2AutoCov(A,SIG)
 	rho			= max(abs(eig(A1)));
 	aclags		= ceil(log(acdectol)/log(rho)); % minimum lags to achieve specified tolerance
 	
-	q	= aclags;
+	q	= max(p,min(aclags,maxACLags));
 	q1	= q+1;
 	
 	G	= cat(3,reshape(G1(1:n,:),n,n,p),zeros(n,n,q1-p));	%autocov forward  sequence
@@ -182,7 +195,7 @@ function G = Var2AutoCov(A,SIG)
 		G(:,:,k+1)			= A*B(r*n+1:r*n+pn,:);
 		B((r-1)*n+1:r*n,:)	= G(:,:,k+1);
 	end
-end
+
 %------------------------------------------------------------------------------%
 function [A,SIG] = AutoCov2Var(G)
 % copied from autocov_to_var in the MVGC toolbox
@@ -224,22 +237,25 @@ function [A,SIG] = AutoCov2Var(G)
 	
 	SIG	= G0-AF*GF;
 	A	= reshape(AF,n,n,q);
-end
+
 %------------------------------------------------------------------------------%
-function gc = CalcMVGC(G)
+function gc = CalcMVGC(G,ndSrc,ndDst)
 % modified from autocov_to_mvgc in the MVGC toolbox
-	y	= 1:ndSrc;
-	x	= ndSrc+1:ndSrc+ndDst;
+	x	= 1:ndSrc;
+	y	= ndSrc+1:ndSrc+ndDst;
 	xy	= [x y];
 	
 	%full and reduced regressions
 		[~,SIG]		= AutoCov2Var(G(xy,xy,:));
 		[~,SIGR]	= AutoCov2Var(G(x,x,:));
 	
-	x	= 1:numel(x);
-	gc	= log(det(SIGR(x,x))) - log(det(SIG(x,x)));
-end
+	x			= 1:numel(x);
+	detSIGR		= det(SIGR(x,x));
+	detSIG		= det(SIG(x,x));
+	if detSIGR <= 0 || detSIG <= 0
+		gc		= 0;
+	else
+		gc		= log(detSIGR) - log(detSIG);
+	end
+
 %------------------------------------------------------------------------------%
-
-
-end

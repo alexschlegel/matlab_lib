@@ -103,10 +103,11 @@ function h = alexplot_scatter(x,h,vargin)
 		h.opt.linestyle	= [h.opt.linestyle; repmat({'-'},[nPlot 1])];
 	end
 	
-	opt		= h.opt;
-	cOpt	= opt2cell(h.opt);
-	h		= alexplot(h.data.x,h.data.y,cOpt{:},'axistype','off');
-	h.opt	= opt;
+	opt				= h.opt;
+	opt.axistype	= 'off';
+	cOpt			= opt2cell(opt);
+	h				= alexplot(h.data.x,h.data.y,cOpt{:});
+	h.opt			= opt;
 	
 	if h.opt.bestfit && ~isequal(h.opt.bestfit_location,'off')
 		axes(h.hA);

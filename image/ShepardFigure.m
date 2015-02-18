@@ -1,9 +1,9 @@
-function [im,msk] = ShepardFigure(k,varargin)
+function [im,msk,hF] = ShepardFigure(k,varargin)
 % ShepardFigure
 % 
 % Description:	render a Shepard/Metzler figure
 % 
-% Syntax:	[im,msk] = ShepardFigure(k,<options>)
+% Syntax:	[im,msk,hF] = ShepardFigure(k,<options>)
 % 
 % In:
 % 	k	- the figure number (1-8)
@@ -37,8 +37,9 @@ function [im,msk] = ShepardFigure(k,varargin)
 % Out:
 % 	im	- the figure
 %	msk	- a binary mask of the figure
+%	hF	- the handle to the figure containing the Shepard/Metzler figure
 % 
-% Updated: 2015-01-12
+% Updated: 2015-02-10
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -190,7 +191,12 @@ end
 
 %extract the figure image
 	im	= im2double(hardcopy(hF,'-Dopengl',sprintf('-r%d',opt.figure_size)));
-	close(hF);
+	
+	if nargout>2
+		set(hF,'visible','on');
+	else
+		close(hF);
+	end
 	
 	im	= uint8(2*im(:,:,1));
 

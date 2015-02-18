@@ -9,15 +9,17 @@ function [x,kNaN] = FillMissingData(x,varargin)
 % 	x			- an array of data with missing values set to NaN
 %	[dim]		- the dimension across which to interpolate.  set to the string
 %				  'n' to interpolate points in a multidimensional array.
-%	[strInterp]	- the interpolation method.  either an argument to interp1 or the
-%				  string 'mid' to specify that each missing value should be set
-%				  to the midpoint of the surrounding values.
+%	[strInterp]	- the interpolation method.  either an argument to interp1 or one
+%                 of the following:
+%				  	'mid': use the midpoint of the surrounding values
+%                   'mean': use the mean of all non-NaN values in the
+%                       interpolation dimension
 % 
 % Out:
 % 	x		- x with missing data filled in
 %	kNaN	- the indices of the missing data
 % 
-% Updated: 2012-05-05
+% Updated: 2015-2-17
 % Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -64,7 +66,9 @@ function xF = InterpOne(xInterp,kDimNaN)
 				xF	= xInterp(kFPost);
 			else
 				xF	= 0;
-			end
+            end
+        case 'mean'
+            xF = unless(nanmean(xInterp),0);
 		otherwise
 			k	= (1:numel(xInterp))';
 			b	= ~isnan(xInterp);

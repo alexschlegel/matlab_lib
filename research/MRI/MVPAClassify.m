@@ -7,12 +7,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % 
 % In:
 % 	cPathData	- the path to the nX x nY x nZ x nSample NIfTI file to analyze,
-%				  or a cell of paths. if the last dimension of the cell has size
-%				  2, then we perform cross classification in which the
-%				  classifier is trained on one dataset and tested on the other.
-%				  in this case, both datasets must have the same target/chunk
-%				  structure. note that currently both datasets are included in
-%				  training and testing.
+%				  or a cell of paths. for classifications that require paired
+%				  datasets (matched dataset cross-classification and information
+%				  flow classification), then this must be a cell whose last
+%				  dimension has size 2. in this case, both datasets must have
+%				  the same target/chunk structure.
 %	cTarget		- an nSample x 1 cell specifying the target of each sample, or a
 %				  cell of sample cell arrays (one for each dataset)
 %	kChunk		- an nSample x 1 array specifying the chunk of each sample, or a
@@ -40,9 +39,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %									n:	use NFoldPartitioner, leaving n folds
 %										out in each cross validation fold
 %									str:	a string to be eval'ed, the result
-%											of which is the partitioner.
-%											overridden in the case of cross
-%											classification.
+%											of which is the partitioner
 %		classifier:				('LinearCSVMC') a string specifying the
 %								classifier to use, or a cell of classifiers to
 %								do nested classifier selection. suggestions:
@@ -62,11 +59,26 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %		average:				(false) true to average samples from the same
 %								target and chunk
 %		spatiotemporal:			(false) true to do a spatiotemporal analysis
-%		crossclassify:			(<auto>) true to cross-classify, but only if the
-%								data are formatted as described above
-%		match_features:			(false) only applies to cross-classifications.
-%								true to perform feature matching between the
-%								training and testing datasets.
+%		matchedcrossclassify:	(false) true to perform matched dataset
+%								cross-classification, but only if the data are
+%								formatted as described above. in this case, two
+%								datasets share the same targets and chunks and
+%								have the same number of features, and the
+%								classifier is trained on one dataset and tested
+%								on the other. currently both datasets are
+%								included in training and testing.
+%		match_features:			(false) only applies to matched dataset
+%								cross-classifications. true to perform feature
+%								matching between the training and testing
+%								datasets.
+%		informationflow:		(false) true to perform an information-flow
+%								classification, but only if the data are
+%								formatted as described above. in this analysis
+%								information flow patterns for each target and
+%								chunk are constructed by calculating the Granger
+%								Causality from each feature of dataset 1 to each
+%								feature of dataset 2. the classification is
+%								performed on these patterns.
 %		selection:				(1) the number/fraction of features to select
 %								for classification, based on a one-way ANOVA. if
 %								a number less than one is passed, it is
@@ -136,23 +148,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % Out:
 % 	res	- a struct array of analysis results
 % 
-% Updated: 2014-12-14
+% Updated: 2015-01-24
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-% for the future:
-% from Yarik, partitioner to do cross classification in one direction only.
-% here, test on second dataset only:
-% partitioner = ChainNode([NFoldPartitioner(attr='roi'),
-%                          ExcludeTargetsCombinationsPartitioner(
-%                                  k=1,
-%                                  targets_attr='chunks',
-%                                  space='partitions'),
-%                          Sifter([('partitions', 2),
-%                                  ('roi', [2])], # CV to ROI 2 only
-%                                 space='partitions')],
-%                          space='partitions')
 %parse the inputs
 	opt	= ParseArgs(varargin,...
 			'path_mask'				, {}			, ...
@@ -167,8 +167,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'sensitivities'			, false			, ...
 			'average'				, false			, ...
 			'spatiotemporal'		, false			, ...
-			'crossclassify'			, true			, ...
+			'matchedcrossclassify'	, false			, ...
 			'match_features'		, false			, ...
+			'informationflow'		, false			, ...
 			'selection'				, 1				, ...
 			'save_selected'			, false			, ...
 			'target_subset'			, {}			, ...
@@ -208,12 +209,16 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			error('Uninterpretable selection parameter.');
 		end
 	
-	%are we doing cross classification?
-		szData				= size(cPathData);
-		opt.crossclassify	= opt.crossclassify && iscell(cPathData) && szData(end)==2;
+	%are we doing matched dataset cross-classification or information flow
+	%classification?
+		szData						= size(cPathData);
+		bPairedDataset				= iscell(cPathData) && szData(end)==2;
+		opt.informationflow			= opt.informationflow && bPairedDataset;
+		opt.matchedcrossclassify	= ~opt.informationflow && opt.matchedcrossclassify && bPairedDataset;
 		
-		if opt.crossclassify
-			status('Cross-classification analysis will be performed since last dimension of the data has size 2.','silent',opt.silent);
+		if opt.matchedcrossclassify || opt.informationflow
+			strAnalysis	= conditional(opt.informationflow,'Information-flow Classification','Matched Dataset Cross-classification');
+			status(sprintf('%s will be performed since last dimension of the data has size 2.',strAnalysis),'silent',opt.silent);
 			
 			%reformat data as a cell of 2x1 cells of file paths
 				cSub		= subsall(cPathData);

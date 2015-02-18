@@ -16,7 +16,7 @@ function [x,k] = randomize(x,varargin)
 % 	x	- x randomized
 %	k	- the randomized indices along dimension dim
 % 
-% Updated:	2014-07-26
+% Updated:	2015-01-26
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 [dim,strRows,opt]	= ParseArgs(varargin,[],[],...
 						'seed'	, randseed2	  ...
@@ -28,8 +28,7 @@ s	= size(x);
 nd	= numel(s);
 
 %set the seed
-	strm	= RandStream.create('mt19937ar','seed',opt.seed);
-	RandStream.setGlobalStream(strm);
+	rng(opt.seed);
 
 %get the dimension along which to randomize
 	if isempty(dim)

@@ -10,7 +10,7 @@ function [bSuccess,strPathMask,strName] = FreeSurferMask(strDirSubject,cLabel,va
 %	strDirSubject	- the base FreeSurfer directory for the subject
 %	cLabel			- a string or cell of strings specifying the structures to 
 %					  extract and merge (see the aseg and a2009s labels in
-%					  FreeSurferLabels.
+%					  FreeSurferLabels).
 %	[strHemisphere]	- if the structure has both left and right hemisphere
 %					  components (e.g. 'Left-Amygdala'), you can specify only the
 %					  name of the structure(s) in cLabel (e.g. 'Amygdala') and

@@ -20,7 +20,6 @@ function [te,stat] = TransferEntropy(src,dst,varargin)
 %						these samples define the 'next' signal in the
 %						regression.
 %		kraskov_k:		(4) the Kraskov K parameter value
-%		ksg_algorithm:	(1) the KSG algorithm to use (1 or 2)
 %		subsamples:		(1) the number of times to subsample the data subsets
 %		subsample_size:	(inf) the number of variables to include in each
 %						subsample of the source and destination data
@@ -37,22 +36,16 @@ function [te,stat] = TransferEntropy(src,dst,varargin)
 %	this is based on relevant code from Joseph Lizier's information dynamics
 %	toolkit: https://code.google.com/p/information-dynamics-toolkit/
 %	
-%	Method is described in:
+%	method is described in:
 %		Lizier, J. T., Heinzle, J., Horstmann, A., Haynes, J.-D., & Prokopenko,
 %		M. (2011). Multivariate information-theoretic measures reveal directed
 %		information structure and task relevant changes in fMRI connectivity.
 %		Journal of Computational Neuroscience, 30(1), 85-107.
-%		
-%		and
-%		
-%		Lizier, J. T. (2014). JIDT: An information-theoretic toolkit for
-%		studying the dynamics of complex systems. Frontiers in Robotics and AI,
-%		1(December), 1–20.
 %
 % Example:
 %	nvX=2; nvY=nvX+1; n=1000; covariance=0.2; X=randn(n,nvX); Y=[zeros(1,nvY); covariance*[X(1:end-1,1:end-1).*X(1:end-1,2:end) X(1:end-1,end).*X(1:end-1,1)] randn(n-1,nvY-nvX)]+(1-covariance)*randn(n, nvY); [te,stat] = TransferEntropy(X,Y)
 % 
-% Updated: 2015-02-17
+% Updated: 2015-02-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -60,7 +53,6 @@ opt	= ParseArgs(varargin,...
 		'lag'				, 1		, ...
 		'samples'			, []	, ...
 		'kraskov_k'			, 4		, ...
-		'ksg_algorithm'		, 1		, ...
 		'subsamples'		, 1		, ...
 		'subsample_size'	, inf	, ...
 		'permutations'		, 100	, ...
@@ -164,8 +156,7 @@ function te = CalcTE(srcPast,dstPast,dstNext)
 %	dstNext:	nSample x ndDst array of the destination signal next
 	%mutual information of pasts
 		[miPast,PNorm,srcNorm]	= MutualInformation(dstPast,srcPast,...
-									'kraskov_k'		, opt.kraskov_k		, ...
-									'ksg_algorithm'	, opt.ksg_algorithm	  ...
+									'kraskov_k'		, opt.kraskov_k	  ...
 									);
 	
 	%calculate the PastNext norm using info from the Past norm
@@ -175,7 +166,6 @@ function te = CalcTE(srcPast,dstPast,dstNext)
 	%mutual information of pasts and next
 		miPastNext	= MutualInformation([dstPast dstNext],srcPast,...
 						'kraskov_k'		, opt.kraskov_k			, ...
-						'ksg_algorithm'	, opt.ksg_algorithm		, ...
 						'xnorm'			, PNNorm				, ...
 						'ynorm'			, srcNorm				  ...
 						);

@@ -9,9 +9,11 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 % 	c		- an array of conditions
 %	nRep	- the number of repetitions of each condition per run
 %	nRun	- the number of runs
-%	[param]	- a struct specifying other parameters that should be balanced
-%			  across the blocks. each field of the struct defines the possible
-%			  values of one parameter.
+%	[param]	- a struct specifying other parameters to generate. each field of
+%			  the struct defines the possible values of one parameter. values
+%			  are balanced by run, experiment, or are not balanced, depending on
+%			  the number of possible parameter values.
+%				
 %	<options>:
 %		seed:	(randseed2) the seed to use for randomizing
 % 
@@ -23,7 +25,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %	this will not complain if bad design parameters are entered (e.g. more runs
 %	than can be handled by a balanced Latin square)
 % 
-% Updated: 2015-01-26
+% Updated: 2015-02-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -81,26 +83,40 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 	for kF=1:nField
 		strField	= cField{kF};
 		p			= reshape(param.(strField),[],1);
-		
-		%get the parameter values to choose from in each run
-			nValue	= numel(p);
-			if nValue < nRep
-				pChoose	= repmat(p,[ceil(nRep/nValue) 1]);
-			else
-				pChoose	= p;
-			end
+		nValue		= numel(p);
 		
 		%initialize the parameter array
 			param.(strField)				= p(1);
 			param.(strField)(nRun,nBlock)	= p(1);
 		
-		for kR=1:nRun
-			%choose the parameters for the current run
-				pCur	= randFrom(pChoose,[nRep 1]);
-			%randomize among each condition
-				for kC=1:nCondition
-					param.(strField)(kR,CInt(kR,:)==kC)	= randomize(pCur,'seed',randi(intmax));
+		%balance according to the number of possible values
+			if divides(nValue,nRep)
+			%balance by run
+				pChoose	= repto(p,[nRep 1]);
+				
+				for kR=1:nRun
+				%generate parameters for each run
+					for kC=1:nCondition
+					%randomize the order for each condition
+						param.(strField)(kR,CInt(kR,:)==kC)	= randomize(pChoose,'seed',randi(intmax));
+					end
 				end
-		end
+			elseif divides(nValue,nRep*nRun)
+			%balance by experiment
+				pChoose	= repto(p,[nRep*nRun 1]);
+				
+				for kC=1:nCondition
+				%randomize the order for each condition
+					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',randi(intmax));
+				end
+			else
+			%just choose randomly (actually the same as the previous case)
+				pChoose	= repto(p,[nRep*nRun 1]);
+				
+				for kC=1:nCondition
+				%randomize the order for each condition
+					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',randi(intmax));
+				end
+			end
 	end
 	

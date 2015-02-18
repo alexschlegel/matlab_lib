@@ -26,7 +26,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	simModes			= {'alex','lizier','seth'}
+	analyses			= {'alex','lizier','seth'}
 	explicitOptionNames
 	infodyn_teCalc
 end
@@ -72,13 +72,17 @@ methods
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSum:		(0.1) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%
-	%					-- Mixing and analysis
+	%					-- Mixing
 	%
-	%		simMode:	('total') simulation mode:  'alex', 'lizier', 'seth', or 'total'
 	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
+	%
+	%					-- Analysis
+	%
+	%		analysis:	('total') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
-	%		max_aclags: (1000) GrangerCausality parameter to limit running time
+	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
+	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'te')
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -102,11 +106,12 @@ methods
 			'CRecurZ'		, 0.5		, ...
 			'WFullness'		, 0.1		, ...
 			'WSum'			, 0.1		, ...
-			'simMode'		, 'total'	, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
+			'analysis'		, 'total'	, ...
 			'kraskov_k'		, 4			, ...
-			'max_aclags'	, 1000		  ...
+			'max_aclags'	, 1000		, ...
+			'WStarKind'		, 'gc'		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -114,7 +119,8 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
-		opt.simMode				= CheckInput(opt.simMode,'simMode',[obj.simModes 'total']);
+		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
+		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','te'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc)
@@ -130,16 +136,20 @@ methods
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
-		modeInds	= cellfun(@(m) any(strcmp(u.simMode,{m,'total'})),obj.simModes);
-		modes		= obj.simModes(modeInds);
+		modeInds	= cellfun(@(m) any(strcmp(u.analysis,{m,'total'})),obj.analyses);
+		modes		= obj.analyses(modeInds);
 		for kMode=1:numel(modes)
 			switch modes{kMode}
 				case 'alex'
 					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 				case 'lizier'
-					subjectStats.lizierTEs		= analyzeTestSignalsModeLizier(obj,block,target,XTest,YTest,doDebug);
+					subjectStats.lizierTEs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'te',doDebug);
 				case 'seth'
-					subjectStats.sethTEs		= zeros(2,1);
+					% GC computation commented out for now because it tends to generate warnings
+					%subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'gc',doDebug);
+					subjectStats.sethGCs		= zeros(2,1);
+				otherwise
+					error('Bug: missing case for %s.',modes{kMode});
 			end
 		end
 	end
@@ -185,26 +195,30 @@ methods
 		end
 	end
 
-	%XTest,YTest dims are time, run, signal
-	%return one TE for each condition
-	function TEs = analyzeTestSignalsModeLizier(obj,~,target,XTest,YTest,doDebug)
-		u		= obj.uopt;
-		conds	= {'A' 'B'};
-		TEs		= zeros(numel(conds),1);
+	%X,Y dims are time, run, signal
+	%kind is causality kind ('gc', 'te')
+	%return one causality for each condition
+	function causalities = analyzeTestSignalsMultivariate(obj,~,target,X,Y,kind,doDebug)
+		u			= obj.uopt;
+		conds		= {'A' 'B'};
+		causalities	= zeros(numel(conds),1);
 
 		%concatenate data for all runs to create a single hypothetical megarun
 		megatarget	= {cat(1,target{:})};
-		megaX		= reshape(XTest,[],1,size(XTest,3));
-		megaY		= reshape(YTest,[],1,size(YTest,3));
+		megaX		= reshape(X,[],1,size(X,3));
+		megaY		= reshape(Y,[],1,size(Y,3));
 
 		for kC=1:numel(conds)
-			sigs	= extractSignalsForCondition(obj,megatarget,megaX,megaY,conds{kC});
-			s		= sigs{1};
-			TEs(kC)	= TransferEntropy(squeeze(s.Xall),squeeze(s.Yall),...
-				'samples',s.kNext,'kraskov_k',u.kraskov_k);
+			sigs			= extractSignalsForCondition(obj,...
+								megatarget,megaX,megaY,conds{kC});
+			s				= sigs{1};
+			causalities(kC)	= calculateCausality(obj,...
+								squeeze(s.Xall),squeeze(s.Yall),...
+								s.kNext,kind);
 		end
 		if doDebug
-			display(TEs);
+			fprintf('\n%ss =\n\n',upper(kind));
+			disp(causalities);
 		end
 	end
 
@@ -225,6 +239,25 @@ methods
 		end
 	end
 
+	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
+		u	= obj.uopt;
+		switch kind
+			case 'gc'
+				c	= GrangerCausality(X,Y,...
+						'samples'		, indicesOfSamples	, ...
+						'max_aclags'	, u.max_aclags		  ...
+						);
+			case 'te'
+				c	= TransferEntropy(X,Y,...
+						'samples'		, indicesOfSamples	, ...
+						'kraskov_k'		, u.kraskov_k		  ...
+						);
+			otherwise
+				error('Unrecognized causality kind %s',kind);
+		end
+	end
+
+	%calculateLizierMVCTE: obsolescent, deprecated, soon to be removed.
 	function TE = calculateLizierMVCTE(obj,X,Y)
 		u		= obj.uopt;
 		teCalc	= obj.infodyn_teCalc;
@@ -234,7 +267,7 @@ methods
 		TE		= teCalc.computeAverageLocalOfObservations();
 	end
 
-	%calculate the Granger Causality from X components to Y components for each
+	%calculate the Causality from X components to Y components for each
 	%run and for the specified condition
 	% conditionName is 'A' or 'B'
 	function W_stars = calculateW_stars(obj,target,X,Y,conditionName)
@@ -250,8 +283,8 @@ methods
 
 				for kY=1:u.nSigCause
 					Y					= s.Yall(:,:,kY);
-					W_stars{kR}(kX,kY)	= GrangerCausality(X,Y,...
-						'samples',s.kNext,'max_aclags',u.max_aclags);
+					W_stars{kR}(kX,kY)	= calculateCausality(obj,X,Y,...
+											s.kNext,u.WStarKind);
 				end
 			end
 		end
@@ -549,7 +582,7 @@ methods
 				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
-		if isfield(results{1},'sethTEs')
+		if isfield(results{1},'sethGCs')
 		end
 	end
 
@@ -587,7 +620,7 @@ methods
 		%generate test signals
 		[XTest,YTest]	= generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
 
-		%preprocess and analyze test signals according to simulation mode
+		%preprocess and analyze test signals according to analysis mode(s)
 		subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
 	end
 end
@@ -630,6 +663,23 @@ methods (Static)
 	%
 	function summary = runSimulation(varargin)
 		pipeline	= Pipeline(varargin{:});
+		summary		= pipeline.simulateAllSubjects;
+	end
+
+	% speedupDebugSimulation - static method for running sped-up
+	%                          debug-pipeline
+	%
+	% Syntax:	summary = Pipeline.speedupDebugSimulation(<options>)
+	%
+	% In:
+	%	<options>:
+	%		See createDebugPipeline above for description of <options>
+	%
+	function summary = speedupDebugSimulation(varargin)
+		pipeline	= Pipeline.createDebugPipeline(varargin{:});
+		pipeline	= pipeline.changeOptionDefault('nSubject',...
+						ceil(pipeline.uopt.nSubject/3));
+		pipeline	= pipeline.changeOptionDefault('nofigures',true);
 		summary		= pipeline.simulateAllSubjects;
 	end
 

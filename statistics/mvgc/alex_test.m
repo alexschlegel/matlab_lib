@@ -10,7 +10,7 @@ Y	= [randn(1,nd); X(1:end-1,:)] + randn(n,nd);
 	strDirMVGC	= '/home/alex/code/MATLAB/lib/statistics/mvgc';
 	cPathMVGC	= genpath(strDirMVGC);
 	
-	addpath(genpath(strDirMVGC));
+	addpath(cPathMVGC);
 	
 	YX	= [Y X]';
 	
@@ -28,7 +28,7 @@ Y	= [randn(1,nd); X(1:end-1,:)] + randn(n,nd);
 	
 	gc.seth	= autocov_to_mvgc(G,1:nd,nd+1:2*nd);
 	
-	rmpath(genpath(strDirMVGC));
+	rmpath(cPathMVGC);
 
 %me
 	gc.me	= GrangerCausality(X,Y);

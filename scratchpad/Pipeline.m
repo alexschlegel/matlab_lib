@@ -19,7 +19,9 @@ classdef Pipeline
 
 % Simplest invocation (as of 2015-02-03):  Pipeline.debugSimulation;
 % use "Pipeline.runSimulation" to randomize behavior and suppress
-% diagnostic output.
+% diagnostic output.  Other parameterless invocations (added later):
+%	quickest, no graphics:		Pipeline.speedupDebugSimulation
+%	no graphics, but not quick:	Pipeline.textOnlyDebugSimulation
 %
 
 properties
@@ -45,7 +47,7 @@ methods
 	%		progress:	(true) Show progress
 	%		seed:		(randseed2) the seed to use for randomizing
 	%		szIm:		(200) pixel height of debug images
-	%		verbosity:	(0) Extra diagnostic output level
+	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
 	%					-- Subjects
 	%
@@ -92,7 +94,7 @@ methods
 			'progress'		, true		, ...
 			'seed'			, randseed2	, ...
 			'szIm'			, 200		, ...
-			'verbosity'		, 0			, ...
+			'verbosity'		, 1			, ...
 			'nSubject'		, 20		, ...
 			'nSig'			, 10		, ...
 			'nSigCause'		, 10		, ...
@@ -145,9 +147,7 @@ methods
 				case 'lizier'
 					subjectStats.lizierTEs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'te',doDebug);
 				case 'seth'
-					% GC computation commented out for now because it tends to generate warnings
-					%subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'gc',doDebug);
-					subjectStats.sethGCs		= zeros(2,1);
+					subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'gc',doDebug);
 				otherwise
 					error('Bug: missing case for %s.',modes{kMode});
 			end
@@ -215,6 +215,28 @@ methods
 			causalities(kC)	= calculateCausality(obj,...
 								squeeze(s.Xall),squeeze(s.Yall),...
 								s.kNext,kind);
+			reportResult	= (u.verbosity >= 5);
+			if reportResult && strcmp(kind,'gc')
+				%TODO: possibly temporary GC diagnostic
+				gc			= causalities(kC);
+				fprintf('Multivariate GC X->Y for cond %s is %g\n',conds{kC},gc);
+			end
+			if reportResult && strcmp(kind,'te')
+				%TODO: possibly temporary TE verification
+				aX			= squeeze(s.XFudge);
+				aY			= squeeze(s.YFudge);
+				aTE1		= calculateCausality(obj,aX,aY,...
+								2:size(aX,1),'te');
+				%FIXME: redundant, alternate computation
+				aTE1		= TransferEntropy(aX,aY,...
+								'kraskov_k', u.kraskov_k);
+				aTE2		= calculateLizierMVCTE(obj,aX,aY);
+				fprintf('Multivariate TEs X->Y for cond %s are %.6f, %.6f\n',...
+					conds{kC},aTE1,aTE2);
+				if abs(aTE1 - aTE2) > 1e-8
+					error('Bug in TE calculation.');
+				end
+			end
 		end
 		if doDebug
 			fprintf('\n%ss =\n\n',upper(kind));
@@ -349,6 +371,7 @@ methods
 		nRun	= numel(target);
 		signals = cell(nRun,1);
 
+		%TODO: Many of the members of sigs below are obsolescent, to be removed.
 		for kR=1:nRun
 			ind			= strcmp(target{kR},conditionName);
 			indshift	= [0; ind(1:end-1)];
@@ -583,6 +606,14 @@ methods
 			end
 		end
 		if isfield(results{1},'sethGCs')
+			GCsCondA					= cellfun(@(r) r.sethGCs(1),results);
+			GCsCondB					= cellfun(@(r) r.sethGCs(2),results);
+			[h,p_grouplevel,ci,stats]	= ttest(GCsCondA,GCsCondB);
+			summary.seth_h				= h;
+			if DEBUG
+				fprintf('Seth h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
+				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+			end
 		end
 	end
 

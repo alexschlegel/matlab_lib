@@ -43,10 +43,13 @@ methods
 	%					-- Debugging/diagnostic options:
 	%
 	%		DEBUG:		(false) Display debugging information
+	%		fudge:		({}) Fudge specified details (e.g., {'nogc'})
+	%		boostacc:	(false) Randomly boost low accuracies in plots
 	%		nofigures:	(false) Suppress figures
+	%		nowarnings:	(false) Suppress warnings
 	%		progress:	(true) Show progress
-	%		seed:		(randseed2) the seed to use for randomizing
-	%		szIm:		(200) pixel height of debug images
+	%		seed:		(randseed2) Seed to use for randomizing
+	%		szIm:		(200) Pixel height of debug images
 	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
 	%					-- Subjects
@@ -90,7 +93,10 @@ methods
 		%user-defined parameters (with defaults)
 		opt	= ParseArgs(varargin,...
 			'DEBUG'			, false		, ...
+			'fudge'			, {}		, ...
+			'boostacc'		, false		, ...
 			'nofigures'		, false		, ...
+			'nowarnings'	, false		, ...
 			'progress'		, true		, ...
 			'seed'			, randseed2	, ...
 			'szIm'			, 200		, ...
@@ -120,6 +126,10 @@ methods
 			if numel(extraOpts) > 0
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
+		end
+		invalidFudges			= ~ismember(opt.fudge,{'nogc'});
+		if any(invalidFudges)
+			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudges}));
 		end
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','te'});
@@ -263,6 +273,9 @@ methods
 
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
 		u	= obj.uopt;
+		if ismember('nogc',u.fudge)
+			kind	= 'te'; %Fudge: avoid GC altogether
+		end
 		switch kind
 			case 'gc'
 				c	= GrangerCausality(X,Y,...
@@ -312,9 +325,16 @@ methods
 		end
 	end
 
+	function obj = changeDefaultsForBatchRun(obj)
+		obj	= obj.changeOptionDefault('nofigures',true);
+		obj	= obj.changeOptionDefault('nowarnings',true);
+		obj	= obj.changeOptionDefault('progress',false);
+		obj	= obj.changeOptionDefault('verbosity',0);
+	end
+
 	function obj = changeDefaultsToDebug(obj)
-		obj = obj.changeOptionDefault('DEBUG',true);
-		obj = obj.changeOptionDefault('seed',0);
+		obj	= obj.changeOptionDefault('DEBUG',true);
+		obj	= obj.changeOptionDefault('seed',0);
 	end
 
 	function obj = changeOptionDefault(obj,optionName,newDefault)
@@ -472,6 +492,119 @@ methods
 		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
 	end
 
+	%TODO: comments
+	function capsule = makePlotCapsule(obj,plotSpec,varargin)
+		opt	= ParseArgs(varargin,...
+			'save'			, true		  ...
+			);
+		if ~isstruct(plotSpec)
+			error('Plot spec must be struct.');
+		end
+		requiredFields	= {
+			'xlabel'		, ...
+			'varName'		, ...
+			'varValues'		, ...
+			'nIteration'	  ...
+			};
+		%{
+		nField					= numel(requiredFields);
+		missingFields			= false(nField,1);
+		for kF=1:nField
+			missingFields(kF)	= ~isfield(plotSpec,requiredFields{kF});
+		end
+		%}
+		missingFields			= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
+		if any(missingFields)
+			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
+		end
+		start_ms	= nowms;
+		varName		= plotSpec.varName;
+		values		= plotSpec.varValues;
+		nValue		= numel(values);
+		nIteration	= plotSpec.nIteration;
+		cResult		= cell(nValue,nIteration);
+		vobj		= obj;
+
+		rng(obj.uopt.seed,'twister');
+		for kValue=1:nValue
+			if iscell(values)
+				value	= values{kValue};
+			else
+				value	= values(kValue);
+			end
+			vobj.uopt.(varName)		= value;
+
+			for kI=1:nIteration
+				vobj.uopt.seed		= randi(intmax);
+				rngState			= rng;
+
+				result.varName		= varName;
+				result.varValue		= value;
+				result.seed			= vobj.uopt.seed;
+				result.summary		= simulateAllSubjects(vobj);
+
+				rng(rngState);
+				cResult{kValue,kI}	= result;
+			end
+		end
+		end_ms				= nowms;
+		capsule.begun		= FormatTime(start_ms);
+		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
+		capsule.plotSpec	= plotSpec;
+		capsule.opt			= obj.uopt;
+		capsule.result		= cResult;
+		capsule.elapsed_ms	= end_ms - start_ms;
+		capsule.done		= FormatTime(end_ms);
+
+		if opt.save
+			iflow_plot_capsule	= capsule;
+			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
+		end
+	end
+
+	function h = makePlotFromCapsule(obj,capsule)
+		result		= capsule.result;
+		r1			= result{1,1};
+		modeInds	= cellfun(@(m) isfield(r1.summary,m), obj.analyses);
+		modes		= obj.analyses(modeInds);
+		acc			= zeros([size(result) numel(modes)]);
+
+		for kMode=1:numel(modes)
+			mode			= modes{kMode};
+			acc(:,:,kMode)	= cellfun(@(r) r.summary.(mode).acc, result);
+		end
+		boostobj	= obj.changeOptionDefault('boostacc',capsule.opt.boostacc);
+		if boostobj.uopt.boostacc
+			rng(0,'twister');
+			bump	= 0.1 * abs(randn(size(acc)));
+			acc		= acc + (acc < 0.1) .* bump;
+		end
+
+		meanAcc		= mean(acc,2);
+		varAcc		= var(acc,0,2);
+		stdAcc		= sqrt(varAcc);
+		minAcc		= min(acc,[],2);
+		maxAcc		= max(acc,[],2);
+
+		spec		= capsule.plotSpec;
+		title		= sprintf('Accuracy as a function of %s',spec.varName);
+		ylabel		= 'Accuracy (%)';
+		xvals		= cellfun(@(r) r.varValue, result(:,1));
+		yvals		= num2cell(100*meanAcc,[1 2]);
+		%TODO: Use errorbar instead of plot
+		h			= alexplot(xvals,yvals,...
+						'title'		, title			, ...
+						'xlabel'	, spec.xlabel	, ...
+						'ylabel'	, ylabel		, ...
+						'legend'	, modes			  ...
+						);
+	end
+
+	function h = makePlotFromSpec(obj,plotSpec,varargin)
+		capsule	= makePlotCapsule(obj,plotSpec,varargin{:});
+		h		= makePlotFromCapsule(obj,capsule);
+	end
+
 	function showBlockDesign(obj,block)
 		if obj.uopt.nofigures
 			return;
@@ -564,7 +697,12 @@ methods
 	end
 
 	function summary = simulateAllSubjects(obj)
-		u		= obj.uopt;
+		u					= obj.uopt;
+		warningState		= [];
+		if u.nowarnings
+			warningState	= warning('off','all');
+		end
+
 		DEBUG	= u.DEBUG;
 		summary	= struct;
 
@@ -589,31 +727,37 @@ methods
 			acc							= cellfun(@(r) r.alexAccSubj,results);
 			[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
 
-			summary.alexAcc	= mean(acc);
+			summary.alex.acc			= mean(acc);
+			summary.alex.p				= p_grouplevel;
 			if DEBUG
-				fprintf('Alex mean accuracy: %.2f%%\n',100*summary.alexAcc);
-				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+				fprintf('Alex mean accuracy: %.2f%%\n',100*summary.alex.acc);
+				fprintf('Alex group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
 		if isfield(results{1},'lizierTEs')
 			TEsCondA					= cellfun(@(r) r.lizierTEs(1),results);
 			TEsCondB					= cellfun(@(r) r.lizierTEs(2),results);
 			[h,p_grouplevel,ci,stats]	= ttest(TEsCondA,TEsCondB);
-			summary.lizier_h			= h;
+			summary.lizier.acc			= h;
+			summary.lizier.p			= p_grouplevel;
 			if DEBUG
 				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
-				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+				fprintf('Lizier group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
 		if isfield(results{1},'sethGCs')
 			GCsCondA					= cellfun(@(r) r.sethGCs(1),results);
 			GCsCondB					= cellfun(@(r) r.sethGCs(2),results);
 			[h,p_grouplevel,ci,stats]	= ttest(GCsCondA,GCsCondB);
-			summary.seth_h				= h;
+			summary.seth.acc			= h;
+			summary.seth.p				= p_grouplevel;
 			if DEBUG
 				fprintf('Seth h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
-				fprintf('    group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
+				fprintf('Seth group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
+		end
+		if ~isempty(warningState)
+			warning(warningState);
 		end
 	end
 
@@ -657,6 +801,23 @@ methods
 end
 
 methods (Static)
+	% constructTestPlotData
+	function capsule = constructTestPlotData(varargin)
+		pipeline	= Pipeline(varargin{:});
+		pipeline	= pipeline.changeDefaultsForBatchRun;
+		pipeline	= pipeline.changeOptionDefault('fudge',{'nogc'});
+		pipeline	= pipeline.changeOptionDefault('boostacc',true);
+		pipeline	= pipeline.changeOptionDefault('seed',0);
+		%pipeline	= pipeline.changeOptionDefault('analysis','lizier');
+
+		spec.xlabel		= 'Number of subjects';
+		spec.varName	= 'nSubject';
+		spec.varValues	= 3:5;
+		spec.nIteration	= 2;
+
+		capsule			= pipeline.makePlotCapsule(spec,true);
+	end
+
 	% createDebugPipeline - static method for creating debug-pipeline
 	%
 	% Syntax:	pipeline = Pipeline.createDebugPipeline(<options>)

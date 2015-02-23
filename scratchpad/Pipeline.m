@@ -806,16 +806,33 @@ methods (Static)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchRun;
 		pipeline	= pipeline.changeOptionDefault('fudge',{'nogc'});
-		pipeline	= pipeline.changeOptionDefault('boostacc',true);
+		%pipeline	= pipeline.changeOptionDefault('boostacc',true);
 		pipeline	= pipeline.changeOptionDefault('seed',0);
-		%pipeline	= pipeline.changeOptionDefault('analysis','lizier');
+		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 
 		spec.xlabel		= 'Number of subjects';
 		spec.varName	= 'nSubject';
-		spec.varValues	= 3:5;
-		spec.nIteration	= 2;
+		spec.varValues	= [1 2 5 10 20];
+		spec.nIteration	= 10;
+		capsule{1}		= pipeline.makePlotCapsule(spec);
 
-		capsule			= pipeline.makePlotCapsule(spec,true);
+		spec.xlabel		= 'W column sum';
+		spec.varName	= 'WSum';
+		spec.varValues	= [0.05 0.1 0.2 0.4];
+		spec.nIteration	= 10;
+		capsule{2}		= pipeline.makePlotCapsule(spec);
+
+		spec.xlabel		= 'W fullness';
+		spec.varName	= 'WFullness';
+		spec.varValues	= [0.05 0.1 0.2 0.4];
+		spec.nIteration	= 10;
+		capsule{3}		= pipeline.makePlotCapsule(spec);
+
+		spec.xlabel		= 'Number of TRs per block';
+		spec.varName	= 'nTBlock';
+		spec.varValues	= [1 2 3 4 5];
+		spec.nIteration	= 10;
+		capsule{4}		= pipeline.makePlotCapsule(spec);
 	end
 
 	% createDebugPipeline - static method for creating debug-pipeline

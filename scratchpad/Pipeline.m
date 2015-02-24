@@ -75,7 +75,7 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
-	%		WSum:		(0.1) sum of W columns (sum(W)+CRecurY/X must be <=1)
+	%		WSum:		(0.25) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%
 	%					-- Mixing
 	%
@@ -581,18 +581,16 @@ methods
 		end
 
 		meanAcc		= mean(acc,2);
-		varAcc		= var(acc,0,2);
-		stdAcc		= sqrt(varAcc);
-		minAcc		= min(acc,[],2);
-		maxAcc		= max(acc,[],2);
+		stdAcc		= std(acc,0,2);
 
 		spec		= capsule.plotSpec;
 		title		= sprintf('Accuracy as a function of %s',spec.varName);
 		ylabel		= 'Accuracy (%)';
 		xvals		= cellfun(@(r) r.varValue, result(:,1));
 		yvals		= num2cell(100*meanAcc,[1 2]);
-		%TODO: Use errorbar instead of plot
+		errorvals	= num2cell(100*stdAcc,[1 2]);
 		h			= alexplot(xvals,yvals,...
+						'error'		, errorvals		, ...
 						'title'		, title			, ...
 						'xlabel'	, spec.xlabel	, ...
 						'ylabel'	, ylabel		, ...
@@ -810,6 +808,7 @@ methods (Static)
 		pipeline	= pipeline.changeOptionDefault('seed',0);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 
+		%{
 		spec.xlabel		= 'Number of subjects';
 		spec.varName	= 'nSubject';
 		spec.varValues	= [1 2 5 10 20];
@@ -833,6 +832,19 @@ methods (Static)
 		spec.varValues	= [1 2 3 4 5];
 		spec.nIteration	= 10;
 		capsule{4}		= pipeline.makePlotCapsule(spec);
+		%}
+
+		spec.xlabel		= 'Number of runs';
+		spec.varName	= 'nRun';
+		spec.varValues	= 2:2:10;
+		spec.nIteration	= 15;
+		capsule{1}		= pipeline.makePlotCapsule(spec);
+
+		spec.xlabel		= 'W fullness';
+		spec.varName	= 'WFullness';
+		spec.varValues	= 0.05:0.05:0.20;
+		spec.nIteration	= 15;
+		capsule{2}		= pipeline.makePlotCapsule(spec);
 	end
 
 	% createDebugPipeline - static method for creating debug-pipeline

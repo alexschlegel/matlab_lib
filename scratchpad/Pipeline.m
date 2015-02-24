@@ -75,7 +75,7 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
-	%		WSum:		(0.25) sum of W columns (sum(W)+CRecurY/X must be <=1)
+	%		WSum:		(0.2) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%
 	%					-- Mixing
 	%
@@ -88,6 +88,10 @@ methods
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'te')
+	%
+	%					-- Plotting
+	%
+	%		saveplot:	(true) Save individual plot capsules to mat files on generation
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -113,13 +117,14 @@ methods
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
 			'WFullness'		, 0.1		, ...
-			'WSum'			, 0.1		, ...
+			'WSum'			, 0.2		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
 			'analysis'		, 'total'	, ...
 			'kraskov_k'		, 4			, ...
 			'max_aclags'	, 1000		, ...
-			'WStarKind'		, 'gc'		  ...
+			'WStarKind'		, 'gc'		, ...
+			'saveplot'		, true		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -127,7 +132,7 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
-		invalidFudges			= ~ismember(opt.fudge,{'nogc'});
+		invalidFudges			= ~ismember(opt.fudge,{'fakecause','nogc'});
 		if any(invalidFudges)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudges}));
 		end
@@ -273,6 +278,10 @@ methods
 
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
 		u	= obj.uopt;
+		if ismember('fakecause',u.fudge)
+			c = randn^2; %Fudge: return random causality
+			return;
+		end
 		if ismember('nogc',u.fudge)
 			kind	= 'te'; %Fudge: avoid GC altogether
 		end
@@ -495,7 +504,7 @@ methods
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
 		opt	= ParseArgs(varargin,...
-			'save'			, true		  ...
+			'saveplot'		, obj.uopt.saveplot	  ...
 			);
 		if ~isstruct(plotSpec)
 			error('Plot spec must be struct.');
@@ -556,7 +565,7 @@ methods
 		capsule.elapsed_ms	= end_ms - start_ms;
 		capsule.done		= FormatTime(end_ms);
 
-		if opt.save
+		if opt.saveplot
 			iflow_plot_capsule	= capsule;
 			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
 		end
@@ -800,15 +809,20 @@ end
 
 methods (Static)
 	% constructTestPlotData
-	function capsule = constructTestPlotData(varargin)
+	% quick fudged test:
+	%   pd=Pipeline.constructTestPlotData('saveplot',false,'fudge',{'fakecause'},'nSubject',1,'nRun',2)
+	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchRun;
 		pipeline	= pipeline.changeOptionDefault('fudge',{'nogc'});
 		%pipeline	= pipeline.changeOptionDefault('boostacc',true);
+		pipeline	= pipeline.changeOptionDefault('nSubject',10);
 		pipeline	= pipeline.changeOptionDefault('seed',0);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 
-		%{
+		filename_prefix	= FormatTime(nowms,'yyyymmdd_HHMMSS');
+		pause(2);
+
 		spec.xlabel		= 'Number of subjects';
 		spec.varName	= 'nSubject';
 		spec.varValues	= [1 2 5 10 20];
@@ -832,19 +846,23 @@ methods (Static)
 		spec.varValues	= [1 2 3 4 5];
 		spec.nIteration	= 10;
 		capsule{4}		= pipeline.makePlotCapsule(spec);
-		%}
 
 		spec.xlabel		= 'Number of runs';
 		spec.varName	= 'nRun';
 		spec.varValues	= 2:2:10;
-		spec.nIteration	= 15;
-		capsule{1}		= pipeline.makePlotCapsule(spec);
+		spec.nIteration	= 10;
+		capsule{5}		= pipeline.makePlotCapsule(spec);
 
 		spec.xlabel		= 'W fullness';
 		spec.varName	= 'WFullness';
 		spec.varValues	= 0.05:0.05:0.20;
-		spec.nIteration	= 15;
-		capsule{2}		= pipeline.makePlotCapsule(spec);
+		spec.nIteration	= 10;
+		capsule{6}		= pipeline.makePlotCapsule(spec);
+
+		plot_data.label			= sprintf('Six runs w/ nSubject=%d, WSum=%.2f (except as noted)',...
+									pipeline.uopt.nSubject,pipeline.uopt.WSum);
+		plot_data.capsuleCell	= capsule;
+		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
 	end
 
 	% createDebugPipeline - static method for creating debug-pipeline

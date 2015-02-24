@@ -820,46 +820,39 @@ methods (Static)
 		pipeline	= pipeline.changeOptionDefault('seed',0);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 
-		filename_prefix	= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		pause(2);
-
 		spec.xlabel		= 'Number of subjects';
 		spec.varName	= 'nSubject';
 		spec.varValues	= [1 2 5 10 20];
 		spec.nIteration	= 10;
 		capsule{1}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'W column sum';
-		spec.varName	= 'WSum';
-		spec.varValues	= [0.05 0.1 0.2 0.4];
+		spec.xlabel		= 'Number of runs';
+		spec.varName	= 'nRun';
+		spec.varValues	= 2:2:10;
 		spec.nIteration	= 10;
 		capsule{2}		= pipeline.makePlotCapsule(spec);
 
 		spec.xlabel		= 'W fullness';
 		spec.varName	= 'WFullness';
-		spec.varValues	= [0.05 0.1 0.2 0.4];
+		spec.varValues	= 0.05:0.05:0.25;
 		spec.nIteration	= 10;
 		capsule{3}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'Number of TRs per block';
-		spec.varName	= 'nTBlock';
-		spec.varValues	= [1 2 3 4 5];
+		spec.xlabel		= 'W column sum';
+		spec.varName	= 'WSum';
+		spec.varValues	= [0.05 0.1 0.2 0.3 0.4];
 		spec.nIteration	= 10;
 		capsule{4}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'Number of runs';
-		spec.varName	= 'nRun';
-		spec.varValues	= 2:2:10;
+		spec.xlabel		= 'Number of TRs per block';
+		spec.varName	= 'nTBlock';
+		spec.varValues	= 1:5;
 		spec.nIteration	= 10;
 		capsule{5}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'W fullness';
-		spec.varName	= 'WFullness';
-		spec.varValues	= 0.05:0.05:0.20;
-		spec.nIteration	= 10;
-		capsule{6}		= pipeline.makePlotCapsule(spec);
-
-		plot_data.label			= sprintf('Six runs w/ nSubject=%d, WSum=%.2f (except as noted)',...
+		pause(2);
+		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
+		plot_data.label			= sprintf('Five runs w/ nSubject=%d, WSum=%.2f (except as noted)',...
 									pipeline.uopt.nSubject,pipeline.uopt.WSum);
 		plot_data.capsuleCell	= capsule;
 		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');

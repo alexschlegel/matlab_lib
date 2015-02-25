@@ -515,13 +515,6 @@ methods
 			'varValues'		, ...
 			'nIteration'	  ...
 			};
-		%{
-		nField					= numel(requiredFields);
-		missingFields			= false(nField,1);
-		for kF=1:nField
-			missingFields(kF)	= ~isfield(plotSpec,requiredFields{kF});
-		end
-		%}
 		missingFields			= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
 		if any(missingFields)
 			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
@@ -593,7 +586,9 @@ methods
 		stdAcc		= std(acc,0,2);
 
 		spec		= capsule.plotSpec;
-		title		= sprintf('Accuracy as a function of %s',spec.varName);
+		parennote	= noteNSubjAndWSum(obj,capsule);
+		title		= sprintf('Accuracy as a function of %s (%s)',...
+						spec.varName,parennote);
 		ylabel		= 'Accuracy (%)';
 		xvals		= cellfun(@(r) r.varValue, result(:,1));
 		yvals		= num2cell(100*meanAcc,[1 2]);
@@ -610,6 +605,27 @@ methods
 	function h = makePlotFromSpec(obj,plotSpec,varargin)
 		capsule	= makePlotCapsule(obj,plotSpec,varargin{:});
 		h		= makePlotFromCapsule(obj,capsule);
+	end
+
+	function note = noteNSubjAndWSum(~,capsule)
+		spec		= capsule.plotSpec;
+		opt			= capsule.opt;
+		if strcmp(spec.varName,'nSubject')
+			nsub	= '';
+		else
+			nsub	= sprintf('nSubject=%d',opt.nSubject);
+		end
+		if strcmp(spec.varName,'WSum')
+			wsum	= '';
+		else
+			wsum	= sprintf('WSum=%.2f',opt.WSum);
+		end
+		if isempty(nsub) || isempty(wsum)
+			sep		= '';
+		else
+			sep		= ', ';
+		end
+		note		= [nsub sep wsum];
 	end
 
 	function showBlockDesign(obj,block)

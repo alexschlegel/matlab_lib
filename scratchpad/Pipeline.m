@@ -626,6 +626,9 @@ methods
 			sep		= ', ';
 		end
 		note		= [nsub sep wsum];
+		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
+			note	= [note ', CRecurXYZ=0'];
+		end
 	end
 
 	function showBlockDesign(obj,block)

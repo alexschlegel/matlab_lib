@@ -827,9 +827,44 @@ methods
 end
 
 methods (Static)
-	% constructTestPlotData
-	% quick fudged test:
+	function plot_data = constructQuickFudgedPlotData(varargin)
 	%   pd=Pipeline.constructTestPlotData('saveplot',false,'fudge',{'fakecause'},'nSubject',1,'nRun',2)
+		pipeline	= Pipeline(varargin{:});
+		pipeline	= pipeline.changeDefaultsForBatchRun;
+		pipeline	= pipeline.changeOptionDefault('fudge',{'fakecause'});
+		pipeline	= pipeline.changeOptionDefault('nSubject',1);
+		pipeline	= pipeline.changeOptionDefault('nRun',2);
+		pipeline	= pipeline.changeOptionDefault('seed',0);
+		pipeline	= pipeline.changeOptionDefault('analysis','alex');
+		pipeline	= pipeline.changeOptionDefault('saveplot',false);
+
+		spec.xlabel		= 'W fullness';
+		spec.varName	= 'WFullness';
+		spec.varValues	= 0.05:0.05:0.25;
+		spec.nIteration	= 5;
+		capsule{1}		= pipeline.makePlotCapsule(spec);
+
+		spec.xlabel		= 'W column sum';
+		spec.varName	= 'WSum';
+		spec.varValues	= [0.05 0.1 0.2 0.3 0.4];
+		spec.nIteration	= 5;
+		capsule{2}		= pipeline.makePlotCapsule(spec);
+
+		spec.xlabel		= 'Number of TRs per block';
+		spec.varName	= 'nTBlock';
+		spec.varValues	= 1:5;
+		spec.nIteration	= 5;
+		capsule{3}		= pipeline.makePlotCapsule(spec);
+
+		pause(1);
+		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
+		plot_data.label			= sprintf('Three fudged runs w/ fakecause, etc.',...
+									pipeline.uopt.nSubject,pipeline.uopt.WSum);
+		plot_data.capsuleCell	= capsule;
+		save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
+	end
+
+	% constructTestPlotData
 	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchRun;

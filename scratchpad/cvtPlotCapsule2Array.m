@@ -3,10 +3,15 @@ function [a,label] = cvtPlotCapsule2Array(capsule)
 		[a,label]	= cvtPlotCapsule2Array({capsule});
 		return;
 	end
+	if isempty(capsule)
+		label		= {'seed','acc','p'};
+		a			= zeros(0,0,0,numel(label));
+		return;
+	end
 
 	nCapsule		= numel(capsule);
 	sizeResult		= size(capsule{1}.result);
-	label			= {'seed','acc','p'};
+	[~,label]		= cvtPlotCapsule2Array({});
 	a				= zeros([sizeResult nCapsule numel(label)]);
 
 	for kCap=1:nCapsule

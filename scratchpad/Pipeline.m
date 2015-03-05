@@ -89,8 +89,9 @@ methods
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'te')
 	%
-	%					-- Plotting
+	%					-- Batch processing
 	%
+	%		max_cores:	(1) Maximum number of cores to request for multitasking
 	%		saveplot:	(true) Save individual plot capsules to mat files on generation
 	%
 	function obj = Pipeline(varargin)
@@ -124,6 +125,7 @@ methods
 			'kraskov_k'		, 4			, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
+			'max_cores'		, 1			, ...
 			'saveplot'		, true		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
@@ -334,7 +336,7 @@ methods
 		end
 	end
 
-	function obj = changeDefaultsForBatchRun(obj)
+	function obj = changeDefaultsForBatchProcessing(obj)
 		obj	= obj.changeOptionDefault('nofigures',true);
 		obj	= obj.changeOptionDefault('nowarnings',true);
 		obj	= obj.changeOptionDefault('progress',false);
@@ -519,13 +521,13 @@ methods
 		if any(missingFields)
 			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
 		end
+		pause(1);
 		start_ms	= nowms;
 		varName		= plotSpec.varName;
 		values		= plotSpec.varValues;
 		nValue		= numel(values);
 		nIteration	= plotSpec.nIteration;
 		cResult		= cell(nValue,nIteration);
-		vobj		= obj;
 
 		rng(obj.uopt.seed,'twister');
 		for kValue=1:nValue
@@ -534,20 +536,32 @@ methods
 			else
 				value	= values(kValue);
 			end
-			vobj.uopt.(varName)		= value;
 
-			for kI=1:nIteration
-				vobj.uopt.seed		= randi(intmax);
-				rngState			= rng;
+			seeds				= num2cell(randi(intmax,1,nIteration));
+			rngState			= rng;
 
-				result.varName		= varName;
-				result.varValue		= value;
-				result.seed			= vobj.uopt.seed;
-				result.summary		= simulateAllSubjects(vobj);
+			vopt				= repmat(obj.uopt,1,nIteration);
+			[vopt.(varName)]	= deal(value);
+			[vopt.progress]		= deal(false);
+			[vopt.seed]			= deal(seeds{:});
 
-				rng(rngState);
-				cResult{kValue,kI}	= result;
-			end
+			cVopt				= num2cell(vopt);
+			parObj				= repmat(obj,1,nIteration);
+			[parObj.uopt]		= deal(cVopt{:});
+			summary				= MultiTask(@simulateAllSubjects,...
+									{num2cell(parObj)},...
+									'nthread',obj.uopt.max_cores,...
+									'silent',true);
+
+			result				= repmat(struct,1,nIteration);
+			[result.varName]	= deal(varName);
+			[result.varValue]	= deal(value);
+			[result.seed]		= deal(seeds{:});
+			[result.summary]	= deal(summary{:});
+			cResultk			= num2cell(result);
+			[cResult{kValue,:}]	= deal(cResultk{:});
+
+			rng(rngState);
 		end
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
@@ -738,14 +752,23 @@ methods
 		%run each subject
 		results	= cell(u.nSubject,1);
 
-		progresstypes	= {'figure','commandline'};
-		progress(u.nSubject,'label','simulating each subject',...
-				'type',progresstypes{1+u.nofigures},'silent',~u.progress);
+		% Note that this method's caller could be using the 'progress'
+		% function *externally*.  Therefore, in case of ~u.progress,
+		% it does NOT suffice to suppress the progress reports below
+		% through the 'silent' option:  instead we must avoid the
+		% calls to 'progress' altogether.
+		if u.progress
+			progresstypes	= {'figure','commandline'};
+			progress(u.nSubject,'label','simulating each subject',...
+					'type',progresstypes{1+u.nofigures});
+		end
 		for kS=1:u.nSubject
 			doDebug		= DEBUG && kS==1;
 			results{kS}	= simulateSubject(obj,doDebug);
 
-			progress;
+			if u.progress
+				progress;
+			end
 		end
 
 		%evaluate the classifier accuracies
@@ -830,7 +853,7 @@ methods (Static)
 	function plot_data = constructQuickFudgedPlotData(varargin)
 	%   pd=Pipeline.constructTestPlotData('saveplot',false,'fudge',{'fakecause'},'nSubject',1,'nRun',2)
 		pipeline	= Pipeline(varargin{:});
-		pipeline	= pipeline.changeDefaultsForBatchRun;
+		pipeline	= pipeline.changeDefaultsForBatchProcessing;
 		pipeline	= pipeline.changeOptionDefault('fudge',{'fakecause'});
 		pipeline	= pipeline.changeOptionDefault('nSubject',1);
 		pipeline	= pipeline.changeOptionDefault('nRun',2);
@@ -858,16 +881,16 @@ methods (Static)
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		plot_data.label			= sprintf('Three fudged runs w/ fakecause, etc.',...
+		plot_data.label			= sprintf('Three fudged capsules w/ fakecause, etc.',...
 									pipeline.uopt.nSubject,pipeline.uopt.WSum);
-		plot_data.capsuleCell	= capsule;
+		plot_data.cCapsule		= capsule;
 		save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
 	end
 
 	% constructTestPlotData
 	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
-		pipeline	= pipeline.changeDefaultsForBatchRun;
+		pipeline	= pipeline.changeDefaultsForBatchProcessing;
 		pipeline	= pipeline.changeOptionDefault('fudge',{'nogc'});
 		%pipeline	= pipeline.changeOptionDefault('boostacc',true);
 		pipeline	= pipeline.changeOptionDefault('nSubject',10);
@@ -904,11 +927,11 @@ methods (Static)
 		spec.nIteration	= 10;
 		capsule{5}		= pipeline.makePlotCapsule(spec);
 
-		pause(2);
+		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		plot_data.label			= sprintf('Five runs w/ nSubject=%d, WSum=%.2f (except as noted)',...
+		plot_data.label			= sprintf('Five capsules w/ nSubject=%d, WSum=%.2f (except as noted)',...
 									pipeline.uopt.nSubject,pipeline.uopt.WSum);
-		plot_data.capsuleCell	= capsule;
+		plot_data.cCapsule		= capsule;
 		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
 	end
 

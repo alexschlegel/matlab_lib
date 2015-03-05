@@ -527,42 +527,37 @@ methods
 		values		= plotSpec.varValues;
 		nValue		= numel(values);
 		nIteration	= plotSpec.nIteration;
-		cResult		= cell(nValue,nIteration);
+		nSim		= nValue * nIteration;
+
+		if ~iscell(values)
+			values	= num2cell(values);
+		end
 
 		rng(obj.uopt.seed,'twister');
-		for kValue=1:nValue
-			if iscell(values)
-				value	= values{kValue};
-			else
-				value	= values(kValue);
-			end
 
-			seeds				= num2cell(randi(intmax,1,nIteration));
-			rngState			= rng;
+		cValue				= reshape(repmat(values(:)',nIteration,1),1,[]);
+		cSeed				= num2cell(randi(intmax,1,nSim));
 
-			vopt				= repmat(obj.uopt,1,nIteration);
-			[vopt.(varName)]	= deal(value);
-			[vopt.progress]		= deal(false);
-			[vopt.seed]			= deal(seeds{:});
+		vopt				= repmat(obj.uopt,1,nSim);
+		[vopt.(varName)]	= deal(cValue{:});
+		[vopt.seed]			= deal(cSeed{:});
+		[vopt.progress]		= deal(false);
 
-			cVopt				= num2cell(vopt);
-			parObj				= repmat(obj,1,nIteration);
-			[parObj.uopt]		= deal(cVopt{:});
-			summary				= MultiTask(@simulateAllSubjects,...
-									{num2cell(parObj)},...
-									'nthread',obj.uopt.max_cores,...
-									'silent',true);
+		cVopt				= num2cell(vopt);
+		parObj				= repmat(obj,1,nSim);
+		[parObj.uopt]		= deal(cVopt{:});
+		summary				= MultiTask(@simulateAllSubjects,...
+								{num2cell(parObj)},...
+								'nthread',obj.uopt.max_cores,...
+								'silent',true);
 
-			result				= repmat(struct,1,nIteration);
-			[result.varName]	= deal(varName);
-			[result.varValue]	= deal(value);
-			[result.seed]		= deal(seeds{:});
-			[result.summary]	= deal(summary{:});
-			cResultk			= num2cell(result);
-			[cResult{kValue,:}]	= deal(cResultk{:});
+		result				= repmat(struct,1,nSim);
+		[result.varName]	= deal(varName);
+		[result.varValue]	= deal(cValue{:});
+		[result.seed]		= deal(cSeed{:});
+		[result.summary]	= deal(summary{:});
+		cResult				= num2cell(reshape(result,nIteration,nValue)');
 
-			rng(rngState);
-		end
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
 		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');

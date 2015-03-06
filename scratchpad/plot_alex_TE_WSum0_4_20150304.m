@@ -11,7 +11,7 @@ for kC=1:numel(cCapsule)
 	h(kC)	= p.hF;
 end
 
-figfilename	= ['20150304_alex_TE_WSum0.4_plotted_' FormatTime(nowms,'yyyymmdd_HHMM') '.fig'];
+figfilename	= ['20150304_alex_TE_WSum0_4_plotted_' FormatTime(nowms,'yyyymmdd_HHMM') '.fig'];
 savefig(h,figfilename);
 fprintf('Plots saved to %s\n',figfilename);
 

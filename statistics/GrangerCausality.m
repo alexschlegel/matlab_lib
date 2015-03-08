@@ -192,13 +192,14 @@ function G = Var2AutoCov(A,SIG,nLag,maxACLags)
 	A	= reshape(A,n,pn);	%coefficients
 	for k = p:q
 		r					= q1-k;
-		G(:,:,k+1)			= A*B(r*n+1:r*n+pn,:);
-		B((r-1)*n+1:r*n,:)	= G(:,:,k+1);
+		rn					= r*n;
+		G(:,:,k+1)			= A*B(rn+1:rn+pn,:);
+		B((r-1)*n+1:rn,:)	= G(:,:,k+1);
 	end
 
 %------------------------------------------------------------------------------%
 function [A,SIG] = AutoCov2Var(G)
-% copied from autocov_to_var in the MVGC toolbox
+% modified from autocov_to_var in the MVGC toolbox
 	[n,~,q1]	= size(G);
 	q			= q1-1;
 	qn			= q*n;
@@ -212,30 +213,44 @@ function [A,SIG] = AutoCov2Var(G)
 	
 	%initialise recursion
 		k	= 1; %model order
+		kn	= k*n;
 		
 		r	= q-k;
-		kf	= 1:k*n; %forward  indices
-		kb	= r*n+1:qn; %backward indices
+		rn	= r*n;
+		kf	= 1:kn;		%forward  indices
+		kb	= rn+1:qn;	%backward indices
 		
 		AF(:,kf)	= GB(kb,:)/G0;
 		AB(:,kb)	= GF(kf,:)/G0;
 	
 	for k=2:q
-		AAF	= (GB((r-1)*n+1:r*n,:)-AF(:,kf)*GB(kb,:))/(G0-AB(:,kb)*GB(kb,:)); %DF/VB
-		AAB	= (GF((k-1)*n+1:k*n,:)-AB(:,kb)*GF(kf,:))/(G0-AF(:,kf)*GF(kf,:)); %DB/VF
-	
-		AFPREV	= AF(:,kf);
-		ABPREV	= AB(:,kb);
+		kn	= k*n;
+		
+		kB1	= (r-1)*n+1:rn;
+		kF1	= (k-1)*n+1:kn;
+		
+		GB1	= GB(kB1,:);
+		GB2	= GB(kb,:);
+		
+		GF1	= GF(kF1,:);
+		GF2	= GF(kf,:);
+		
+		AF1	= AF(:,kf);
+		AB1	= AB(:,kb);
+		
+		AAF	= (GB1 - AF1*GB2)/(G0 - AB1*GB2); %DF/VB
+		AAB	= (GF1 - AB1*GF2)/(G0 - AF1*GF2); %DB/VF
 	
 		r	= q-k;
-		kf	= 1:k*n;
-		kb	= r*n+1:qn;
-	
-		AF(:,kf)	= [AFPREV-AAF*ABPREV AAF];
-		AB(:,kb)	= [AAB ABPREV-AAB*AFPREV];
+		rn	= r*n;
+		kf	= 1:kn;
+		kb	= rn+1:qn;
+		
+		AF(:,kf)	= [AF1-AAF*AB1 AAF];
+		AB(:,kb)	= [AAB AB1-AAB*AF1];
 	end
 	
-	SIG	= G0-AF*GF;
+	SIG	= G0 - AF*GF;
 	A	= reshape(AF,n,n,q);
 
 %------------------------------------------------------------------------------%

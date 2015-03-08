@@ -71,6 +71,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								cross-classifications. true to perform feature
 %								matching between the training and testing
 %								datasets.
+%		match_include_blank:	(true) only applies to matched dataset
+%								cross-classifications. true to include blank
+%								samples in the feature matching step
 %		informationflow:		(false) true to perform an information-flow
 %								classification, but only if the data are
 %								formatted as described above. in this analysis
@@ -116,7 +119,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %												which any sample has a NaN
 %		output_dir:				(<none>) a directory to which to save the
 %								results of the classification analysis
-%		output_prefix:			('<nii file pre>-classify') the prefix to use
+%		output_prefix:			('<data_name>-classify') the prefix to use
 %								for constructing output file paths, or a cell of
 %								output prefixes (one for each dataset)
 %		array_to_file:			(false) true to save arrays like sensitivity
@@ -169,6 +172,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'spatiotemporal'		, false			, ...
 			'matchedcrossclassify'	, false			, ...
 			'match_features'		, false			, ...
+			'match_include_blank'	, true			, ...
 			'informationflow'		, false			, ...
 			'selection'				, 1				, ...
 			'save_selected'			, false			, ...
@@ -272,7 +276,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		end
 		
 	%default output prefixes
-		opt.output_prefix	= cellfun(@(f,p) unless(p,GetDefaultOutputPrefix(cPathData,f)),cPathData,opt.output_prefix,'uni',false);
+		opt.output_prefix	= cellfun(@ParseOutputPrefix,opt.output_prefix,cPathData,'uni',false);
 	
 	%create the output directory
 		if ~isempty(opt.output_dir)
@@ -465,10 +469,9 @@ function res = GroupStats(res)
 		end
 	end
 %------------------------------------------------------------------------------%
-function strOutputPrefix = GetDefaultOutputPrefix(cPathData,strPathData)
-	if iscell(cPathData)
-		strPathData	= PathGetBase(strPathData,'include_file',true);
+function strPrefix = ParseOutputPrefix(strPrefix,strPathData)
+	if isempty(strPrefix)
+		cPrefix		= cellfun(@PathGetDataName,ForceCell(strPathData),'uni',false);
+		strPrefix	= sprintf('%s-classify',join(cPrefix,'_'));
 	end
-	
-	strOutputPrefix	= [PathGetFilePre(strPathData,'favor','nii.gz') '-classify'];
 %------------------------------------------------------------------------------%

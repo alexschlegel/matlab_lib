@@ -348,62 +348,122 @@ def parse_results(param, result):
 	return result
 
 
-def feature_match(x, y, metric='correlation'):
-	"""reorder the features of y so they match as closely as possible those
-	of x. x and y must have the same number of features.
+def feature_match(x, y, x_match=None, partition_attr=None, metric='correlation', do_negate=True):
+	"""reorder the features of x so they match as closely as possible those
+	of y.
 	
 	Parameters
 	----------
 	x : array
-	  a two-dimensional array (second dimension is features)
+	  a two-dimensional array or Dataset (second dimension is features)
 	y : array
-	  a two-dimensional array with the same number of columns as x (i.e.
-	  same number of features)
+	  another two-dimensional array or Dataset. x must have the same number
+	  of features as y or an integer multiple of the number of features of y.
+	  in the latter case, x_match must be specified, and the new feature
+	  order calculated using x_match and y is repeated to fill the feature
+	  space of x. this case is meant to deal with event related datasets, in
+	  which multiple samples are combined into a single sample whose feature
+	  space size is a multiple of the original feature space size. it might
+	  be desirable to calculate the feature matching using a version of the
+	  data before the event related dataset was constructed, but apply that
+	  feature matching to the event related dataset (e.g. to include blank
+	  samples in the feature matching and prevent features to be reordered
+	  across samples).
+	x_match : array, optional
+	  the array/Dataset to actually use for calculating the new feature space
+	  order of x. this array must have the same size as y.
+	partition_attr : str, optional
+	  if x and y are Datasets, the name of a sample attribute. if this is
+	  specified, the new feature space order is calculated independently for
+	  each set of samples that share the same value of this attribute, but
+	  using the data from all samples that don't share that value. this is
+	  done to avoid artificially inflating the similarity between datasets.
 	metric : str, optional
 	  the distance metric to use (see sklearn's pairwise_distances)
+	do_negate: boolean, optional
+	  for correlation metric, true to allow anti-correlated features to
+	  match, with those features being marked for negation
 	
 	Returns
 	-------
-	d : dict
-	  a dict of results, including:
-		'idx': an index array indicating how to reorder the features of y to
-			match those of x
-		'negate': in the case of correlation as a metric, a boolean array
-			specifying the features of y (after re-ordering) that should
-			be negated (for anti-correlated features)
+	x : array
+	  x with features reordered to match y
 	"""
+	if x_match is None:
+		x_match = x
 	
-	#calculate the distance between each pair of features in x and y
-	D = pairwise_distances(np.transpose(x),np.transpose(y),metric=metric)
+	#error checking
+	if x.shape[1] % y.shape[1] != 0:
+		raise Exception("the size of x's feature space must be a multiple of the size of y's feature space")
+	if y.shape != x_match.shape:
+		raise Exception("x_match and y must have the same size")
 	
-	#make negative correlations positive, and mark them for negating if they
-	#end up being matches
-	if metric=='correlation':
-		negate = D > 1
-		D[negate] = 2 - D[negate]  # 1 - (-(1 - D))
+	if not partition_attr is None: #perform feature matching for each partition
+		#make sure we're not overwriting the original x
+		x = copy.deepcopy(x)
 		
-		#anything negative now is just due to floating point error
-		D[D<0] = 0
-	
-	#minimize the trace in order to find a matching of features that
-	#minimizes matched feature distances
-	rc_idx = linear_assignment(D)
-	idx = rc_idx[:,1]
-	
-	d = dict()
-	d['idx'] = idx
-	
-	if metric=='correlation':
-		#apply the reordering to the negate array
-		negate = negate[:,idx]
+		partition_values = np.unique(x.sa[partition_attr])
+		for val in partition_values:
+			samples = x.sa[partition_attr].value == val
+			other_samples = x.sa[partition_attr].value != val
+			x_matched = feature_match(x[samples,:], y[other_samples,:], x_match=x_match[other_samples,:], metric=metric, do_negate=do_negate)
+			
+			if isinstance(x, Dataset):
+				x.samples[samples,:] = x_matched
+			else:
+				x[samples,:] = x_matched
+	else: #perform feature matching on the whole dataset
+		#calculate the distance between each pair of features in x and y
+		D = pairwise_distances(np.transpose(y),np.transpose(x_match),metric=metric)
 		
-		#keep only the diagonal (i.e. pair matched) values
-		diag = np.eye(y.shape[1], dtype=bool)
-		negate = negate[diag]
+		#make negative correlations positive, and mark them for negating if they
+		#end up being matches
+		corr_negate = metric=='correlation' and do_negate
+		if corr_negate:
+			negate = D > 1
+			D[negate] = 2 - D[negate]  # 1 - (-(1 - D))
+			
+			#anything negative now is just due to floating point error
+			D[D<0] = 0
 		
-		d['negate'] = negate
+		#fix nans
+		D[np.isnan(D)] = 0
+		
+		#minimize the trace in order to find a matching of features that
+		#minimizes matched feature distances
+		rc_idx = linear_assignment(D)
+		idx = rc_idx[:,1]
+		
+		#make sure the new order matches the feature space of x
+		if x.shape[1] != y.shape[1]:
+			mult = x.shape[1]/y.shape[1]
+			
+			idx = np.concatenate([ idx + n*y.shape[1] for n in np.arange(mult) ])
+			
+			if corr_negate:
+				negate = np.tile(negate,mult)
+		
+		#apply the new feature order to x
+		if isinstance(x, Dataset):
+			x = x.copy(deep=1)
+			x.samples[:,:] = x.samples[:,idx]
+		else:
+			x = x[:,idx]
+		
+		if corr_negate:
+			#apply the reordering to the negate array
+			negate = negate[:,idx]
+			
+			#keep only the diagonal (i.e. pair matched) values
+			diag = np.eye(y.shape[1], dtype=bool)
+			negate = negate[diag]
+			
+			if isinstance(x, Dataset):
+				x.samples[:,negate] = -x.samples[:,negate]
+			else:
+				x[:,negate] = -x[:,negate]
 	
-	return d
+	return x
 
 
 def calculate_information_flow_patterns(ds1, ds2):
@@ -436,6 +496,7 @@ def calculate_information_flow_patterns(ds1, ds2):
 		'negate': in the case of correlation as a metric, the features of y
 			(before re-ordering) that should negated
 	"""
+	pass
 
 
 class Locker(object):
@@ -798,7 +859,6 @@ class NCTrainingStats(dict):
 		else:
 			self['confusion'] = [value]
 
-
 class MatchedDatasetCrossClassifier(ProxyClassifier):
 	"""Classifier that will train itself on one dataset and test itself on
 	another. Data from the two datasets must be concatenated into a single
@@ -811,16 +871,14 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 	
 	__match_features = False #true to perform feature matching
 	__match_data = None #the data to perform feature matching on
-	__feature_match_idx = None #the reordering of ds2 features to match ds1
-	__feature_match_negate = None #the features of ds2 to negate
-	
-	#will store the results of feature matching
-	__fm_result_1to2 = None
-	__fm_result_2to1 = None
+	__partition_attr = None #the sa used to partition for cross-validation
+	__partition_attr_append = None #values of the partition sa to add for feature matching
+	__match_partition_attr = None #the sa to use to partition for feature matching
 	
 	def __init__(self, clf, dataset_attr='dataset', match_features=False,
-				match_data=None, match_partition_attr='chunks',
-				match_attr_append=None, *args, **kwargs):
+				match_data=None, partition_attr='chunks',
+				partition_attr_append=None,
+				match_partition_attr='targets', *args, **kwargs):
 		"""Initialize the instance of MatchedDatasetCrossClassifier
 		
 		Parameters
@@ -828,40 +886,56 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		clf : Classifier
 		  the classifier to use
 		dataset_attr : str
-		  the name of the sample attribute that identifies the dataset to
-		  which each sample belongs (values are 1 for dataset 1 or 2 for
-		  dataset 2).
+		  the name of the sample attribute that identifies to which of the
+		  two datasets each sample belongs (values should be 1 or 2)
 		match_features : bool, optional
-		  during training, determine how to most closely match the feature
-		  spaces of the two training datasets. apply this reordering of
-		  features during testing. matching is done by maximizing the
-		  correlation between pairs of features in the two datasets.
+		  during training, rearrange the features of the each dataset in
+		  order to match as closely as possible the feature space of the
+		  other dataset. i.e. dataset 1 is reordered to match the feature
+		  space of dataset 2, then dataset 1 is trained. during testing,
+		  dataset 2 is tested using the classifier trained on the reordered
+		  version of dataset 1. feature matching is done by maximizing the
+		  correlation between pairs of features across the two datasets. for
+		  samples of each target label, the new feature space order is
+		  determined using only samples from the other target labels. this
+		  is done in order to avoid artificially inflating the similarity of
+		  the calculated "shared" feature spaces.
 		match_data : optional
 		  the dataset to actually use for feature matching, or the name of a
-		  dataset attribute that holds the data to use. if unspecified, uses
-		  the training dataset for matching. e.g. this could be a version of
-		  the dataset from before preprocessing excluded samples or combined
-		  features into a spatiotemporal dataset.
-		match_partition_attr : str, optional
+		  dataset attribute of the training data that holds the data to use.
+		  if unspecified, uses the training dataset for matching. e.g. this
+		  could be a version of the dataset from before preprocessing
+		  excluded samples or combined features into a spatiotemporal
+		  dataset.
+		partition_attr : str, optional
 		  the name of the sample attribute that was used to partition the
-		  data. if match_data is defined manually, then feature matching is
-		  performed on samples from that dataset that share values of this
-		  attribute with samples in the training data (e.g. for 'chunk'-wise
-		  partitioning, only samples in the match_data dataset that are from
-		  the same chunks as the current training dataset are used for
-		  feature matching).
-		match_attr_append : list, optional
-		  an optional list of values of the match_partition_attr attribute
+		  data for cross-validation. if match_data is defined manually, then
+		  feature matching is performed on samples from that dataset that
+		  share values of this attribute with samples in the training data
+		  (e.g. for 'chunk'-wise partitioning, only samples in the
+		  match_data dataset that are from the same chunks as the current
+		  training dataset are used for feature matching). this is done to
+		  avoid biasing the training with samples from the testing
+		  partition.
+		partition_attr_append : list, optional
+		  an optional list of values of the partition_attr attribute
 		  to include in feature matching in addition to those of the
 		  training dataset (e.g. chunk '0' samples that are from rest
-		  periods)
+		  periods and therefore won't be included in any testing partitions)
+		match_partition_attr : str, optional
+		  the name of the sample attribute to use to partition the data
+		  during feature matching. the new feature space order is
+		  calculated independently for each set of samples that share the
+		  same value of this attribute, but using the data from all samples
+		  that don't share that value. this is done to avoid artificially
+		  inflating the similarity between datasets.
 		"""
 		#make a copy of the classifier to use for ds2->ds1 classification
 		self.__clf2 = copy.deepcopy(clf)
 		
 		ProxyClassifier.__init__(self, clf, *args, **kwargs)
 		
-		#copy the conditional attributes to the second classifier
+		#copy the conditional attributes to the actual classifiers
 		clf.ca = copy.deepcopy(self.ca)
 		self.__clf2.ca = copy.deepcopy(self.ca)
 		
@@ -869,12 +943,13 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		self.__dataset_attr = dataset_attr
 		self.__match_features = match_features
 		self.__match_data = match_data
+		self.__partition_attr = partition_attr
+		self.__partition_attr_append = partition_attr_append
 		self.__match_partition_attr = match_partition_attr
-		self.__match_attr_append = match_attr_append
 	
 	def _get_dataset_attr(self, dataset):
-		"""get the sample attribute array that identifies the dataset for
-		each sample"""
+		"""get the sample attribute array that identifies the dataset to
+		which each sample belongs"""
 		attr = dataset.sa[self.__dataset_attr].value
 		
 		if len(attr.shape)>1:
@@ -882,78 +957,9 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		
 		return attr
 	
-	def _get_match_data(self, dataset):
-		"""get the data to use for feature matching"""
-		if not self.__match_data is None:
-			#get the manually-defined dataset
-			if isinstance(self.__match_data, basestring):
-				ds = dataset.a[self.__match_data].value
-			else:
-				ds = self.__match_data
-			
-			#get the partition attribute values to include in feature matching
-			match_attr = np.unique(dataset.sa[self.__match_partition_attr])
-			if not self.__match_attr_append is None:
-				match_attr = np.append(match_attr,self.__match_attr_append)
-			
-			#include only samples with these attribute values
-			ds = ds[array([ x in match_attr for x in ds.sa[self.__match_partition_attr] ])]
-			
-			return ds
-		else:
-			return dataset
-	
-	def _match_array_to_data(self, x, dataset):
-		"""conform an array produced by the feature matching step to a
-		dataset whose structure may vary slightly from the dataset used for
-		feature matching. specifically, in the case of event related
-		datasets, multiple samples are combined into single samples with
-		some integer multiple of the original number of features. this is a
-		problem if the feature matching is performed on an earlier version
-		of the data with fewer features than the training and testing data.
-		to deal with this situation, this function will take a 1D array
-		calculated in the original feature space and make it work in the
-		new, expanded feature space."""
-		#number of features in the dataset used for feature matching
-		n_feature_orig = x.shape[0]
-		#number of features in the current dataset
-		n_feature_now = dataset.shape[1]
-		
-		if n_feature_orig != n_feature_now:
-			#we're only trying to handle the situation described above
-			if n_feature_now % n_feature_orig != 0:
-				raise Exception('Training dataset feature space must be a multiple of the feature matching dataset feature space')
-			
-			mult = n_feature_now/n_feature_orig
-			
-			if np.result_type(x) == np.bool:
-				#a boolean array. just repeat it
-				x = np.tile(x,(mult))
-			else:
-				#an index array. repeat it while stepping the index values
-				x = vstack([ x + n*n_feature_orig for n in np.arange(mult) ])
-			
-		return x
-	
-	def _reorder_features(self, dataset, fm_result):
-		"""reorder the features of a dataset according to the results of a
-		call to feature_match"""
-		idx = self._match_array_to_data(fm_result['idx'], dataset)
-		negate = self._match_array_to_data(fm_result['negate'], dataset)
-		
-		#reorder the features
-		dataset = dataset[:,idx]
-		
-		#negate anti-correlated features
-		dataset.samples[:,negate] = -dataset.samples[:,negate]
-		
-		return dataset
-	
-	def _set_retrainable(self, value, force=False):
-		self.__clf2._set_retrainable(value, force=force)
-		super(MatchedDatasetCrossClassifier, self)._set_retrainable(value, force=force)		
-		
-	def _train(self, dataset):
+	def _separate_datasets(self, dataset):
+		"""extract the two datasets that have been folded into a single
+		dataset"""
 		#an array to identify the dataset associated with each sample
 		attr = self._get_dataset_attr(dataset)
 		
@@ -961,16 +967,48 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		ds1 = dataset[attr==1]
 		ds2 = dataset[attr==2]
 		
+		return [ds1, ds2]
+	
+	def _get_match_data(self, dataset):
+		"""get the data to use for feature matching"""
+		if not self.__match_data is None:
+			#get the manually-defined dataset
+			if isinstance(self.__match_data, basestring):
+				#a dataset attribute was specified
+				ds = dataset.a[self.__match_data].value
+			else:
+				#a dataset was specified
+				ds = self.__match_data
+			
+			#get the cv partition attribute values to include in feature matching
+			chunks = np.unique(dataset.sa[self.__partition_attr].value)
+			if not self.__partition_attr_append is None:
+				chunks = np.unique(np.append(chunks,self.__partition_attr_append))
+			
+			#include only samples with these attribute values
+			ds = ds[array([ x in chunks for x in ds.sa[self.__partition_attr] ])]
+			
+			return ds
+		else:
+			return dataset
+	
+	def _set_retrainable(self, value, force=False):
+		self.__clf2._set_retrainable(value, force=force)
+		super(MatchedDatasetCrossClassifier, self)._set_retrainable(value, force=force)		
+		
+	def _train(self, dataset):
+		#get the separated training data
+		[ds1, ds2] = self._separate_datasets(dataset)
+		
 		#match features between ds1 and ds2
 		if self.__match_features:
-			#split the datasets to feature match
+			#get the separated feature match data
 			match_data = self._get_match_data(dataset)
-			md1 = match_data[attr==1]
-			md2 = match_data[attr==2]
+			[md1, md2] = self._separate_datasets(match_data)
 			
-			#calculate the feature reordering for ds1 and ds2
-			self.__fm_result_1to2 = feature_match(md2, md1)
-			self.__fm_result_2to1 = feature_match(md1, md2)
+			#reorder the features of ds1 and ds2
+			feature_match(ds1, md2, x_match=md1, partition_attr=self.__match_partition_attr)
+			feature_match(ds2, md1, x_match=md2, partition_attr=self.__match_partition_attr)
 		
 		#train the first classifier on ds1
 		super(MatchedDatasetCrossClassifier, self)._train(ds1)
@@ -979,17 +1017,10 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		self.__clf2.train(ds2)
 	
 	def _predict(self, dataset):
-		#an array to identify the dataset associated with each sample
 		attr = self._get_dataset_attr(dataset)
 		
-		#split the datasets
-		ds1 = dataset[attr==1]
-		ds2 = dataset[attr==2]
-		
-		#apply the feature reordering determined during training
-		if self.__match_features:
-			ds1 = self._reorder_features(ds1,self.__fm_result_1to2)
-			ds2 = self._reorder_features(ds2,self.__fm_result_2to1)
+		#get the separated testing data
+		[ds1, ds2] = self._separate_datasets(dataset)
 		
 		#use the classifier trained on ds1 to predict ds2
 		result2 = super(MatchedDatasetCrossClassifier, self)._predict(ds2)
@@ -1005,9 +1036,11 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 			estimates1 = copy.deepcopy(clf.ca.get('estimates', None).value)
 			if isinstance(estimates1, np.ndarray):
 				estimates1 = estimates1.tolist()
+			
 			estimates2 = copy.deepcopy(self.ca.get('estimates', None).value)
 			if isinstance(estimates2, np.ndarray):
 				estimates2 = estimates2.tolist()
+			
 			estimates = [estimates1.pop(0) if idx==1 else estimates2.pop(0) for idx in attr]
 			self.ca['estimates'].value = estimates
 		
@@ -1153,6 +1186,7 @@ def preprocess_data(param, ds):
 		ds = eventrelated_dataset(ds, events=events)
 		
 		#fix the custom sample attributes
+		ds.sa.dataset = [x[0] for x in ds.sa.dataset]
 		for key in param['sample_attr']:
 			ds.sa[key] = [x[0] for x in ds.sa[key]]
 	
@@ -1309,7 +1343,26 @@ def get_classifier(param, ds, partitioner, mean_control, indent=0):
 	
 	#matched dataset cross-classification
 	if param['matchedcrossclassify']:
-		clf = MatchedDatasetCrossClassifier(clf, match_features=param['match_features'], match_data='feature_match_data')
+		#should we include blank samples in the feature matching?
+		if param['match_include_blank'] and param['target_blank']:
+			#what are the blank chunks?
+			ds_match = ds.a.feature_match_data
+			blank_targets = force_list(param['target_blank'])
+			ds_blank_targets = ds_match[array([ trg in blank_targets for trg in ds.sa.targets ])]
+			blank_chunks = ds_blank_targets.uniquechunks
+			
+			#make sure there aren't to-be-classified targets in these chunks
+			ds_blank_chunks = ds_match[array([ chunk in blank_chunks for chunk in ds.sa.chunks ])]
+			set_target_blank_chunks = set(ds_blank_chunks.uniquetargets)
+			set_target_subset = set(param['target_subset'])
+			set_both = set_target_blank_chunks.intersection(set_target_subset)
+			if len(set_both) > 0:
+				raise Exception('blank chunks are set to be included in feature matching, but these chunks include non-blank samples of the following targets: %s' % (', '.join(set_both)))
+		else:
+			blank_chunks = None
+			
+		clf = MatchedDatasetCrossClassifier(clf, match_features=param['match_features'],
+				match_data='feature_match_data', partition_attr_append=blank_chunks)
 	
 	return clf
 
@@ -1357,7 +1410,8 @@ def get_cross_validator(param, clf, partitioner, indent=0):
 	return CrossValidation(clf, partitioner, **cv_kwargs)
 
 def get_targets(ds):
-	"""get an np.object array of the target names (so it ends up as a cell)"""
+	"""get an np.object array of the target names (so it ends up as a cell in
+	MATLAB)"""
 	return ds.uniquetargets.astype(np.object)
 
 def get_classification_results(param, ds, res, cv, mean_control, indent=0):

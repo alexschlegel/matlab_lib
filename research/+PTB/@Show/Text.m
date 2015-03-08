@@ -36,8 +36,8 @@ function pNew = Text(shw,str,varargin)
 % Out:
 %	pNew	- the new position at which to continue text
 % 
-% Updated: 2011-12-19
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 persistent optDefault cOptDefault;
@@ -107,7 +107,7 @@ w	= round(shw.parent.Window.va2px(w));
 			end
 		end
 	%split into words
-		cStyle	= num2cell(StructArrayRestructure(sStyle));
+		cStyle	= num2cell(restruct(sStyle));
 		cWord	= cellfun(@(s) split(s,'\s+','withdelim',true),cText,'UniformOutput',false);
 		cStyle	= cellfun(@(w,s) repmat({s},size(w)),cWord,cStyle,'UniformOutput',false);
 		

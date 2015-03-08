@@ -11,10 +11,10 @@ function d = fmri(varargin)
 %							is supported.
 %		conditions:			(2) the number of conditions, or a cell of condition
 %							names
-%		block_duration:		(5) the duration of each experimetal block, in TRs
+%		block_duration:		(10) the duration of each experimetal block, in TRs
 %		rest_duration:		(10) the duration of each interleaving rest period,
 %							in TRs
-%		reps:				(8) the number of repetitions of each condition to
+%		reps:				(4) the number of repetitions of each condition to
 %							include in each run
 %		runs:				(10) the number of runs to simulate
 %		space:				(100) a size array specifying the size of the data
@@ -29,6 +29,7 @@ function d = fmri(varargin)
 %		effect_fraction:	(0.5) the fraction of feature in which to insert the
 %							effect
 %		mean:				(1000) the mean baseline signal value
+%		mean_effect:		(20) the base mean for the effect
 %		chunk:				('run') the type of chunking to use (for the
 %							attributes file). one of the following:
 %								'run': chunk by run
@@ -41,8 +42,8 @@ function d = fmri(varargin)
 % Out:
 % 	d	- a struct of simulated data and associated information
 % 
-% Updated: 2014-12-17
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-02-28
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -59,6 +60,7 @@ function d = fmri(varargin)
 			'effect_size'		, 2				, ...
 			'effect_fraction'	, 0.5			, ...
 			'mean'				, 1000			, ...
+			'mean_effect'		, 20			, ...
 			'chunk'				, 'run'			, ...
 			'subject'			, 'test'		, ...
 			'output_dir'		, []			  ...
@@ -101,7 +103,10 @@ function d = GenerateData_Block(d)
 		nCondition	= numel(d.param.conditions);
 		
 		d.design.block	= blockdesign(1:nCondition,d.param.reps,d.param.runs);
-		d.design.ev		= block2ev(reshape(d.design.block',[],1),d.param.block_duration,d.param.rest_duration);
+		
+		ev			= arrayfun(@(r) block2ev(d.design.block(r,:),d.param.block_duration,d.param.rest_duration),1:d.param.runs,'uni',false);
+		d.design.ev	= cat(1,ev{:});
+		
 		d.design.event	= ev2event(d.design.ev);
 		
 		d.design.target	= ev2target(d.design.ev,d.param.conditions);
@@ -127,9 +132,8 @@ function d = GenerateData_Block(d)
 			nFeatureEffect	= round(d.param.effect_fraction*nFeature);
 			kFeatureEffect	= randomize((1:nFeature))';
 			kFeatureEffect	= kFeatureEffect(1:nFeatureEffect);
-			
-		mBase		= d.param.mean/50;
-		mEffect		= mBase*sqrt(nFeature)/nFeatureEffect;
+		
+		mEffect		= d.param.mean_effect*sqrt(nFeature)/nFeatureEffect;
 		cXEffect	= {};
 		
 		if ismember('univariate',d.param.effect_type)
@@ -164,8 +168,14 @@ function d = GenerateData_Block(d)
 		xEffect						= zeros(durExp,nFeature);
 		xEffect(:,kFeatureEffect)	= sum(cat(3,cXEffect{:}),3);
 	%noise
-		mNoise	= mBase/d.param.effect_size;
+		mNoise	= d.param.mean_effect/d.param.effect_size;
 		xNoise	= mNoise*randn(durExp,nFeature);
+	
+	d.part	= struct(...
+				'mean'		, xMean		, ...
+				'effect'	, xEffect	, ...
+				'noise'		, xNoise	  ...
+				);
 	
 	d.data	= reshape(xMean + xEffect + xNoise, [durExp d.param.space]);
 %------------------------------------------------------------------------------%

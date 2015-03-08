@@ -12,12 +12,20 @@ function cOpt = opt2cell(opt)
 % Out:
 % 	cOpt	- opt as a cell
 % 
-% Updated:	2015-02-17
+% Updated:	2015-03-06
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 if isstruct(opt)
+	if isfield(opt,'isoptstruct')
+		opt	= rmfield(opt,'isoptstruct');
+	end
+	
 	if isfield(opt,'opt_extra')
 		opt_extra	= opt.opt_extra;
 		opt			= rmfield(opt,'opt_extra');
+		
+		if isfield(opt_extra,'isoptstruct')
+			opt_extra	= rmfield(opt_extra,'isoptstruct');
+		end
 		
 		cField			= fieldnames(opt);
 		cFieldExtra		= fieldnames(opt_extra);

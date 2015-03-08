@@ -12,11 +12,14 @@ function strSlash = GetSlashType(varargin)
 % Out:
 %	strSlash	- the type of slash used, or '\' if none exists
 %
-% Updated:	2010-02-07
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-strPath	= ParseArgs(varargin,'');
-
-kSlash	= find(strPath=='\' | strPath=='/',1,'first');
+% Updated:	2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+if nargin>0
+	strPath	= varargin{1};
+	kSlash	= find(strPath=='\' | strPath=='/',1,'first');
+else
+	kSlash	= [];
+end
 
 if ~isempty(kSlash)
 	strSlash	= strPath(kSlash);

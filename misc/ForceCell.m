@@ -16,54 +16,37 @@ function varargout = ForceCell(varargin)
 % 	xK	- {xK} if xK is not a cell, xK otherwise
 %	bK	- true if xK was wrapped
 % 
-% Updated:	2013-01-23
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 
 %determine how the function was called
-	if nargin==nargout
-		if nargin~=4
-			x		= varargin;
-			vOpt	= {};
-		elseif isequal(varargin{3},'level') && isscalar(varargin{4})
-			x		= varargin(1:2);
-			vOpt	= varargin(3:4);
-		else
-			x		= varargin(1:nargout);
-			vOpt	= varargin(nargout+1:end);
-		end
-	elseif nargout==2*nargin
-		x		= varargin;
-		vOpt	= {};
+	if nargin>2 && isequal(varargin{end-1},'level') && ((isscalar(varargin{end}) && isnumeric(varargin{end})) || nargin~=4 || nargout~=4)
+		x		= varargin(1:end-2);
+		vargin	= varargin(end-2:end);
 	else
-		x		= varargin(1:nargout);
-		vOpt	= varargin(nargout+1:end);
+		x		= varargin;
+		vargin	= {};
 	end
 %parse optional arguments
-	%speed this up a bit
-% 	opt	= ParseArgs(varargin,...
-% 			'level'	, 1	  ...
-% 			);
-	if numel(vOpt)>1 && ischar(vOpt{1}) && isequal(lower(vOpt{1}),'level') && ~isempty(vOpt{2})
-		opt.level	= vOpt{2};
-	else
-		opt.level	= 1;
-	end
+	opt	= ParseArgs(vargin,...
+			'level'	, 1	  ...
+			);
 
-n						= numel(x);
-varargout(1:n)			= x;
-[varargout{n+1:2*n}]	= deal(false);
+[x,b]	= cellfun(@WrapCell,reshape(x,[],1),'uni',false);
 
-for k=1:n
-	[varargout{k},varargout{n+k}]	= WrapCell(x{k},opt.level);
-end
+varargout	= [x; b];
+
 
 %------------------------------------------------------------------------------%
-function [x,b] = WrapCell(x,n)
-	e	= x;
-	while iscell(e) && n>0
+function [x,b] = WrapCell(x)
+	y	= x;
+	
+	n	= opt.level;
+	while iscell(y) && n>0
 		n	= n - 1;
-		if ~isempty(e)
-			e	= e{1};
+		
+		if ~isempty(y)
+			y	= y{1};
 		else
 			break;
 		end
@@ -73,4 +56,7 @@ function [x,b] = WrapCell(x,n)
 	for k=1:n
 		x	= {x};
 	end
+end
 %------------------------------------------------------------------------------%
+
+end

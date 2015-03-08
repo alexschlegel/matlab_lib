@@ -5,8 +5,8 @@ function Parse(ds)
 % 
 % Syntax:	ds.Parse
 % 
-% Updated: 2013-03-10
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 Parse@Data.DataSet(ds);
@@ -88,6 +88,6 @@ for kS=1:nState
 	d	= [d; dCur'];
 end
 
-d	= StructArrayRestructure(d);
+d	= restruct(d);
 
 ds.Save(d);

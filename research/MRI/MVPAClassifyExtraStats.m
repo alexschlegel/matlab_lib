@@ -32,8 +32,8 @@ function stat = MVPAClassifyExtraStats(res,varargin)
 %							(p value based on permutation testing by permuting
 %							labels), nperm (the number of permutations used)
 % 
-% Updated: 2014-07-24
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -46,14 +46,19 @@ opt.confusion_model	= ForceCell(opt.confusion_model);
 nModel				= numel(opt.confusion_model);
 
 %get the labels
-	stat.label	= {};
-	
-	lbl	= structtreefun(@(s) NaN,res,'offset',2);
-	while isstruct(lbl)
-		stat.label{end+1}	= fieldnames(lbl);
-		lbl					= lbl.(stat.label{end}{1});
-	end
-	stat.label	= reshape(stat.label,[],1);
+	%first try for a straight MVPAClassify labeling scheme
+		stat.label	= {};
+		
+		lbl	= structtreefun(@(s) NaN,res,'offset',2);
+		while isstruct(lbl)
+			stat.label{end+1}	= fieldnames(lbl);
+			lbl					= lbl.(stat.label{end}{1});
+		end
+		stat.label	= reshape(stat.label,[],1);
+	%now try for an MVPACrossClassify style
+		if isempty(stat.label) && isfield(res,'mask') && size(res.mask,2)==2
+			stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
+		end
 %construct the array-form of the stats
 	cType	=	{
 					'accuracy'
@@ -128,8 +133,10 @@ function x = Result2Array(res,strType)
 	
 	%--------------------------------------------------------------------------%
 	function x = Result2ArraySingle(s,strType)
-		cField	= fieldnames(s);
-		nField	= numel(cField);
+		cField		= fieldnames(s);
+		bConvert	= cellfun(@(f) isstruct(s.(f)),cField);
+		cField		= cField(bConvert);
+		nField		= numel(cField);
 		
 		x	= struct;
 		for kF=1:nField
@@ -204,9 +211,9 @@ function stat = ConfusionTest(conf,model,strLevel)
 		[r,stat]	= cellfun(@(m) cellfun(@(c) corrcoef2(m(:),c(:)','twotail',false),cConf),model,'uni',false);
 		
 		if numel(model) > 1
-			stat	= StructArrayRestructure(cellfun(@StructArrayRestructure,stat));
+			stat	= restruct(cellfun(@restruct,stat));
 		else
-			stat	= structfun2(@(x) {x},StructArrayRestructure(stat{1}));
+			stat	= structfun2(@(x) {x},restruct(stat{1}));
 		end
 		
 		nd	= numel(size(stat.r{1}));

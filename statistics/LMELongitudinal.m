@@ -52,8 +52,8 @@ function [fstats,stats] = LMELongitudinal(Y,t,g,varargin)
 % Notes:	MATLAB method adapted from the example given here:
 %			https://surfer.nmr.mgh.harvard.edu/fswiki/LinearMixedEffectsModels
 % 
-% Updated: 2013-07-17
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 nOut	= nargout;
@@ -116,9 +116,9 @@ else
 								);
 		
 		fstats	= struct(...
-					't'		, StructArrayRestructure(t)		, ...
-					'p'		, StructArrayRestructure(p)		, ...
-					'Chat'	, StructArrayRestructure(Chat)	  ...
+					't'		, restruct(t)		, ...
+					'p'		, restruct(p)		, ...
+					'Chat'	, restruct(Chat)	  ...
 					);
 end
 

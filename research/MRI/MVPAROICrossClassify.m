@@ -98,8 +98,11 @@ function res = MVPAROICrossClassify(varargin)
 	end
 
 %construct every pair of ROIs
+	cSession					= sPath.functional_session;
+	[cPathDataROI,cMaskName]	= varfun(@(x) ForceCell(x,'level',2),cPathDataROI,sPath.mask_name);
+	
 	[cPathDataPair,kShake]	= cellfun(@handshakes,cPathDataROI,'uni',false);
-	cNamePair				= cellfun(@(s,cm,ks) arrayfun(@(k) sprintf('%s-%s-%s',s,cm{ks(k,:)}),(1:size(ks,1))','uni',false),sPath.functional_session,sPath.mask_name,kShake,'uni',false);
+	cNamePair				= cellfun(@(s,cm,ks) arrayfun(@(k) sprintf('%s-%s-%s',s,cm{ks(k,:)}),(1:size(ks,1))','uni',false),cSession,cMaskName,kShake,'uni',false);
 
 %classify!
 	%get a target/chunk pair for each classification
@@ -136,9 +139,8 @@ function res = MVPAROICrossClassify(varargin)
 	if bCombine
 		try
 			nSubject	= numel(sPath.functional);
-			nMask		= numel(sPath.mask{1});
-			cMaskName	= cellfun(@PathGetMaskName,sPath.mask{1},'uni',false);
-			cMaskPair	= cMaskName(kShake{1});
+			cMask		= reshape(cMaskName{1},1,[]);
+			cMaskPair	= cMask(kShake{1});
 			nMaskPair	= size(cMaskPair,1);
 			
 			sCombine	= [nMaskPair nSubject];
@@ -149,7 +151,7 @@ function res = MVPAROICrossClassify(varargin)
 			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
 		end
 		
-		if bGroupStats && numel(cPathDataFlat) > 1
+		if bGroupStats && size(cPathDataFlat,1) > 1
 			res	= GroupStats(res);
 		end
 	end

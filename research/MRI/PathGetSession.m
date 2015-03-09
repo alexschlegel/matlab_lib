@@ -5,7 +5,7 @@ function strSession = PathGetSession(strPath)
 % 
 % Syntax:	strSession = PathGetSession(strPath)
 % 
-% Updated: 2015-03-06
+% Updated: 2015-03-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -19,5 +19,5 @@ s	= regexp(strPath,re,'match');
 if ~isempty(s)
 	strSession	= s{1};
 else
-	strSession	= '';
+	strSession	= PathGetFilePre(strPath,'favor','nii.gz');
 end

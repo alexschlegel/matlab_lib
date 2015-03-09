@@ -101,14 +101,14 @@ def has_len(x):
 	except Exception:
 		return False
 
-def status(msg, indent=0, debug='info'):
+def status(msg, indent=0, debug='info', show=True):
 	"""show a status message"""
 	global dbg, DBG_LEVELS
 	
 	dbg_idx = DBG_LEVELS.index(dbg)
 	debug_idx = DBG_LEVELS.index(debug)
 	
-	if debug_idx >= dbg_idx:
+	if debug_idx >= dbg_idx and show:
 		str_indent = '   '*indent
 		str_time   = time.strftime('%Y-%m-%d %H:%M:%S')
 		
@@ -1007,8 +1007,8 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 			[md1, md2] = self._separate_datasets(match_data)
 			
 			#reorder the features of ds1 and ds2
-			feature_match(ds1, md2, x_match=md1, partition_attr=self.__match_partition_attr)
-			feature_match(ds2, md1, x_match=md2, partition_attr=self.__match_partition_attr)
+			ds1 = feature_match(ds1, md2, x_match=md1, partition_attr=self.__match_partition_attr)
+			ds2 = feature_match(ds2, md1, x_match=md2, partition_attr=self.__match_partition_attr)
 		
 		#train the first classifier on ds1
 		super(MatchedDatasetCrossClassifier, self)._train(ds1)
@@ -1151,21 +1151,20 @@ class CaptureSelector(ElementSelector):
 		
 		return selected
 
-	
-def preprocess_data(param, ds):
-	"""preprocess a set of data"""
+
+def preprocess_data_one(param, ds, show_status=True):
+	"""preprocess a single dataset"""
 	#remove NaNs
 	if param['nan_remove'].startswith('sample'):
-		status('removing NaNs by sample', indent=1, debug='all')
+		status('removing NaNs by sample', indent=1, debug='all', show=show_status)
 		ds = ds[~np.any(np.isnan(ds),1),:]
 	elif param['nan_remove'].startswith('feature'):
-		status('removing NaNs by feature', indent=1, debug='all')
+		status('removing NaNs by feature', indent=1, debug='all', show=show_status)
 		ds = ds[:,~np.any(np.isnan(ds),0)]
 	
 	#zscore the data
 	if param['zscore']:
-		status('z-scoring samples', indent=1)
-		
+		status('z-scoring samples', indent=1, show=show_status)
 		zscore(ds, chunks_attr=param['zscore'])
 	
 	#if we are going to do matched dataset cross-classification with feature
@@ -1176,7 +1175,7 @@ def preprocess_data(param, ds):
 	
 	#create a spatiotemporal event-related dataset
 	if param['spatiotemporal']:
-		status('constructing spatiotemporal dataset', indent=1)
+		status('constructing spatiotemporal dataset', indent=1, show=show_status)
 		
 		events = find_events(targets=ds.sa.targets, chunks=ds.sa.chunks)
 		
@@ -1191,12 +1190,12 @@ def preprocess_data(param, ds):
 			ds.sa[key] = [x[0] for x in ds.sa[key]]
 	
 	#keep only the targets we are interested in
-	status('including targets: %s' % (", ".join(param['target_subset'])), indent=1, debug='all')
+	status('including targets: %s' % (", ".join(param['target_subset'])), indent=1, debug='all', show=show_status)
 	ds = ds[array([ trg in param['target_subset'] for trg in ds.sa.targets ])]
 	
 	#average samples of the same target within each chunk (and dataset)
 	if param['average']:
-		status('averaging samples within each chunk', indent=1)
+		status('averaging samples within each chunk', indent=1, show=show_status)
 		
 		attrs = ['targets','chunks']
 		if 'dataset' in ds.sa:
@@ -1222,7 +1221,7 @@ def preprocess_data(param, ds):
 			
 			#unequal numbers of targets, so yep
 			if len(np.unique(target_count)) != 1:
-				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all')
+				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
 				param['do_target_balancer'] = True
 				break
 		
@@ -1231,13 +1230,27 @@ def preprocess_data(param, ds):
 		if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
 			target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
 			if len(np.unique(target_count)) != 1:
-				status('unbalanced targets, using target balancer', indent=1, debug='all')
+				status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
 				param['do_target_balancer'] = True
 		
 		if not param['do_target_balancer']:
-			status('target balancer selected but not needed', indent=1, debug='all')
+			status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
 	else:
-		status('target balancer not selected', indent=1, debug='all')
+		status('target balancer not selected', indent=1, debug='all', show=show_status)
+	
+	return ds
+	
+def preprocess_data(param, ds):
+	#preprocess each dataset independently
+	dataset_indices = np.unique(ds.sa.dataset)
+	dsp = [preprocess_data_one(param, ds[ds.sa.dataset==idx], show_status=idx==1) for idx in dataset_indices]
+	
+	#stack the data
+	ds = vstack(dsp)
+	
+	#also stack the feature match dataset
+	if param['matchedcrossclassify'] and param['match_features']:
+		ds.a['feature_match_data'] = vstack([d.a.feature_match_data for d in dsp])
 	
 	return ds
 
@@ -1343,6 +1356,8 @@ def get_classifier(param, ds, partitioner, mean_control, indent=0):
 	
 	#matched dataset cross-classification
 	if param['matchedcrossclassify']:
+		status('using a matched dataset cross-classifier (match_features=%r, match_include_blank=%r)' % (param['match_features'], param['match_include_blank']), indent=indent, debug='all')
+		
 		#should we include blank samples in the feature matching?
 		if param['match_include_blank'] and param['target_blank']:
 			#what are the blank chunks?
@@ -1360,7 +1375,7 @@ def get_classifier(param, ds, partitioner, mean_control, indent=0):
 				raise Exception('blank chunks are set to be included in feature matching, but these chunks include non-blank samples of the following targets: %s' % (', '.join(set_both)))
 		else:
 			blank_chunks = None
-			
+		
 		clf = MatchedDatasetCrossClassifier(clf, match_features=param['match_features'],
 				match_data='feature_match_data', partition_attr_append=blank_chunks)
 	
@@ -1476,7 +1491,6 @@ def classify_one(param, ds, name, mean_control=False, indent=0):
 	
 	#do the classification
 	status('classifying %s - min:%f, max:%f' % (str(ds.shape), np.min(ds.samples), np.max(ds.samples)), indent=indent+1, debug='all')
-	#status('%s' % (ds.targets), indent=indent+1, debug='all')
 	res = cv(ds)
 	
 	#get the results

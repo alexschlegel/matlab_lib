@@ -114,7 +114,10 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 			msk		= NIfTIRead(strPathMask);
 			sMask	= size(msk.data);
 			
-			assert(isequal(sData(1:end-1),sMask),'data (%s) and mask (%s) are not the same size.',strPathData,strPathMask);
+			nSpaceData	= prod(sData(1:end-1));
+			nSpaceMask	= prod(sMask);
+			
+			assert(isequal(nSpaceData,nSpaceMask),'data (%s) and mask (%s) are not the same size.',strPathData,strPathMask);
 			
 			%keep only data from the mask
 				msk	= logical(reshape(msk.data,[],1));

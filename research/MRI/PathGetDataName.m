@@ -14,6 +14,11 @@ nFile					= numel(strFile);
 cDir					= DirSplit(strDir);
 nDir					= numel(cDir);
 
+if numel(cDir)>0 && strcmp(cDir{1},filesep)
+	cDir	= cDir(2:end);
+	nDir	= nDir - 1;
+end
+
 cKey	= {'functional','structural','diffusion','mask'};
 nKey	= numel(cKey);
 cPrefix	= [cKey 'data'];
@@ -24,12 +29,14 @@ nPrefix	= numel(cPrefix);
 	
 	if ~isempty(strSession)
 		kDir	= find(strcmp(cDir,strSession),1,'last');
-		if kDir>1 && ismember(cDir(kDir-1),cKey)
-			kDir	= kDir - 1;
+		if ~isempty(kDir)
+			if kDir>1 && ismember(cDir(kDir-1),cKey)
+				kDir	= kDir - 1;
+			end
+			
+			cDir	= cDir(kDir:end);
 		end
-		
-		cDir	= cDir(kDir:end);
-	end	
+	end
 
 %remove unnecessary information from the file name
 	for kP=1:nPrefix

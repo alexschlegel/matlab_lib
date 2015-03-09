@@ -434,6 +434,14 @@ def feature_match(x, y, x_match=None, partition_attr=None, metric='correlation',
 		rc_idx = linear_assignment(D)
 		idx = rc_idx[:,1]
 		
+		#apply the reordering to the negate array
+		if corr_negate:
+			negate = negate[:,idx]
+			
+			#keep only the diagonal (i.e. pair matched) values
+			diag = np.eye(y.shape[1], dtype=bool)
+			negate = negate[diag]
+		
 		#make sure the new order matches the feature space of x
 		if x.shape[1] != y.shape[1]:
 			mult = x.shape[1]/y.shape[1]
@@ -450,14 +458,8 @@ def feature_match(x, y, x_match=None, partition_attr=None, metric='correlation',
 		else:
 			x = x[:,idx]
 		
+		#negate the marked samples
 		if corr_negate:
-			#apply the reordering to the negate array
-			negate = negate[:,idx]
-			
-			#keep only the diagonal (i.e. pair matched) values
-			diag = np.eye(y.shape[1], dtype=bool)
-			negate = negate[diag]
-			
 			if isinstance(x, Dataset):
 				x.samples[:,negate] = -x.samples[:,negate]
 			else:
@@ -1154,6 +1156,15 @@ class CaptureSelector(ElementSelector):
 
 def preprocess_data_one(param, ds, show_status=True):
 	"""preprocess a single dataset"""
+	#***if we are going to do matched dataset cross-classification with feature
+	#matching, then keep a copy of the data before we start mucking with
+	#samples and features
+	
+	#if we are going to do matched dataset cross-classification with feature
+	#matching, keep a copy of the data before we start to preprocess
+	if param['matchedcrossclassify'] and param['match_features']:
+		ds.a['feature_match_data'] = ds.copy(deep=1)
+	
 	#remove NaNs
 	if param['nan_remove'].startswith('sample'):
 		status('removing NaNs by sample', indent=1, debug='all', show=show_status)
@@ -1166,12 +1177,6 @@ def preprocess_data_one(param, ds, show_status=True):
 	if param['zscore']:
 		status('z-scoring samples', indent=1, show=show_status)
 		zscore(ds, chunks_attr=param['zscore'])
-	
-	#if we are going to do matched dataset cross-classification with feature
-	#matching, then keep a copy of the data before we start mucking with
-	#samples and features
-	if param['matchedcrossclassify'] and param['match_features']:
-		ds.a['feature_match_data'] = ds.copy(deep=1)
 	
 	#create a spatiotemporal event-related dataset
 	if param['spatiotemporal']:

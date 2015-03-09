@@ -574,47 +574,65 @@ methods
 		end
 	end
 
-	function h = makePlotFromCapsule(obj,capsule)
-		if capsule.format ~= 2
+	function h = renderMultiLinePlot(obj,cCapsule,var2Spec,var2Indices)
+		if nargin < 4
+			var2Indices	= 1:numel(cCapsule);
+		end
+		szCapsule	= size(cCapsule);
+		if szCapsule(1) == 0 || any(szCapsule(2:end) > 1)
+			error('Invalid capsule cell dimensions.');
+		end
+		cap1		= cCapsule{1};
+		if cap1.format ~= 2
 			error('Incompatible capsule format.');
 		end
-		result		= capsule.result;
-		r1			= result{1,1};
-		modeInds	= cellfun(@(m) isfield(r1.summary,m), obj.analyses);
-		modes		= obj.analyses(modeInds);
-		acc			= zeros([size(result) numel(modes)]);
+		spec1		= cap1.plotSpec;
+		result1		= cap1.result;
+		varName1	= spec1.varName;
+		szResult	= size(result1);
+		if any(cellfun(@(c) any(size(c.result) ~= szResult),cCapsule))
+			error('Non-uniform capsule result sizes.');
+		end
+		if any(cellfun(@(c) ~strcmp(varName1,c.plotSpec.varName),cCapsule))
+			error('Inconsistent capsule variable names.');
+		end
+		% TODO: Verify consistent variable values across subcapsules.
 
-		for kMode=1:numel(modes)
-			mode			= modes{kMode};
-			acc(:,:,kMode)	= cellfun(@(r) r.summary.(mode).acc, result);
+		var2Labels	= arrayfun(@(i) sprintf('%s=%.2f',...
+						var2Spec.varName,var2Spec.varValues(i)),...
+						var2Indices,'uni',false);
+		acc			= zeros([szResult numel(var2Indices)]);
+
+		for kI=1:size(acc,3)
+			acc(:,:,kI)	= cellfun(@(r) r.summary.alex.acc,...
+								cCapsule{var2Indices(kI)}.result);
 		end
 
 		meanAcc		= mean(acc);
 		stderrAcc	= stderr(acc);
 
-		spec		= capsule.plotSpec;
-		parennote	= noteNSubjAndWSum(obj,capsule);
-		title		= sprintf('Accuracy as a function of %s (%s)',...
-						spec.varName,parennote);
+		parennote	= noteNSubjAndRecur(obj,cap1);
+		if ~isempty(parennote)
+			parennote	= sprintf(' (%s)',parennote);
+		end
+		title		= sprintf('Accuracy as a function of %s%s',...
+						varName1,parennote);
 		ylabel		= 'Accuracy (%)';
-		xvals		= cellfun(@(r) r.varValue, result(1,:));
+		xvals		= cellfun(@(r) r.varValue, result1(1,:));
 		yvals		= num2cell(100*meanAcc,[1 2]);
 		errorvals	= num2cell(100*stderrAcc,[1 2]);
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals		, ...
 						'title'		, title			, ...
-						'xlabel'	, spec.xlabel	, ...
+						'xlabel'	, spec1.xlabel	, ...
 						'ylabel'	, ylabel		, ...
-						'legend'	, modes			  ...
+						'legend'	, var2Labels	, ...
+						'errortype'	, 'bar'			  ...
 						);
 	end
 
-	function h = makePlotFromSpec(obj,plotSpec,varargin)
-		capsule	= makePlotCapsule(obj,plotSpec,varargin{:});
-		h		= makePlotFromCapsule(obj,capsule);
-	end
-
-	function note = noteNSubjAndWSum(~,capsule)
+	function note = noteNSubjAndRecur(obj,capsule)
+		u			= obj.uopt;
 		spec		= capsule.plotSpec;
 		opt			= capsule.opt;
 		if strcmp(spec.varName,'nSubject')
@@ -622,20 +640,19 @@ methods
 		else
 			nsub	= sprintf('nSubject=%d',opt.nSubject);
 		end
-		if strcmp(spec.varName,'WSum')
-			wsum	= '';
+		if opt.CRecurX == u.CRecurX && opt.CRecurY == u.CRecurY && opt.CRecurZ == u.CRecurZ
+			recur	= '';
+		elseif opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
+			recur	= 'CRecurXYZ=0';
 		else
-			wsum	= sprintf('WSum=%.2f',opt.WSum);
+			recur	= 'CRecurXYZ=?';
 		end
-		if isempty(nsub) || isempty(wsum)
+		if isempty(nsub) || isempty(recur)
 			sep		= '';
 		else
 			sep		= ', ';
 		end
-		note		= [nsub sep wsum];
-		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
-			note	= [note ', CRecurXYZ=0'];
-		end
+		note		= [nsub sep recur];
 	end
 
 	function showBlockDesign(obj,block)
@@ -920,20 +937,20 @@ methods (Static)
 
 		nSpec				= numel(spec);
 		nVar2				= numel(var2Spec.varValues);
-		capsule				= cell(nSpec,nVar2);
+		capsule				= cell(nVar2,nSpec);
 
 		for kSpec=1:nSpec
 			for kVar2=1:nVar2
 				p2							= pipeline;
 				p2.uopt.(var2Spec.varName)	= var2Spec.varValues(kVar2);
-				capsule{kSpec,kVar2}		= p2.makePlotCapsule(spec(kSpec));
+				capsule{kVar2,kSpec}		= p2.makePlotCapsule(spec(kSpec));
 			end
 		end
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
 		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
-									nSpec,nVar2,pipeline.uopt.nSubject);
+									nVar2,nSpec,pipeline.uopt.nSubject);
 		plot_data.var2Spec		= var2Spec;
 		plot_data.cCapsule		= capsule;
 		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');

@@ -55,9 +55,7 @@ nModel				= numel(opt.confusion_model);
 %get the labels
 	switch strResType
 		case 'mvparoicrossclassify'
-			if isempty(stat.label) && isfield(res,'mask') && size(res.mask,2)==2
-				stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
-			end
+			stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
 		otherwise
 			stat.label	= {};
 			

@@ -41,7 +41,7 @@ function gc = GrangerCausality(src,dst,varargin)
 % 		'legend'	, {'GC','GCu','TE'}	  ...
 % 		);
 % 
-% Updated: 2015-02-17
+% Updated: 2015-03-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -250,12 +250,8 @@ function gc = CalcMVGC(G,ndSrc,ndDst)
 		[~,SIGR]	= AutoCov2Var(G(x,x,:));
 	
 	x			= 1:numel(x);
-	detSIGR		= det(SIGR(x,x));
-	detSIG		= det(SIG(x,x));
-	if detSIGR <= 0 || detSIG <= 0
-		gc		= 0;
-	else
-		gc		= log(detSIGR) - log(detSIG);
-	end
+	detSIG		= max(det(SIG(x,x)),1e-200);
+	detSIGR		= max(det(SIGR(x,x)),detSIG);
+	gc			= log(detSIGR) - log(detSIG);
 
 %------------------------------------------------------------------------------%

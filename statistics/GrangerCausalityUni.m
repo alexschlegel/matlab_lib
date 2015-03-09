@@ -1,9 +1,9 @@
-function gc = GrangerCausality(src,dst,varargin)
-% GrangerCausality
+function gc = GrangerCausalityUni(src,dst,varargin)
+% GrangerCausalityUni
 % 
 % Description:	compute the granger causality from one signal to another
 % 
-% Syntax:	gc = GrangerCausality(src,dst,<options>)
+% Syntax:	gc = GrangerCausalityUni(src,dst,<options>)
 % 
 % In:
 % 	src	- an nSample x 1 source signal
@@ -22,9 +22,9 @@ function gc = GrangerCausality(src,dst,varargin)
 %	algorithm taken from the GCCAtoolbox by Anil Seth
 %
 % Example:
-%	n=200; x=randn(n,1); y=[0; x(1:end-1)]; gc=GrangerCausality(x,y);
+%	n=200; x=randn(n,1); y=[0; x(1:end-1)]; gc=GrangerCausalityUni(x,y);
 % 
-% Updated: 2015-02-09
+% Updated: 2015-03-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

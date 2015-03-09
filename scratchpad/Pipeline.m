@@ -43,8 +43,7 @@ methods
 	%					-- Debugging/diagnostic options:
 	%
 	%		DEBUG:		(false) Display debugging information
-	%		fudge:		({}) Fudge specified details (e.g., {'nogc'})
-	%		boostacc:	(false) Randomly boost low accuracies in plots
+	%		fudge:		({}) Fudge specified details (e.g., {'fakecause'})
 	%		nofigures:	(false) Suppress figures
 	%		nowarnings:	(false) Suppress warnings
 	%		progress:	(true) Show progress
@@ -87,7 +86,7 @@ methods
 	%		analysis:	('total') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
-	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'te')
+	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
 	%
 	%					-- Batch processing
 	%
@@ -99,7 +98,6 @@ methods
 		opt	= ParseArgs(varargin,...
 			'DEBUG'			, false		, ...
 			'fudge'			, {}		, ...
-			'boostacc'		, false		, ...
 			'nofigures'		, false		, ...
 			'nowarnings'	, false		, ...
 			'progress'		, true		, ...
@@ -134,12 +132,12 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
-		invalidFudges			= ~ismember(opt.fudge,{'fakecause','nogc'});
+		invalidFudges			= ~ismember(opt.fudge,{'fakecause'});
 		if any(invalidFudges)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudges}));
 		end
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
-		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','te'});
+		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc)
@@ -164,7 +162,7 @@ methods
 				case 'lizier'
 					subjectStats.lizierTEs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'te',doDebug);
 				case 'seth'
-					subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'gc',doDebug);
+					subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'mvgc',doDebug);
 				otherwise
 					error('Bug: missing case for %s.',modes{kMode});
 			end
@@ -213,7 +211,7 @@ methods
 	end
 
 	%X,Y dims are time, run, signal
-	%kind is causality kind ('gc', 'te')
+	%kind is causality kind ('mvgc', 'te')
 	%return one causality for each condition
 	function causalities = analyzeTestSignalsMultivariate(obj,~,target,X,Y,kind,doDebug)
 		u			= obj.uopt;
@@ -233,10 +231,10 @@ methods
 								squeeze(s.Xall),squeeze(s.Yall),...
 								s.kNext,kind);
 			reportResult	= (u.verbosity >= 5);
-			if reportResult && strcmp(kind,'gc')
+			if reportResult && strcmp(kind,'mvgc')
 				%TODO: possibly temporary GC diagnostic
-				gc			= causalities(kC);
-				fprintf('Multivariate GC X->Y for cond %s is %g\n',conds{kC},gc);
+				mvgc		= causalities(kC);
+				fprintf('Multivariate GC X->Y for cond %s is %g\n',conds{kC},mvgc);
 			end
 			if reportResult && strcmp(kind,'te')
 				%TODO: possibly temporary TE verification
@@ -284,11 +282,12 @@ methods
 			c = randn^2; %Fudge: return random causality
 			return;
 		end
-		if ismember('nogc',u.fudge)
-			kind	= 'te'; %Fudge: avoid GC altogether
-		end
 		switch kind
 			case 'gc'
+				c	= GrangerCausalityUni(X,Y,...
+						'samples'		, indicesOfSamples	  ...
+						);
+			case 'mvgc'
 				c	= GrangerCausality(X,Y,...
 						'samples'		, indicesOfSamples	, ...
 						'max_aclags'	, u.max_aclags		  ...
@@ -517,10 +516,11 @@ methods
 			'varValues'		, ...
 			'nIteration'	  ...
 			};
-		missingFields			= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
+		missingFields	= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
 		if any(missingFields)
 			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
 		end
+
 		pause(1);
 		start_ms	= nowms;
 		varName		= plotSpec.varName;
@@ -556,11 +556,12 @@ methods
 		[result.varValue]	= deal(cValue{:});
 		[result.seed]		= deal(cSeed{:});
 		[result.summary]	= deal(summary{:});
-		cResult				= num2cell(reshape(result,nIteration,nValue)');
+		cResult				= num2cell(reshape(result,nIteration,nValue));
 
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
 		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
+		capsule.format		= 2;
 		capsule.plotSpec	= plotSpec;
 		capsule.opt			= obj.uopt;
 		capsule.result		= cResult;
@@ -574,6 +575,9 @@ methods
 	end
 
 	function h = makePlotFromCapsule(obj,capsule)
+		if capsule.format ~= 2
+			error('Incompatible capsule format.');
+		end
 		result		= capsule.result;
 		r1			= result{1,1};
 		modeInds	= cellfun(@(m) isfield(r1.summary,m), obj.analyses);
@@ -584,24 +588,18 @@ methods
 			mode			= modes{kMode};
 			acc(:,:,kMode)	= cellfun(@(r) r.summary.(mode).acc, result);
 		end
-		boostobj	= obj.changeOptionDefault('boostacc',capsule.opt.boostacc);
-		if boostobj.uopt.boostacc
-			rng(0,'twister');
-			bump	= 0.1 * abs(randn(size(acc)));
-			acc		= acc + (acc < 0.1) .* bump;
-		end
 
-		meanAcc		= mean(acc,2);
-		stdAcc		= std(acc,0,2);
+		meanAcc		= mean(acc);
+		stderrAcc	= stderr(acc);
 
 		spec		= capsule.plotSpec;
 		parennote	= noteNSubjAndWSum(obj,capsule);
 		title		= sprintf('Accuracy as a function of %s (%s)',...
 						spec.varName,parennote);
 		ylabel		= 'Accuracy (%)';
-		xvals		= cellfun(@(r) r.varValue, result(:,1));
+		xvals		= cellfun(@(r) r.varValue, result(1,:));
 		yvals		= num2cell(100*meanAcc,[1 2]);
-		errorvals	= num2cell(100*stdAcc,[1 2]);
+		errorvals	= num2cell(100*stderrAcc,[1 2]);
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals		, ...
 						'title'		, title			, ...
@@ -779,27 +777,34 @@ methods
 			end
 		end
 		if isfield(results{1},'lizierTEs')
+			% TODO: Factor out common code between lizier (here) and seth (below)
 			TEsCondA					= cellfun(@(r) r.lizierTEs(1),results);
 			TEsCondB					= cellfun(@(r) r.lizierTEs(2),results);
 			[h,p_grouplevel,ci,stats]	= ttest(TEsCondA,TEsCondB);
-			summary.lizier.acc			= h;
+			summary.lizier.h			= h;
 			summary.lizier.p			= p_grouplevel;
+			summary.lizier.ci			= ci;
+			summary.lizier.stats		= stats;
 			if DEBUG
 				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
 				fprintf('Lizier group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
 		if isfield(results{1},'sethGCs')
+			% TODO: Factor out common code between lizier (above) and seth (here)
 			GCsCondA					= cellfun(@(r) r.sethGCs(1),results);
 			GCsCondB					= cellfun(@(r) r.sethGCs(2),results);
 			[h,p_grouplevel,ci,stats]	= ttest(GCsCondA,GCsCondB);
-			summary.seth.acc			= h;
+			summary.seth.h				= h;
 			summary.seth.p				= p_grouplevel;
+			summary.seth.ci				= ci;
+			summary.seth.stats			= stats;
 			if DEBUG
 				fprintf('Seth h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
 				fprintf('Seth group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
+		summary.subjectResults			= results;
 		if ~isempty(warningState)
 			warning(warningState);
 		end
@@ -876,8 +881,7 @@ methods (Static)
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		plot_data.label			= sprintf('Three fudged capsules w/ fakecause, etc.',...
-									pipeline.uopt.nSubject,pipeline.uopt.WSum);
+		plot_data.label			= sprintf('Three fudged capsules w/ fakecause, etc.');
 		plot_data.cCapsule		= capsule;
 		save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
 	end
@@ -886,46 +890,51 @@ methods (Static)
 	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchProcessing;
-		pipeline	= pipeline.changeOptionDefault('fudge',{'nogc'});
-		%pipeline	= pipeline.changeOptionDefault('boostacc',true);
 		pipeline	= pipeline.changeOptionDefault('nSubject',10);
 		pipeline	= pipeline.changeOptionDefault('seed',0);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 
-		spec.xlabel		= 'Number of subjects';
-		spec.varName	= 'nSubject';
-		spec.varValues	= [1 2 5 10 20];
-		spec.nIteration	= 10;
-		capsule{1}		= pipeline.makePlotCapsule(spec);
+		spec				= repmat(struct,4,1);
 
-		spec.xlabel		= 'Number of runs';
-		spec.varName	= 'nRun';
-		spec.varValues	= 2:2:10;
-		spec.nIteration	= 10;
-		capsule{2}		= pipeline.makePlotCapsule(spec);
+		spec(1).xlabel		= 'Number of subjects';
+		spec(1).varName		= 'nSubject';
+		spec(1).varValues	= [1 2 5 10 20];
 
-		spec.xlabel		= 'W fullness';
-		spec.varName	= 'WFullness';
-		spec.varValues	= 0.05:0.05:0.25;
-		spec.nIteration	= 10;
-		capsule{3}		= pipeline.makePlotCapsule(spec);
+		spec(2).xlabel		= 'Number of runs';
+		spec(2).varName		= 'nRun';
+		spec(2).varValues	= 2:2:10;
 
-		spec.xlabel		= 'W column sum';
-		spec.varName	= 'WSum';
-		spec.varValues	= [0.05 0.1 0.2 0.3 0.4];
-		spec.nIteration	= 10;
-		capsule{4}		= pipeline.makePlotCapsule(spec);
+		spec(3).xlabel		= 'W fullness';
+		spec(3).varName		= 'WFullness';
+		spec(3).varValues	= 0.05:0.05:0.25;
 
-		spec.xlabel		= 'Number of TRs per block';
-		spec.varName	= 'nTBlock';
-		spec.varValues	= 1:5;
-		spec.nIteration	= 10;
-		capsule{5}		= pipeline.makePlotCapsule(spec);
+		spec(4).xlabel		= 'Number of TRs per block';
+		spec(4).varName		= 'nTBlock';
+		spec(4).varValues	= 1:5;
+
+		[spec(:).nIteration]	= deal(10);
+
+		var2Spec.label		= 'W column sum';
+		var2Spec.varName	= 'WSum';
+		var2Spec.varValues	= 0.1*(1:5);
+
+		nSpec				= numel(spec);
+		nVar2				= numel(var2Spec.varValues);
+		capsule				= cell(nSpec,nVar2);
+
+		for kSpec=1:nSpec
+			for kVar2=1:nVar2
+				p2							= pipeline;
+				p2.uopt.(var2Spec.varName)	= var2Spec.varValues(kVar2);
+				capsule{kSpec,kVar2}		= p2.makePlotCapsule(spec(kSpec));
+			end
+		end
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		plot_data.label			= sprintf('Five capsules w/ nSubject=%d, WSum=%.2f (except as noted)',...
-									pipeline.uopt.nSubject,pipeline.uopt.WSum);
+		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
+									nSpec,nVar2,pipeline.uopt.nSubject);
+		plot_data.var2Spec		= var2Spec;
 		plot_data.cCapsule		= capsule;
 		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
 	end

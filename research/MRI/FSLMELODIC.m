@@ -30,6 +30,8 @@ function sOut = FSLMELODIC(varargin)
 %						threshold.
 %		varnorm:		(true) perform variance normalization
 %		report:			(false) generate an html report
+%		load_comp:		(false) load the component signals if they wouldn't have
+%						been loaded otherwise
 %		load_weight:	(false) load the weights
 %		nthread:		(1) the number of threads to use
 %		force:			(true) true to force ICA calculation even if the output
@@ -45,8 +47,8 @@ function sOut = FSLMELODIC(varargin)
 %			dir_out:	the output directory(ies)
 %			path_data:	the output data path(s)
 % 
-% Updated: 2015-03-06
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 %format the inputs
@@ -60,6 +62,7 @@ function sOut = FSLMELODIC(varargin)
 			'bet'			, true	, ...
 			'varnorm'		, true	, ...
 			'report'		, false	, ...
+			'load_comp'		, false	, ...
 			'load_weight'	, false	, ...
 			'nthread'		, 1		, ...
 			'force'			, true	, ...
@@ -124,6 +127,7 @@ function sOut = FSLMELODIC(varargin)
 function s = DoMELODIC(strPathData,strPathMask,strDirOut,varargin)
 	if iscell(strPathMask)
 		s	= cellfunprogress(@(m,o) DoMELODIC(strPathData,m,o),strPathMask,strDirOut,...
+				'uni'	, false								, ...
 				'label'	, 'running MELODIC for one dataset'	  ...
 				);
 		return;
@@ -263,7 +267,7 @@ function s = LoadResults(strDirOut,varargin)
 	sp	= GetOutputPaths(strDirOut);
 	
 	comp	= ParseArgs(varargin,[]);
-	if isempty(comp)
+	if isempty(comp) && opt.load_comp
 		comp	= LoadComp(sp.comp);
 	end
 	

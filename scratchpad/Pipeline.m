@@ -592,28 +592,27 @@ methods
 		end
 	end
 
-	function note = noteNSubjAndRecur(obj,capsule)
+	function note = noteVaryingOpts(obj,capsule)
 		u			= obj.uopt;
 		spec		= capsule.plotSpec;
 		opt			= capsule.opt;
-		if strcmp(spec.varName,'nSubject')
-			nsub	= '';
-		else
-			nsub	= sprintf('nSubject=%d',opt.nSubject);
+		cNote		= {};
+
+		if ~strcmp(spec.varName,'nSubject')
+			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
 		end
-		if opt.CRecurX == u.CRecurX && opt.CRecurY == u.CRecurY && opt.CRecurZ == u.CRecurZ
-			recur	= '';
-		elseif opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
-			recur	= 'CRecurXYZ=0';
-		else
-			recur	= 'CRecurXYZ=?';
+		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
+			cNote{end+1}	= 'recur=0';
+		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
+			cNote{end+1}	= 'recur=?';
 		end
-		if isempty(nsub) || isempty(recur)
-			sep		= '';
-		else
-			sep		= ', ';
+		if isfield(opt,'WSquash') && opt.WSquash
+			cNote{end+1}	= 'wsqsh';
 		end
-		note		= [nsub sep recur];
+		if isfield(opt,'WSumTweak') && opt.WSumTweak
+			cNote{end+1}	= 'wstwk';
+		end
+		note		= strjoin(cNote,',');
 	end
 
 	function h = renderMultiLinePlot(obj,cCapsule,var2Spec,var2Indices)
@@ -653,7 +652,7 @@ methods
 		meanAcc		= mean(acc);
 		stderrAcc	= stderr(acc);
 
-		parennote	= noteNSubjAndRecur(obj,cap1);
+		parennote	= noteVaryingOpts(obj,cap1);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end

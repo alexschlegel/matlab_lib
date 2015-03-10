@@ -74,7 +74,9 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
+	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
 	%		WSum:		(0.2) sum of W columns (sum(W)+CRecurY/X must be <=1)
+	%		WSumTweak:	(false) use altered recurrence with tweaked W column sums
 	%
 	%					-- Mixing
 	%
@@ -116,7 +118,9 @@ methods
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
 			'WFullness'		, 0.1		, ...
+			'WSquash'		, false		, ...
 			'WSum'			, 0.2		, ...
+			'WSumTweak'		, false		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
 			'analysis'		, 'total'	, ...
@@ -261,11 +265,19 @@ methods
 
 	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,W,WZ,sourceIn,destIn,preSourceIn,doDebug)
 		u				= obj.uopt;
-		sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
-		destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
-		preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 
-		if doDebug
+		if u.WSumTweak
+			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
+			sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-tweakedWSum-u.CRecurX).*randn(u.nSig,1);
+			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
+			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+		else
+			sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
+			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
+			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+		end
+
+		if doDebug && ~u.WSumTweak
 			coeffsumx	= u.CRecurX.*ones(size(sourceIn)) + sum(WZ'.*ones(size(preSourceIn)),2) + (1-sum(WZ,1)'-u.CRecurX).*ones(u.nSig,1);
 			coeffsumy	= u.CRecurY.*ones(size(destIn)) + W'*ones(size(sourceIn)) + (1-sum(W,1)'-u.CRecurY).*ones(u.nSig,1);
 			coeffsumz	= u.CRecurZ.*ones(size(preSourceIn)) + (1-u.CRecurZ).*ones(u.nSig,u.nSig);
@@ -489,10 +501,16 @@ methods
 
 	function [W,WCause] = generateW(obj)
 		u								= obj.uopt;
+		WFullness						= u.WFullness;
+
 		%generate a random WCause
 		WCause							= rand(u.nSigCause);
 		%make it sparse
-		WCause(WCause>u.WFullness)		= 0;
+		if u.WSquash
+			WCause(1-WCause>WFullness)	= 0;
+		else
+			WCause(WCause>WFullness)	= 0;
+		end
 		%normalize each column to the specified mean
 		WCause							= WCause*u.WSum./repmat(sum(WCause,1),[u.nSigCause 1]);
 		WCause(isnan(WCause))			= 0;
@@ -574,6 +592,30 @@ methods
 		end
 	end
 
+	function note = noteNSubjAndRecur(obj,capsule)
+		u			= obj.uopt;
+		spec		= capsule.plotSpec;
+		opt			= capsule.opt;
+		if strcmp(spec.varName,'nSubject')
+			nsub	= '';
+		else
+			nsub	= sprintf('nSubject=%d',opt.nSubject);
+		end
+		if opt.CRecurX == u.CRecurX && opt.CRecurY == u.CRecurY && opt.CRecurZ == u.CRecurZ
+			recur	= '';
+		elseif opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
+			recur	= 'CRecurXYZ=0';
+		else
+			recur	= 'CRecurXYZ=?';
+		end
+		if isempty(nsub) || isempty(recur)
+			sep		= '';
+		else
+			sep		= ', ';
+		end
+		note		= [nsub sep recur];
+	end
+
 	function h = renderMultiLinePlot(obj,cCapsule,var2Spec,var2Indices)
 		if nargin < 4
 			var2Indices	= 1:numel(cCapsule);
@@ -629,30 +671,6 @@ methods
 						'legend'	, var2Labels	, ...
 						'errortype'	, 'bar'			  ...
 						);
-	end
-
-	function note = noteNSubjAndRecur(obj,capsule)
-		u			= obj.uopt;
-		spec		= capsule.plotSpec;
-		opt			= capsule.opt;
-		if strcmp(spec.varName,'nSubject')
-			nsub	= '';
-		else
-			nsub	= sprintf('nSubject=%d',opt.nSubject);
-		end
-		if opt.CRecurX == u.CRecurX && opt.CRecurY == u.CRecurY && opt.CRecurZ == u.CRecurZ
-			recur	= '';
-		elseif opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
-			recur	= 'CRecurXYZ=0';
-		else
-			recur	= 'CRecurXYZ=?';
-		end
-		if isempty(nsub) || isempty(recur)
-			sep		= '';
-		else
-			sep		= ', ';
-		end
-		note		= [nsub sep recur];
 	end
 
 	function showBlockDesign(obj,block)
@@ -748,13 +766,24 @@ methods
 
 	function summary = simulateAllSubjects(obj)
 		u					= obj.uopt;
-		warningState		= [];
 		if u.nowarnings
 			warningState	= warning('off','all');
+			try
+				summary		= simulateAllSubjectsInternal(obj);
+			catch ME
+				warning(warningState);
+				rethrow(ME);
+			end
+			warning(warningState);
+		else
+			summary			= simulateAllSubjectsInternal(obj);
 		end
+	end
 
-		DEBUG	= u.DEBUG;
-		summary	= struct;
+	function summary = simulateAllSubjectsInternal(obj)
+		u			= obj.uopt;
+		DEBUG		= u.DEBUG;
+		summary		= struct('start_ms',nowms);
 
 		%initialize pseudo-random-number generator
 		rng(u.seed,'twister');
@@ -822,9 +851,7 @@ methods
 			end
 		end
 		summary.subjectResults			= results;
-		if ~isempty(warningState)
-			warning(warningState);
-		end
+		summary.end_ms					= nowms;
 	end
 
 	function subjectStats = simulateSubject(obj,doDebug)

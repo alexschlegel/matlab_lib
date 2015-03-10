@@ -1,6 +1,10 @@
+% For old plotting scripts, see scratchpad/archived/plotting-scripts/*
 
 % Script to create figures from exploratory data capsules
-%
+
+% FIXME:  The legends for the plots created by this script initially
+% appear correctly on the generated figures, but disappear when the
+% figures are combined into multiplots.
 
 load('scratchpad/capsules/20150308_230040_iflow_plot_data.mat');
 pd{1,2}		= plot_data;

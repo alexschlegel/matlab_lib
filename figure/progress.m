@@ -321,6 +321,11 @@ function InitProgress(strName)
 				if FileExists(strPathLog)
 					delete(strPathLog);
 				end
+				
+				status(sprintf('logging progress to %s',strPathLog),...
+								'noffset'	, opt.noffset-2	, ...
+								'silent'	, opt.silent	  ...
+								);
 			else
 				strPathLog	= [];
 			end

@@ -317,7 +317,7 @@ function InitProgress(strName)
 			opt.ptotal	= unless(opt.ptotal,opt.pend);
 		%get the log path
 			if opt.log
-				strPathLog	= PathUnsplit('~',sprintf('progress_%s',strName),'log');
+				strPathLog	= PathUnsplit(GetDirUser,sprintf('progress_%s',strName),'log');
 				if FileExists(strPathLog)
 					delete(strPathLog);
 				end

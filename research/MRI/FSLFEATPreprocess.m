@@ -66,8 +66,8 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %	tr			- the TR of each processed data file
 %	cDirFEAT	- the path/cell of paths to preprocessing feat directories
 % 
-% Updated: 2014-11-13
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-11
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [cPathStructural,opt]	= ParseArgs(varargin,[],...
@@ -115,7 +115,7 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 	end
 %get the template
 	strPathFEATTemplate	= PathAddSuffix(mfilename('fullpath'),'','template');
-	strFEATTemplate		= ReadTemplate(strPathFEATTemplate);
+	opt.feat_template	= ReadTemplate(strPathFEATTemplate);
 %get the output files
 	cPathOutPre	= cellfun(@(f) PathAddSuffix(f,'-pp','favor','nii.gz'),cPathData,'UniformOutput',false);
 %get the final data file produced
@@ -133,7 +133,16 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 	end
 %preprocess each
 	bSuccess	= true(size(cPathData));
-	[mtO,tr]	= MultiTask(@PreprocessOne,{cPathData(bProcess),cPathStructural(bProcess),cDirFEAT(bProcess),cPathOutPre(bProcess)},'uniformoutput',true,'description','Preprocessing functional data using FEAT','nthread',opt.nthread,'silent',opt.silent);
+	
+	cInput	=	{
+					cPathData(bProcess)
+					cPathStructural(bProcess)
+					cDirFEAT(bProcess)
+					cPathOutPre(bProcess)
+					opt
+				};
+	
+	[mtO,tr]	= MultiTask(@PreprocessOne,cInput,'uniformoutput',true,'description','Preprocessing functional data using FEAT','nthread',opt.nthread,'silent',opt.silent);
 	switch class(mtO)
 		case 'cell'
 			bSuccess(bProcess)	= cellfun(@notfalse,mtO);
@@ -145,10 +154,10 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 %uncellify
 	if bNoCell
 		cPathOut	= cPathOut{1};
-    end
+	end
 
 %------------------------------------------------------------------------------%
-function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strPathOut)
+function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strPathOut,opt)
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
 	
 	[tr,sNIfTI]	= NIfTIGetTiming(strPathData);
@@ -156,29 +165,29 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 	%temporary directory so we're not left with a bunch of crap
 		strDirTemp	= GetTempDir;
 	%construct the template replacement struct
-		optCur	= opt;
-		
-		bHighpass			= optCur.highpass~=0;
+		bHighpass			= opt.highpass~=0;
 		bRegStructural		= ~isempty(strPathStructural);
+		bRegStandard		= ~isempty(opt.standard);
 		
 		%process the slice timing options
 			strPathSliceOrder	 = '';
-			if isscalar(optCur.slice_time_correct)
-				switch optCur.slice_time_correct
+			
+			if isscalar(opt.slice_time_correct)
+				switch opt.slice_time_correct
 					case 6	%sqrt method
-						step						= ceil(sqrt(sNIfTI.nslice));
-						optCur.slice_time_correct	= reshape(reshape(1:step.^2,step,step)',[],1);
-						optCur.slice_time_correct	= optCur.slice_time_correct(1:sNIfTI.nslice);
+						step					= ceil(sqrt(sNIfTI.nslice));
+						opt.slice_time_correct	= reshape(reshape(1:step.^2,step,step)',[],1);
+						opt.slice_time_correct	= opt.slice_time_correct(1:sNIfTI.nslice);
 				end
 			end
 			
-			if ~isscalar(optCur.slice_time_correct)
+			if ~isscalar(opt.slice_time_correct)
 				%custom slice order selected
 				strPathSliceOrder	= PathUnsplit(strDirTemp,'slice_order','txt');
 				
-				fput(array2str(optCur.slice_time_correct),strPathSliceOrder);
+				fput(array2str(opt.slice_time_correct),strPathSliceOrder);
 				
-				optCur.slice_time_correct	= 3;
+				opt.slice_time_correct	= 3;
 			end
 		
 		sFill	= struct(...
@@ -187,36 +196,36 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 						'output_dir'			, strDirTemp					, ...
 						'tr'					, tr							, ...
 						'volumes'				, sNIfTI.nvol					, ...
-						'bb_thresh'				, optCur.bb_thresh				, ...
-						'noise_level'			, optCur.noise_level			, ...
-						'noise_ar'				, optCur.noise_ar				, ...
-						'motion_correct'		, double(optCur.motion_correct)	, ...
-						'slice_time_correct'	, optCur.slice_time_correct		, ...
+						'bb_thresh'				, opt.bb_thresh				, ...
+						'noise_level'			, opt.noise_level			, ...
+						'noise_ar'				, opt.noise_ar				, ...
+						'motion_correct'		, double(opt.motion_correct)	, ...
+						'slice_time_correct'	, opt.slice_time_correct		, ...
 						'slice_timing_file'		, strPathSliceOrder				, ...
-						'bet'					, double(optCur.bet)			, ...
-						'spatial_fwhm'			, optCur.spatial_fwhm			, ...
-						'norm_intensity'		, double(optCur.norm_intensity)	, ...
+						'bet'					, double(opt.bet)			, ...
+						'spatial_fwhm'			, opt.spatial_fwhm			, ...
+						'norm_intensity'		, double(opt.norm_intensity)	, ...
 						'highpass'				, double(bHighpass)				, ...
-						'highpass_cutoff'		, optCur.highpass				, ...
-						'lowpass'				, double(optCur.lowpass)		, ...
+						'highpass_cutoff'		, opt.highpass				, ...
+						'lowpass'				, double(opt.lowpass)		, ...
 						'reg'					, double(bRegStructural)		, ...
 						'reg_standard'			, double(bRegStandard)			, ...
-						'struct_dof'			, optCur.struct_dof				, ...
-						'standard_path'			, optCur.standard				, ...
-						'standard_dof'			, optCur.standard_dof			, ...
-						'standard_fnirt'		, double(optCur.standard_fnirt)	, ...
-						'warp_res'				, optCur.warp_res				  ...
+						'struct_dof'			, opt.struct_dof				, ...
+						'standard_path'			, opt.standard				, ...
+						'standard_dof'			, opt.standard_dof			, ...
+						'standard_fnirt'		, double(opt.standard_fnirt)	, ...
+						'warp_res'				, opt.warp_res				  ...
 					);
 	%fill and save the feat definition
 		strPathFEATDef	= PathUnsplit(strDirData,['feat-pp-' strFileData],'fsf');
-		strFEATDef		= StringFillTemplate(strFEATTemplate,sFill);
+		strFEATDef		= StringFillTemplate(opt.feat_template,sFill);
 		
 		fput(strFEATDef,strPathFEATDef);
 	%run feat
 		ec			= 1;
 		kAttempt	= 1;
-		while ec~=0 && kAttempt<=optCur.attempts
-			[ec,strOutput]	= RunBashScript(['feat ' strPathFEATDef],'silent',optCur.silent);
+		while ec~=0 && kAttempt<=opt.attempts
+			[ec,strOutput]	= RunBashScript(['feat ' strPathFEATDef],'silent',opt.silent);
 			
 			kAttempt	= kAttempt + 1;
 		end
@@ -239,20 +248,32 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 	if bRegStructural
 	%register the functional data to the final structural
 		strDirReg	= DirAppend(strDirFEAT,'reg');
-		strXFM		= conditional(bRegStandard && ~optCur.standard_fnirt,'example_func2standard','example_func2highres');
+		strXFM		= conditional(bRegStandard && ~opt.standard_fnirt,'example_func2standard','example_func2highres');
 		strPathXFM	= PathUnsplit(strDirReg,strXFM,'mat');
 		strPathWarp	= PathUnsplit(strDirReg,'highres2standard_warp','nii.gz');
 		
-		if optCur.save_transformed
+		if opt.save_transformed
 			strPathFEATDataXFM	= PathAddSuffix(strPathFEATData,'-xfm','favor','nii.gz');
 			
-			if bRegStandard && optCur.standard_fnirt
+			if bRegStandard && opt.standard_fnirt
 			%fnirt to standard space
-				b			= FSLRegisterFNIRT(strPathFEATData,optCur.standard,'output',strPathFEATDataXFM,'affine',strPathXFM,'warp',strPathWarp,'log',false,'silent',optCur.silent);
+				b	= FSLRegisterFNIRT(strPathFEATData,opt.standard,...
+						'output'	, strPathFEATDataXFM	, ...
+						'affine'	, strPathXFM			, ...
+						'warp'		, strPathWarp			, ...
+						'log'		, false					, ...
+						'silent'	, opt.silent			  ...
+						);
 			else
 			%flirt to structural/standard space
 				strPathRef	= conditional(bRegStandard,optCur.standard,strPathStructural);
-				b			= FSLRegisterFLIRT(strPathFEATData,strPathRef,'output',strPathFEATDataXFM,'xfm',strPathXFM,'log',false,'silent',optCur.silent);
+				
+				b	= FSLRegisterFLIRT(strPathFEATData,strPathRef,...
+						'output'	, strPathFEATDataXFM	, ...
+						'xfm'		, strPathXFM			, ...
+						'log'		, false					, ...
+						'silent'	, opt.silent			  ...
+						);
 			end
 			
 			if ~notfalse(b)
@@ -278,11 +299,7 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 		b	= notfalse(all(cellfun(@(fi,fo) FileCopy(fi,fo,'createpath',true),cPathIn,cPathOut)));
 	%remove the temporary directory
 		[ec,strOutput]	= RunBashScript(['rm -r ' strDirTemp],'silent',optCur.silent);
-end
 %------------------------------------------------------------------------------%
 function str = GetRegSuffix(bStruct,bStandard)
-	str	= conditional(bStruct,conditional(bStandard,'-tostandard','-tostruct'),conditional(bStandard,'-tostandard',''));
-end
+	str	= conditional(bStandard,'-tostandard',conditional(bStruct,'-tostruct',''));
 %------------------------------------------------------------------------------%
-
-end

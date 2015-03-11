@@ -266,7 +266,7 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 						);
 			else
 			%flirt to structural/standard space
-				strPathRef	= conditional(bRegStandard,optCur.standard,strPathStructural);
+				strPathRef	= conditional(bRegStandard,opt.standard,strPathStructural);
 				
 				b	= FSLRegisterFLIRT(strPathFEATData,strPathRef,...
 						'output'	, strPathFEATDataXFM	, ...
@@ -298,7 +298,7 @@ function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strP
 		
 		b	= notfalse(all(cellfun(@(fi,fo) FileCopy(fi,fo,'createpath',true),cPathIn,cPathOut)));
 	%remove the temporary directory
-		[ec,strOutput]	= RunBashScript(['rm -r ' strDirTemp],'silent',optCur.silent);
+		[ec,strOutput]	= RunBashScript(['rm -r ' strDirTemp],'silent',opt.silent);
 %------------------------------------------------------------------------------%
 function str = GetRegSuffix(bStruct,bStandard)
 	str	= conditional(bStandard,'-tostandard',conditional(bStruct,'-tostruct',''));

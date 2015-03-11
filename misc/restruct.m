@@ -35,8 +35,8 @@ else
 			return;
 		end
 		
-	%which mode are we in
-		if numel(s)==1 && uniform(cellfun(@(f) size(s.(f)),fieldnames(s),'UniformOutput',false))
+	%which mode are we in?
+		if numel(s)==1 && IsScalarStruct(s)
 		%1x1 struct of Nx1 arrays
 			sArray	= size(s.(cField{1}));
 			nArray	= prod(sArray);
@@ -44,10 +44,14 @@ else
 			s2	= repmat(struct,sArray);
 			
 			for kF=1:nField
-				if ~iscell(s.(cField{kF}))
-					s.(cField{kF})	= num2cell(s.(cField{kF}));
+				if isscalar(s.(cField{kF}))
+					[s2(1:nArray).(cField{kF})]	= deal(s.(cField{kF}));
+				else
+					if ~iscell(s.(cField{kF}))
+						s.(cField{kF})	= num2cell(s.(cField{kF}));
+					end
+					[s2(1:nArray).(cField{kF})]	= deal(s.(cField{kF}){:});
 				end
-				[s2(1:nArray).(cField{kF})]	= deal(s.(cField{kF}){:});
 			end
 		else
 		%Nx1 struct array
@@ -64,3 +68,16 @@ else
 	
 	s	= s2;
 end
+
+%------------------------------------------------------------------------------%
+function b = IsScalarStruct(s)
+	%make sure we have a scalar struct
+		b	= numel(s)==1;
+	
+	%and each field is scalar or the same size
+		if b
+			c			= struct2cell(s);
+			bConsider	= ~cellfun(@isscalar,c);
+			b			= uniform(cellfun(@size,c(bConsider),'uni',false));
+		end
+%------------------------------------------------------------------------------%

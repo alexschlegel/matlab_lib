@@ -8,7 +8,7 @@ function b = uniform(x)
 % Updated: 2011-11-13
 % Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 n	= numel(x);
-if n==0
+if n<2
 	b	= true;
 	return;
 end
@@ -22,7 +22,10 @@ else
 		otherwise
 			b	= true;
 			for k=2:n
-				b	= b & isequal(x(k),x(1));
+				if ~isequal(x(k),x(1))
+					b	= false;
+					return;
+				end
 			end
 	end
 end

@@ -19,6 +19,8 @@ function varargout = progress(varargin)
 %					environment:
 %						'figure':		show a GUI
 %						'commandline':	display progress on the command line
+%		log:		(<true if type is commandline>) true to log the progress to
+%					a file in the user's home directory
 %		n:			(<last n>) number of iterations in the current process
 %		pstart:		(0) the first value in the process
 %		pend:		(pstart+n) the last value in the process
@@ -40,8 +42,8 @@ function varargout = progress(varargin)
 %
 % Note:	on the first call to progress, call using the first syntax.
 % 
-% Updated:	2014-01-07
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-03-11
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 
 %current time
 	tNow	= nowms;
@@ -52,6 +54,7 @@ function varargout = progress(varargin)
 	[v,opt]	= ParseArgs(varargin,[],...
 				'debug'		, false				, ...
 				'type'		, []				, ...
+				'log'		, []				, ...
 				'n'			, []				, ...
 				'p'			, []				, ...
 				'pstart'	, 0					, ...
@@ -83,10 +86,19 @@ function varargout = progress(varargin)
 	if ~IsInited
 		InitAll;
 	end
+
+%should we log to a file?
+	opt.log	= unless(opt.log,strcmp(ifo.type,'commandline'));
 	
 %did the user close the figure?
 	if ~CheckFigure
-		if ~askyesno('Progress bar close. Continue?','title','Continue?','default',false)
+		bDialog		= strcmp(ifo.type,'figure');
+		bContinue	= askyesno('Progress bar close. Continue?',...
+						'dialog'	, bDialog		, ...
+						'title'		, 'Continue?'	, ...
+						'default'	, false			  ...
+						);
+		if ~bContinue
 			ClearAll;
 			error('Aborted by user.');
 		end
@@ -136,55 +148,59 @@ function Redraw
 		elseif tNow>=ifo.tRedraw + 1000/opt.rate
 			ifo.tRedraw	= tNow;
 			
-			switch ifo.type
-				case 'figure'
-					if ~ifo.bSkipFigure
-						%make sure the figure elements exist
-							for kP=1:nProgress
-								if ~ifo.progress.(cProgress{kP}).silent && ~ifo.progress.(cProgress{kP}).bElementInit
-									InitProgressElement(cProgress{kP});
-								end
-							end
-						%reposition everything if necessary
-							if StructureChanged
-								pxPadEdge	= 10;
-								pxPadInner	= 0;
-								pxPadInter	= 8;
-								hLabel		= 21;
-								hBar		= 21;
-								hProgress	= hLabel+pxPadInner+hBar+pxPadInter;
-								
-								nProgressShow	= sum(structfun(@(x) ~x.silent,ifo.progress));
-								
-								pFigure	= MoveElement(ifo.h,'h',nProgressShow*hProgress+2*pxPadEdge,'t',ifo.pFigure.t,'l',ifo.pFigure.l);
-								
-								kPShow	= 0;
-								for kP=1:nProgress
-									if ~ifo.progress.(cProgress{kP}).silent
-										kPShow	= kPShow+1;
-										
-										pLabel	= MoveElement(ifo.progress.(cProgress{kP}).hLabel,'l',pxPadEdge,'w',pFigure.w-2*pxPadEdge,'h',hLabel,'t',(kPShow-1)*hProgress+pxPadEdge);
-										pAxes	= MoveElement(ifo.progress.(cProgress{kP}).hAxes,'l',pxPadEdge,'w',pFigure.w-2*pxPadEdge,'h',hBar,'t',pLabel.t+pLabel.h+pxPadInner);
-									end
-								end
-							end
-						%update progress bars
-							for kP=1:nProgress
-								if ~ifo.progress.(cProgress{kP}).silent
-									f		= ProgressFraction(cProgress{kP});
-									
-									set(ifo.progress.(cProgress{kP}).hPatch,'XData',[0;0;f;f]);
-									set(ifo.progress.(cProgress{kP}).hInfo,'String',ProgressStatus(cProgress{kP}));
-								end
-							end
-						%draw!
-							drawnow;
+			bFigure	= strcmp(ifo.type,'figure');
+			if bFigure && ~ifo.bSkipFigure
+				%make sure the figure elements exist
+					for kP=1:nProgress
+						if ~ifo.progress.(cProgress{kP}).silent && ~ifo.progress.(cProgress{kP}).bElementInit
+							InitProgressElement(cProgress{kP});
+						end
 					end
-				case 'commandline'
-					if IsProgress(opt.name) && Changed
-						nStatus		= status(ProgressStatus(opt.name),'noffset',opt.noffset-2,'silent',ifo.progress.(opt.name).silent);
+				%reposition everything if necessary
+					if StructureChanged
+						pxPadEdge	= 10;
+						pxPadInner	= 0;
+						pxPadInter	= 8;
+						hLabel		= 21;
+						hBar		= 21;
+						hProgress	= hLabel+pxPadInner+hBar+pxPadInter;
+						
+						nProgressShow	= sum(structfun(@(x) ~x.silent,ifo.progress));
+						
+						pFigure	= MoveElement(ifo.h,'h',nProgressShow*hProgress+2*pxPadEdge,'t',ifo.pFigure.t,'l',ifo.pFigure.l);
+						
+						kPShow	= 0;
+						for kP=1:nProgress
+							if ~ifo.progress.(cProgress{kP}).silent
+								kPShow	= kPShow+1;
+								
+								pLabel	= MoveElement(ifo.progress.(cProgress{kP}).hLabel,'l',pxPadEdge,'w',pFigure.w-2*pxPadEdge,'h',hLabel,'t',(kPShow-1)*hProgress+pxPadEdge);
+								pAxes	= MoveElement(ifo.progress.(cProgress{kP}).hAxes,'l',pxPadEdge,'w',pFigure.w-2*pxPadEdge,'h',hBar,'t',pLabel.t+pLabel.h+pxPadInner);
+							end
+						end
 					end
+				%update progress bars
+					for kP=1:nProgress
+						if ~ifo.progress.(cProgress{kP}).silent
+							f		= ProgressFraction(cProgress{kP});
+							
+							set(ifo.progress.(cProgress{kP}).hPatch,'XData',[0;0;f;f]);
+							set(ifo.progress.(cProgress{kP}).hInfo,'String',ProgressStatus(cProgress{kP}));
+						end
+					end
+				%draw!
+					drawnow;
 			end
+			
+			%also show a status message?
+				if IsProgress(opt.name) && Changed
+					bSilent	= bFigure || ifo.progress.(opt.name).silent;
+					nStatus	= status(ProgressStatus(opt.name),...
+								'noffset'	, opt.noffset-2						, ...
+								'logpath'	, ifo.progress.(opt.name).logpath	, ...
+								'silent'	, bSilent							  ...
+								);
+				end
 		end
 	end
 end
@@ -236,22 +252,17 @@ function ClearAll()
 end
 %------------------------------------------------------------------------------%
 function InitAll()
-	strType	= conditional(isempty(opt.type),'figure',opt.type);
+	opt.type	= conditional(DisplayExists,unless(opt.type,'figure'),'commandline');
 	
 	ifo	= struct(...
 					'bStructureChanged'	, true		, ...
 					'bChanged'			, true		, ...
 					'bSkipFigure'		, true		, ...
-					'type'				, strType	, ...
+					'type'				, opt.type	, ...
 					'progress'			, struct	, ...
 					'tRedraw'			, 0			, ...
 					'h'					, []		  ...
 				);
-	
-	%set the appropriate progress type
-		if ~DisplayExists
-			ifo.type	= 'commandline';
-		end
 end
 %------------------------------------------------------------------------------%
 function b = IsInited
@@ -265,10 +276,15 @@ end
 function ClearProgress(strName)
 	if IsProgress(strName)
 		%set a status message
-			if ~ifo.progress.(strName).silent && ifo.progress.(strName).status
-				strTime		= FormatTime(tNow - ifo.progress.(strName).tstart,'H:MM:SS');
-				strStatus	= [ifo.progress.(strName).label ': finished (' strTime ' total)'];
-				nStatus		= status(strStatus,'noffset',opt.noffset-3);
+			if ifo.progress.(strName).status
+				tDiff		= tNow - ifo.progress.(strName).tstart;
+				strTime		= FormatTime(tDiff,'H:MM:SS');
+				strStatus	= sprintf('%s: finished (%s total)',ifo.progress.(strName).label,strTime);
+				nStatus		= status(strStatus,...
+								'noffset'	, opt.noffset-3						, ...
+								'logpath'	, ifo.progress.(strName).logpath	, ...
+								'silent'	, ifo.progress.(strName).silent		  ...
+								);
 			end
 		%clear the figure elements
 			if isequal(ifo.type,'figure')
@@ -297,11 +313,16 @@ function InitProgress(strName)
 		bSilent			= notfalse(opt.silent) || ~bMultiple;
 		
 		%fill in empties
-			if isempty(opt.pend)
-				opt.pend	= opt.pstart + opt.n;
-			end
-			if isempty(opt.ptotal)
-				opt.ptotal	= opt.pend;
+			opt.pend	= unless(opt.pend,opt.pstart + opt.n);
+			opt.ptotal	= unless(opt.ptotal,opt.pend);
+		%get the log path
+			if opt.log
+				strPathLog	= PathUnsplit('~',sprintf('progress_%s',strName),'log');
+				if FileExists(strPathLog)
+					delete(strPathLog);
+				end
+			else
+				strPathLog	= [];
 			end
 		%initialize the progress struct
 			ifo.progress.(opt.name)	= struct(...
@@ -321,12 +342,17 @@ function InitProgress(strName)
 										'tLast'			, 0								, ...
 										'color'			, opt.color						, ...
 										'status'		, opt.status					, ...
+										'logpath'		, strPathLog					, ...
 										'silent'		, bSilent						  ...
 									);
 		%display a status message as the progress starts
-			if ~bSilent && ifo.progress.(opt.name).status
-				strStatus	= [opt.label ': started (' tostring(opt.n) ' total)'];
-				nStatus		= status(strStatus,'noffset',opt.noffset-2);
+			if ifo.progress.(opt.name).status
+				strStatus	= sprintf('%s: started (%d total)',opt.label,opt.n);
+				nStatus		= status(strStatus,...
+								'noffset'	, opt.noffset-2	, ...
+								'logpath'	, strPathLog	, ...
+								'silent'	, opt.silent	  ...
+								);
 			end
 		%initialize the figure elements
 			if ~bSilent

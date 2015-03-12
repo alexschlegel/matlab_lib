@@ -74,9 +74,11 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		WFullness:	(0.1) fullness of W matrices
+	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
 	%		WSum:		(0.2) sum of W columns (sum(W)+CRecurY/X must be <=1)
 	%		WSumTweak:	(false) use altered recurrence with tweaked W column sums
+	%		xCausAlpha:	([]) inter-region causal weight (empty, or 0 <= alpha <= 1)
 	%
 	%					-- Mixing
 	%
@@ -118,9 +120,11 @@ methods
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
 			'WFullness'		, 0.1		, ...
+			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
 			'WSum'			, 0.2		, ...
 			'WSumTweak'		, false		, ...
+			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
 			'analysis'		, 'total'	, ...
@@ -263,8 +267,18 @@ methods
 		end
 	end
 
-	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,W,WZ,sourceIn,destIn,preSourceIn,doDebug)
-		u				= obj.uopt;
+	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
+		if isfield(sW,'WXX')
+			[sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug);
+		else
+			[sourceOut,destOut,preSourceOut] = applyRecurrenceLizierStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug);
+		end
+	end
+
+	function [sourceOut,destOut,preSourceOut] = applyRecurrenceLizierStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
+		u	= obj.uopt;
+		W	= sW.W;
+		WZ	= sW.WZ;
 
 		if u.WSumTweak
 			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
@@ -286,6 +300,13 @@ methods
 				error('Coefficients do not add to one.');
 			end
 		end
+	end
+
+	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
+		u				= obj.uopt;
+		sourceOut		= sW.WXX' * sourceIn + (1-sum(sW.WXX,1)').*randn(u.nSig,1);
+		destOut			= sW.W' * sourceIn + sW.WYY' * destIn + (1-sum(sW.W)'-sum(sW.WYY)').*randn(u.nSig,1);
+		preSourceOut	= preSourceIn;
 	end
 
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
@@ -442,7 +463,7 @@ methods
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 	end
 
-	function [X,Y] = generateFunctionalSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
+	function [X,Y] = generateFunctionalSignals(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 		nTRun	= numel(target{1});	%number of time points per run
 
@@ -450,7 +471,7 @@ methods
 		Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
 
 		for kR=1:u.nRun
-			W	= WBlank;
+			sW.W	= sW.WBlank;
 			for kT=1:nTRun
 				%previous values
 				if kT==1
@@ -464,16 +485,16 @@ methods
 				end
 
 				%X=source, Y=destination, Z=pre-source
-				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,W,WZ,xPrev,yPrev,zPrev,doDebug);
+				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,sW,xPrev,yPrev,zPrev,doDebug);
 
 				%causality matrix for the next sample
 				switch target{kR}{kT}
 					case 'A'
-						W	= WA;
+						sW.W	= sW.WA;
 					case 'B'
-						W	= WB;
+						sW.W	= sW.WB;
 					otherwise
-						W	= WBlank;
+						sW.W	= sW.WBlank;
 				end
 			end
 		end
@@ -484,11 +505,11 @@ methods
 		end
 	end
 
-	function [X,Y] = generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug)
+	function [X,Y] = generateTestSignals(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 
 		%generate the functional signals
-		[X,Y]	= generateFunctionalSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
+		[X,Y]	= generateFunctionalSignals(obj,block,target,sW,doDebug);
 
 		%mix between voxels (if applicable)
 		if u.doMixing
@@ -499,7 +520,31 @@ methods
 		end
 	end
 
-	function [W,WCause] = generateW(obj)
+	function [W,WCause] = generateW(obj,alpha)
+		if obj.uopt.WSmooth
+			[W,WCause]	= generateWPseudoSparse(obj);
+		else
+			[W,WCause]	= generateWSparse(obj);
+		end
+		if ~isempty(alpha)
+			[W,WCause]	= deal(alpha*W,alpha*WCause);
+		end
+	end
+
+	function [W,WCause] = generateWPseudoSparse(obj)
+		u								= obj.uopt;
+		%generate a random WCause
+		WCause							= rand(u.nSigCause);
+		%drive some (or many) elements toward zero (pseudo-sparsity)
+		WCause							= WCause.^(1/u.WFullness);
+		%normalize each column to the specified sum
+		WCause							= WCause*u.WSum./repmat(sum(WCause,1),[u.nSigCause 1]);
+		%insert into the full matrix
+		W								= zeros(u.nSig);
+		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
+	end
+
+	function [W,WCause] = generateWSparse(obj)
 		u								= obj.uopt;
 		WFullness						= u.WFullness;
 
@@ -861,18 +906,30 @@ methods
 		nW										= 4;
 		[cW,cWCause]							= deal(cell(nW,1));
 		for kW=1:nW
-			[cW{kW},cWCause{kW}]				= generateW(obj);
+			[cW{kW},cWCause{kW}]				= generateW(obj,u.xCausAlpha);
 		end
-		[WA,WB,WBlank,WZ]						= deal(cW{:});
-		[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+		[sW.WA,sW.WB,sW.WBlank,sW.WZ]			= deal(cW{:});
+		if ~isempty(u.xCausAlpha)
+			[sW.WXX,WXXCause]					= generateW(obj,1);
+			[sW.WYY,WYYCause]					= generateW(obj,1-u.xCausAlpha);
+		end
 
 		if doDebug
+			[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
 			showTwoWs(obj,WACause,WBCause,'W_A and W_B');
 			showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
+			if isfield(sW,'WXX')
+				showTwoWs(obj,WXXCause,WYYCause,'W_{XX} and W_{YY}');
+			end
 			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
 			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
-			fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
-			fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+			if isfield(sW,'WYY')
+				fprintf('sum(WA)+sum(WYY): %s\n',sprintf('%.3f ',sum(WACause)+sum(WYYCause)));
+				fprintf('sum(WB)+sum(WYY): %s\n',sprintf('%.3f ',sum(WBCause)+sum(WYYCause)));
+			else
+				fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+				fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+			end
 		end
 
 		%block design
@@ -885,7 +942,7 @@ methods
 		end
 
 		%generate test signals
-		[XTest,YTest]	= generateTestSignals(obj,block,target,WA,WB,WBlank,WZ,doDebug);
+		[XTest,YTest]	= generateTestSignals(obj,block,target,sW,doDebug);
 
 		%preprocess and analyze test signals according to analysis mode(s)
 		subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
@@ -1051,6 +1108,22 @@ methods (Static)
 	function summary = textOnlyDebugSimulation(varargin)
 		pipeline	= Pipeline.createDebugPipeline(varargin{:});
 		pipeline	= pipeline.changeOptionDefault('nofigures',true);
+		summary		= pipeline.simulateAllSubjects;
+	end
+
+	% xWDebugSimulation - static method for running debug-pipeline with
+	%                     extra "internal" W matrices
+	%
+	% Syntax:	summary = Pipeline.xWDebugSimulation(<options>)
+	%
+	% In:
+	%	<options>:
+	%		See createDebugPipeline above for description of <options>
+	%
+	function summary = xWDebugSimulation(varargin)
+		pipeline	= Pipeline.createDebugPipeline(varargin{:});
+		pipeline	= pipeline.changeOptionDefault('xCausAlpha',0.8);
+		pipeline	= pipeline.changeOptionDefault('WSum',0.8);
 		summary		= pipeline.simulateAllSubjects;
 	end
 end

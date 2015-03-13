@@ -454,13 +454,19 @@ methods
 		end
 	end
 
-	function [block,target] = generateBlockDesign(obj)
+	function [block,target] = generateBlockDesign(obj,doDebug)
 		u			= obj.uopt;
 		designSeed	= randi(intmax('uint32'));
 		rngState	= rng;
 		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
 		rng(rngState);
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
+
+		if doDebug
+			nTRun	= numel(target{1});	%number of time points per run
+			fprintf('TRs per run: %d\n',nTRun);
+			showBlockDesign(obj,block);
+		end
 	end
 
 	function [X,Y] = generateFunctionalSignals(obj,block,target,sW,doDebug)
@@ -505,7 +511,7 @@ methods
 		end
 	end
 
-	function [X,Y] = generateTestSignals(obj,block,target,sW,doDebug)
+	function [X,Y] = generateSignalsMaybeMixed(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 
 		%generate the functional signals
@@ -517,6 +523,43 @@ methods
 			nT		= nTRun*u.nRun;		%total number of time points
 			X		= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
 			Y		= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+		end
+	end
+
+	function sW = generateStructOfWs(obj,doDebug)
+		u										= obj.uopt;
+
+		%the two causality matrices (and other control causality matrices)
+		%(four causality matrices altogether in the standard case;
+		% possibly two more below if xCausAlpha is non-empty)
+		nW										= 4;
+		[cW,cWCause]							= deal(cell(nW,1));
+		for kW=1:nW
+			[cW{kW},cWCause{kW}]				= generateW(obj,u.xCausAlpha);
+		end
+		[sW.WA,sW.WB,sW.WBlank,sW.WZ]			= deal(cW{:});
+		%two "internal" causality matrices for non-empty xCausAlpha:
+		if ~isempty(u.xCausAlpha)
+			[sW.WXX,WXXCause]					= generateW(obj,1);
+			[sW.WYY,WYYCause]					= generateW(obj,1-u.xCausAlpha);
+		end
+
+		if doDebug
+			[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+			showTwoWs(obj,WACause,WBCause,'W_A and W_B');
+			showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
+			if isfield(sW,'WXX')
+				showTwoWs(obj,WXXCause,WYYCause,'W_{XX} and W_{YY}');
+			end
+			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
+			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
+			if isfield(sW,'WYY')
+				fprintf('sum(WA)+sum(WYY): %s\n',sprintf('%.3f ',sum(WACause)+sum(WYYCause)));
+				fprintf('sum(WB)+sum(WYY): %s\n',sprintf('%.3f ',sum(WBCause)+sum(WYYCause)));
+			else
+				fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+				fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+			end
 		end
 	end
 
@@ -876,7 +919,7 @@ methods
 			summary.lizier.ci			= ci;
 			summary.lizier.stats		= stats;
 			if DEBUG
-				fprintf('Lizier h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
+				fprintf('Lizier h: %d  (ci=[%.4f,%.4f])\n',h,ci(1),ci(2));
 				fprintf('Lizier group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
@@ -890,7 +933,7 @@ methods
 			summary.seth.ci				= ci;
 			summary.seth.stats			= stats;
 			if DEBUG
-				fprintf('Seth h: %.2f%%  (ci=[%.4f,%.4f])\n',100*h,ci(1),ci(2));
+				fprintf('Seth h: %d  (ci=[%.4f,%.4f])\n',h,ci(1),ci(2));
 				fprintf('Seth group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
@@ -901,48 +944,14 @@ methods
 	function subjectStats = simulateSubject(obj,doDebug)
 		u	= obj.uopt;
 
-		%the two causality matrices (and other control causality matrices)
-		%(four causality matrices altogether)
-		nW										= 4;
-		[cW,cWCause]							= deal(cell(nW,1));
-		for kW=1:nW
-			[cW{kW},cWCause{kW}]				= generateW(obj,u.xCausAlpha);
-		end
-		[sW.WA,sW.WB,sW.WBlank,sW.WZ]			= deal(cW{:});
-		if ~isempty(u.xCausAlpha)
-			[sW.WXX,WXXCause]					= generateW(obj,1);
-			[sW.WYY,WYYCause]					= generateW(obj,1-u.xCausAlpha);
-		end
-
-		if doDebug
-			[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
-			showTwoWs(obj,WACause,WBCause,'W_A and W_B');
-			showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
-			if isfield(sW,'WXX')
-				showTwoWs(obj,WXXCause,WYYCause,'W_{XX} and W_{YY}');
-			end
-			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
-			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
-			if isfield(sW,'WYY')
-				fprintf('sum(WA)+sum(WYY): %s\n',sprintf('%.3f ',sum(WACause)+sum(WYYCause)));
-				fprintf('sum(WB)+sum(WYY): %s\n',sprintf('%.3f ',sum(WBCause)+sum(WYYCause)));
-			else
-				fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
-				fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
-			end
-		end
+		%causality matrices
+		sW	= generateStructOfWs(obj,doDebug);
 
 		%block design
-		[block,target] = generateBlockDesign(obj);
-
-		if doDebug
-			nTRun	= numel(target{1});	%number of time points per run
-			fprintf('TRs per run: %d\n',nTRun);
-			showBlockDesign(obj,block);
-		end
+		[block,target] = generateBlockDesign(obj,doDebug);
 
 		%generate test signals
-		[XTest,YTest]	= generateTestSignals(obj,block,target,sW,doDebug);
+		[XTest,YTest]	= generateSignalsMaybeMixed(obj,block,target,sW,doDebug);
 
 		%preprocess and analyze test signals according to analysis mode(s)
 		subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);

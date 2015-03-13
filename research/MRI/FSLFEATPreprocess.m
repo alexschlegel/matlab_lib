@@ -66,7 +66,7 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %	tr			- the TR of each processed data file
 %	cDirFEAT	- the path/cell of paths to preprocessing feat directories
 % 
-% Updated: 2015-03-11
+% Updated: 2015-03-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -142,18 +142,19 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 					opt
 				};
 	
-	[mtO,tr]	= MultiTask(@PreprocessOne,cInput,'uniformoutput',true,'description','Preprocessing functional data using FEAT','nthread',opt.nthread,'silent',opt.silent);
-	switch class(mtO)
-		case 'cell'
-			bSuccess(bProcess)	= cellfun(@notfalse,mtO);
-			
-			tr	= cell2mat(tr);
-		otherwise
-			bSuccess(bProcess)	= arrayfun(@notfalse,mtO);
-	end
+	[mtO,tr]	= MultiTask(@PreprocessOne,cInput,...
+					'description'	, 'Preprocessing functional data using FEAT'	, ...
+					'catch'			, true											, ...
+					'nthread'		, opt.nthread,									, ...
+					'silent'		, opt.silent									  ...
+					);
+	
+	bSuccess(bProcess)	= cellfun(@notfalse,mtO);
+	tr					= cellfun(@(x) unless(x,NaN),tr);
 %uncellify
 	if bNoCell
 		cPathOut	= cPathOut{1};
+		cDirFEAT	= cDirFEAT{1};
 	end
 
 %------------------------------------------------------------------------------%

@@ -1,9 +1,9 @@
 
 for seed=1:3
 
-for doNormVar=0:1
+for normVar=0:2
 
-pp=Pipeline('nRun',100,'normVar',doNormVar);
+pp=Pipeline('nRun',100,'normVar',normVar);
 rng(seed,'twister');
 doDebug=false;
 sW=generateStructOfWs(pp,doDebug);
@@ -19,11 +19,11 @@ for kS=1:2
 	vars=squeeze(var(S,0,2));
 	nFuncSigsToShow=3;
 	%-%%%%%figure; plot(1:size(vars,1),vars(:,1:nFuncSigsToShow));
-	withOrWithout={'with','without'};
+	connective={'without','with weak','with blunt'};
 	title=sprintf(['Variance of %s across runs, '...
 		'%s variance normalization '...
 		'(seed=%d)'],...
-		signame{kS},withOrWithout{2-doNormVar},seed);
+		signame{kS},connective{1+normVar},seed);
 	legend=cell(nFuncSigsToShow,1);
 	for kL=1:nFuncSigsToShow
 		legend{kL}=sprintf('Func sig %d',kL);

@@ -283,7 +283,7 @@ methods
 		WZ	= sW.WZ;
 
 		if u.WSumTweak
-			if u.normVar
+			if u.normVar ~= 0
 				error('Combination WSumTweak and normVar not supported.');
 			end
 			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
@@ -291,14 +291,29 @@ methods
 			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
 			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 		else
-			if u.normVar
-				sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + sqrt(1-(sum(WZ,1).^2)'-u.CRecurX^2).*randn(u.nSig,1);
-				destOut			= u.CRecurY.*destIn + W'*sourceIn + sqrt(1-(sum(W,1).^2)'-u.CRecurY^2).*randn(u.nSig,1);
-				preSourceOut	= u.CRecurZ.*preSourceIn + sqrt(1-u.CRecurZ^2).*randn(u.nSig,u.nSig);
-			else
-				sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
-				destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
-				preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+			switch u.normVar
+				case 0
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
+					destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
+					preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+				case 1
+					sourceOut		= applyVarianceNormalizationToWeightedSum(obj,...
+										{u.CRecurX,sourceIn},...
+										{WZ',preSourceIn},...
+										{1-sum(WZ,1)'-u.CRecurX,randn(u.nSig,1)});
+					destOut			= applyVarianceNormalizationToWeightedSum(obj,...
+										{u.CRecurY,destIn},...
+										{W',sourceIn},...
+										{1-sum(W,1)'-u.CRecurY,randn(u.nSig,1)});
+					preSourceOut	= applyVarianceNormalizationToWeightedSum(obj,...
+										{u.CRecurZ,preSourceIn},...
+										{1-u.CRecurZ,randn(u.nSig,u.nSig)});
+				case 2  % Alternative approach to variance normalization (TODO: remove?)
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + sqrt(1-sum(WZ.^2,1)'-u.CRecurX^2).*randn(u.nSig,1);
+					destOut			= u.CRecurY.*destIn + W'*sourceIn + sqrt(1-sum(W.^2,1)'-u.CRecurY^2).*randn(u.nSig,1);
+					preSourceOut	= u.CRecurZ.*preSourceIn + sqrt(1-u.CRecurZ^2).*randn(u.nSig,u.nSig);
+				otherwise
+					error('Invalid normVar value %d',u.normVar);
 			end
 		end
 
@@ -318,6 +333,36 @@ methods
 		sourceOut		= sW.WXX' * sourceIn + (1-sum(sW.WXX,1)').*randn(u.nSig,1);
 		destOut			= sW.W' * sourceIn + sW.WYY' * destIn + (1-sum(sW.W)'-sum(sW.WYY)').*randn(u.nSig,1);
 		preSourceOut	= preSourceIn;
+	end
+
+	function out = applyVarianceNormalizationToWeightedSum(~,varargin)
+		coeffSigPairs	= varargin;
+		nPair			= numel(coeffSigPairs);
+		if nPair < 1
+			error('No arguments.');
+		end
+		firstPair		= coeffSigPairs{1};
+		sizeSigs		= size(firstPair{2});
+		weightedSum		= zeros(sizeSigs);
+		sumSqCoeffs		= zeros(sizeSigs);
+		for kP=1:nPair
+			pair		= coeffSigPairs{kP};
+			coeff		= pair{1};
+			sig			= pair{2};
+			sqCoeff		= coeff.^2;
+			if all(size(coeff) == size(sig))
+				term	= coeff.*sig;
+			else
+				term	= coeff*sig;
+			end
+			if sizeSigs(2) == 1
+				term	= sum(term,2);
+				sqCoeff	= sum(sqCoeff,2);
+			end
+			weightedSum	= weightedSum + term;
+			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
+		end
+		out				= weightedSum./sqrt(sumSqCoeffs);
 	end
 
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)

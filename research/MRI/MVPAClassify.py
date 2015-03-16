@@ -17,6 +17,7 @@ with warnings.catch_warnings():
 	
 	from sklearn.metrics.pairwise import pairwise_distances
 	from sklearn.utils.linear_assignment_ import linear_assignment
+	from sklearn import linear_model
 	
 	from mvpa2.suite import *
 
@@ -468,37 +469,194 @@ def feature_match(x, y, x_match=None, partition_attr=None, metric='correlation',
 	return x
 
 
-def calculate_information_flow_patterns(ds1, ds2):
-	"""Compute patterns of information flow from one dataset to another. 
-	***
-	, and then classifies based on those patterns. In order
-	for this to work, data from the two datasets must be concatenated into a
-	single dataset which includes a sample attribute to distinguish between
-	the two original datasets. The two datasets must share the same
-	target/chunk structure. Information flow patterns are constructed as
-	follows: First, data from each target, chunk, and dataset are
-	concatenated. Next, for each unique target/chunk, the Granger Causality
-	is computed from each feature of the first dataset to each feature of the
-	second dataset with a lag of one sample.
+def regr_residual(x, y):
+	"""calculate the variance of the residual obtained by using linear
+	retression to predict 1-D signal x from 2-D set of signals y"""
+	regr = linear_model.LinearRegression()
+	regr.fit(x, y)
+	err = regr.predict(x) - y
+	return np.var(err)
+
+
+def construct_lags(x, lags, idx_sample):
+	"""construct the lagged signals to be used in a directed connectivity
+	calculation.
 	
 	Parameters
 	----------
 	x : array
-	  a two-dimensional array
-	y : array
-	  an two-dimensional array with the same number of columns as x
-	metric : str, optional
-	  the distance metric to use (see sklearn's pairwise_distances)
+	  a 1D signal
+	lags : int
+	  the number of lags to use in the directed connectivity calculation
+	idx_sample : array
+	  an array specifying the indices of interest in the array (i.e. the
+	  indices to use for the unlagged signal)
 	
 	Returns
 	-------
-	d : dict
-	  a dict of results, including:
-		'idx': the index array to use to reorder the features of y
-		'negate': in the case of correlation as a metric, the features of y
-			(before re-ordering) that should negated
+	x_lag : array
+	  a num_sample x lags array of the lagged signals
 	"""
-	pass
+	x_lag = [construct_lag(x, lag, idx_sample) for lag in range(1,lags+1)]
+	return hstack(x_lag)
+
+
+def construct_lag(x, lag, idx_sample):
+	"""construct a single lagged signal.
+	
+	Parameters
+	----------
+	x : array
+	  a 1D signal
+	lag : int
+	  the lag to construct
+	idx_sample : array
+	  an array specifying the indices of interest in the array (i.e. the
+	  indices to use for the unlagged signal)
+	
+	Returns
+	-------
+	x_lag : array
+	  the lagged signal
+	"""
+	return x[idx_sample - lag]
+
+
+def granger_causality(src, dst, lags=1, idx_sample=None):
+	"""calculate the granger causality between two signals.
+	
+	Parameters
+	----------
+	src : array
+	  the 1D source signal
+	dst : array
+	  the 1D destination signal
+	lags : int, optional
+	  the number of lags to use in the granger causality calculation
+	idx_sample : array, optional
+	  an array specifying the indices of interest in the array (i.e. the
+	  indices to use for the unlagged signal). default to the entire signal
+	  (starting from idx==lags)
+	
+	Returns
+	-------
+	gc : float
+	  the granger causality from src to dst
+	"""
+	if idx_sample is None:
+		idx_sample = arange(lags,len(src))
+	
+	#construct the lagged signals
+	src_past = construct_lags(src, lags, idx_sample)
+	dst_past = construct_lags(dst, lags, idx_sample)
+	dst_next = construct_lag(dst, 0, idx_sample)
+	
+	#perform linear regression with reduced (just dst) and full (dst and src)
+	#models
+	res_reduced = regr_residual(dst_past, dst_next)
+	res_full = regr_residual(hstack((dst_past, src_past)), dst_next)
+	
+	#granger causality is the log of the ratios of the residuals
+	return np.log(res_reduced / res_full)
+
+
+def compute_directed_connectivity_patterns(ds1, ds2, method='granger', lags=1,
+								targets=None, chunks=None
+								):
+	"""compute patterns of directed connectivity (DC) from one dataset to
+	another. a DC pattern is a graph of the directed connectivity from every
+	feature of the first dataset to every feature of the second dataset. for
+	example, if ds1 has M features and ds2 has N features, then a DC pattern
+	will be an M x N matrix whose i,j component is the directed connectivity
+	from feature i of ds1 to feature j of ds2. ds1 and ds2 must share the
+	same chunk and target structure. one DC pattern is computed for each
+	chunk and target. this function constructs a new dataset with
+	num_chunk * num_target samples, each with M * N features.
+	
+	Parameters
+	----------
+	ds1 : Dataset
+	  a dataset
+	ds2 : Dataset
+	  a second dataset with the same number of samples as ds1, and where each
+	  sample has the same chunk and target as the corresponding sample of ds1
+	  (e.g. ds1 and ds2 were collected simultaneously).
+	method : str, optional
+	  the method to use for computing directed connectivity between two
+	  signals. currenty only 'granger' (Granger-causality) is implemented.
+	lags : int, optional
+	  the number of lags to use in the directed connectivity calculation
+	targets : list, optional
+	  a subset of targets for which to calculate DC patterns (defaults to all
+	  targets)
+	chunks : list, optional
+	  a subset of chunks for which to calculate DC patterns (defaults to all
+	  chunks)
+	
+	Returns
+	-------
+	ds : Dataset
+	  the new Dataset representing the set of DC patterns from ds1 to ds2
+	  (one DC pattern for each unique combination of chunk and target)
+	"""
+	#first do some error checking
+	assert len(ds1)==len(ds2), 'datasets must have the same number of samples'
+	assert np.all(ds1.sa.targets==ds2.sa.targets), 'datasets must have the same targets'
+	assert np.all(ds1.sa.chunks==ds2.sa.chunks), 'datasets must have the same chunks'
+	
+	#parse the inputs
+	if targets is None:
+		targets = ds1.uniquetargets
+	if chunks is None:
+		chunks = np.unique(ds1.sa.chunks[ array([trg in targets for trg in ds1.sa.targets ]) ])
+	
+	#initialize the output dataset
+	num_chunks = len(chunks)
+	num_targets = len(targets)
+	out_num_samples = num_chunks * num_targets
+	out_num_features = ds1.nfeatures * ds2.nfeatures
+	ds = Dataset(np.zeros((out_num_samples,out_num_features)))
+	ds.sa['chunks'] = np.reshape(np.tile(np.reshape(chunks,[num_chunks,1]),num_targets),[out_num_samples,])
+	ds.sa['targets'] = np.tile(targets,num_chunks)
+	keep_samples = np.ones(out_num_samples, dtype=bool)
+	
+	#find the samples belonging to each chunk and target value
+	chunk_samples = [ds1.sa.chunks==chunk for chunk in chunks]
+	target_samples = [ds1.sa.targets==target for target in targets]
+	
+	#calculate the DC pattern for each chunk and target
+	for idx_chunk in range(0,num_chunks):
+		for idx_target in range(0,num_targets):
+			#samples for the current chunk and target
+			loc_sample = chunk_samples[idx_chunk] & target_samples[idx_target]
+			#make sure we don't get anything the will go out of bounds
+			loc_sample[-lags:] = False
+			#get the sample indices
+			idx_sample = np.where( loc_sample )[0]
+			
+			out_idx_sample = num_targets*idx_chunk + idx_target
+			
+			if len(idx_sample)==0:
+				chunk = ds.sa.chunks[out_idx_sample]
+				target = ds.sa.targets[out_idx_sample]
+				keep_samples[out_idx_sample] = False
+				warnings.warn('no samples for chunk=%s and target=%s' % (str(chunk), target))
+				continue
+			
+			for idx_f1 in range(ds1.nfeatures):
+				ds1_feature = ds1.samples[:,[idx_f1]]
+				for idx_f2 in range(ds2.nfeatures):
+					ds2_feature = ds2.samples[:,[idx_f2]]
+					
+					gc = granger_causality(ds1_feature, ds2_feature,
+									lags=lags, idx_sample=idx_sample+lags
+									)
+					
+					out_idx_feature = ds2.nfeatures*idx_f1 + idx_f2
+					
+					ds.samples[out_idx_sample, out_idx_feature] = gc
+	
+	return ds[keep_samples,:]
 
 
 class Locker(object):
@@ -1156,10 +1314,6 @@ class CaptureSelector(ElementSelector):
 
 def preprocess_data_one(param, ds, show_status=True):
 	"""preprocess a single dataset"""
-	#***if we are going to do matched dataset cross-classification with feature
-	#matching, then keep a copy of the data before we start mucking with
-	#samples and features
-	
 	#if we are going to do matched dataset cross-classification with feature
 	#matching, keep a copy of the data before we start to preprocess
 	if param['matchedcrossclassify'] and param['match_features']:
@@ -1178,70 +1332,71 @@ def preprocess_data_one(param, ds, show_status=True):
 		status('z-scoring samples', indent=1, show=show_status)
 		zscore(ds, chunks_attr=param['zscore'])
 	
-	#create a spatiotemporal event-related dataset
-	if param['spatiotemporal']:
-		status('constructing spatiotemporal dataset', indent=1, show=show_status)
-		
-		events = find_events(targets=ds.sa.targets, chunks=ds.sa.chunks)
-		
-		#keep only the events we are interested in
-		events = [ ev for ev in events if ev['targets'] in param['target_subset'] ]
-		
-		ds = eventrelated_dataset(ds, events=events)
-		
-		#fix the custom sample attributes
-		ds.sa.dataset = [x[0] for x in ds.sa.dataset]
-		for key in param['sample_attr']:
-			ds.sa[key] = [x[0] for x in ds.sa[key]]
-	
-	#keep only the targets we are interested in
-	status('including targets: %s' % (", ".join(param['target_subset'])), indent=1, debug='all', show=show_status)
-	ds = ds[array([ trg in param['target_subset'] for trg in ds.sa.targets ])]
-	
-	#average samples of the same target within each chunk (and dataset)
-	if param['average']:
-		status('averaging samples within each chunk', indent=1, show=show_status)
-		
-		attrs = ['targets','chunks']
-		if 'dataset' in ds.sa:
-			attrs.append('dataset')
-		
-		avg = mean_group_sample(attrs)
-		ds  = ds.get_mapped(avg)
-	
-	#make sure we should actually do target balancing
-	param['do_target_balancer'] = False
-	if notfalse(param['target_balancer']):
-		#check whether each chunk's complement has the same number of each target
-		for chunk in ds.uniquechunks:
-			#get the number of each target in the complement
-			chunk_targets = list(ds.targets[ds.chunks != chunk])
-			target_count = [chunk_targets.count(trg) for trg in ds.uniquetargets]
-		
-			#make sure the complement has all the targets
-			target_zero = np.array(target_count) == 0
-			if np.any(target_zero):
-				raise Exception("The following target(s) are not in chunk %d's complement: %s" %
-					(chunk, ", ".join(list(ds.uniquetargets[target_zero]))))
+	if not param['dcclassify']:
+		#create a spatiotemporal event-related dataset
+		if param['spatiotemporal']:
+			status('constructing spatiotemporal dataset', indent=1, show=show_status)
 			
-			#unequal numbers of targets, so yep
-			if len(np.unique(target_count)) != 1:
-				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
-				param['do_target_balancer'] = True
-				break
+			events = find_events(targets=ds.sa.targets, chunks=ds.sa.chunks)
+			
+			#keep only the events we are interested in
+			events = [ ev for ev in events if ev['targets'] in param['target_subset'] ]
+			
+			ds = eventrelated_dataset(ds, events=events)
+			
+			#fix the custom sample attributes
+			ds.sa.dataset = [x[0] for x in ds.sa.dataset]
+			for key in param['sample_attr']:
+				ds.sa[key] = [x[0] for x in ds.sa[key]]
 		
-		#do one last quick and dirty check to see if targets are unbalanced
-		#across the whole dataset
-		if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
-			target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
-			if len(np.unique(target_count)) != 1:
-				status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
-				param['do_target_balancer'] = True
+		#keep only the targets we are interested in
+		status('including targets: %s' % (", ".join(param['target_subset'])), indent=1, debug='all', show=show_status)
+		ds = ds[array([ trg in param['target_subset'] for trg in ds.sa.targets ])]
 		
-		if not param['do_target_balancer']:
-			status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
-	else:
-		status('target balancer not selected', indent=1, debug='all', show=show_status)
+		#average samples of the same target within each chunk (and dataset)
+		if param['average']:
+			status('averaging samples within each chunk', indent=1, show=show_status)
+			
+			attrs = ['targets','chunks']
+			if 'dataset' in ds.sa:
+				attrs.append('dataset')
+			
+			avg = mean_group_sample(attrs)
+			ds  = ds.get_mapped(avg)
+		
+		#make sure we should actually do target balancing
+		param['do_target_balancer'] = False
+		if notfalse(param['target_balancer']):
+			#check whether each chunk's complement has the same number of each target
+			for chunk in ds.uniquechunks:
+				#get the number of each target in the complement
+				chunk_targets = list(ds.targets[ds.chunks != chunk])
+				target_count = [chunk_targets.count(trg) for trg in ds.uniquetargets]
+			
+				#make sure the complement has all the targets
+				target_zero = np.array(target_count) == 0
+				if np.any(target_zero):
+					raise Exception("The following target(s) are not in chunk %d's complement: %s" %
+						(chunk, ", ".join(list(ds.uniquetargets[target_zero]))))
+				
+				#unequal numbers of targets, so yep
+				if len(np.unique(target_count)) != 1:
+					status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
+					param['do_target_balancer'] = True
+					break
+			
+			#do one last quick and dirty check to see if targets are unbalanced
+			#across the whole dataset
+			if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
+				target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
+				if len(np.unique(target_count)) != 1:
+					status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
+					param['do_target_balancer'] = True
+			
+			if not param['do_target_balancer']:
+				status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
+		else:
+			status('target balancer not selected', indent=1, debug='all', show=show_status)
 	
 	return ds
 	
@@ -1250,8 +1405,15 @@ def preprocess_data(param, ds):
 	dataset_indices = np.unique(ds.sa.dataset)
 	dsp = [preprocess_data_one(param, ds[ds.sa.dataset==idx], show_status=idx==1) for idx in dataset_indices]
 	
-	#stack the data
-	ds = vstack(dsp)
+	if param['dcclassify']: #compute a DC pattern dataset
+		#get the targets and chunks we are interested in
+		targets = param['target_subset']
+		status('including targets: %s' % (", ".join(targets)), indent=1, debug='all', show=show_status)
+	
+		#compute the directed connectivity patterns
+		ds = compute_directed_connectivity_patterns(dsp[0], dsp[1], lags=param['dcclassify_lags'], targets=targets)
+	else: #stack the data
+		ds = vstack(dsp)
 	
 	#also stack the feature match dataset
 	if param['matchedcrossclassify'] and param['match_features']:

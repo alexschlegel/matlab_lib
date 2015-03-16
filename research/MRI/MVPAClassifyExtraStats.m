@@ -32,7 +32,7 @@ function stat = MVPAClassifyExtraStats(res,varargin)
 %							(p value based on permutation testing by permuting
 %							labels), nperm (the number of permutations used)
 % 
-% Updated: 2015-03-09
+% Updated: 2015-03-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -45,16 +45,16 @@ opt	= ParseArgs(varargin,...
 opt.confusion_model	= ForceCell(opt.confusion_model);
 nModel				= numel(opt.confusion_model);
 
-%are these MVPAClassify or MVPAROICrossClassify results?
+%are these MVPAClassify or MVPAROI*Classify results?
 	if isfield(res,'mask') && size(res.mask,2)==2
-		strResType	= 'mvparoicrossclassify';
+		strResType	= 'mvparoiclassify';
 	else
 		strResType	= 'mvpaclassify';
 	end
 
 %get the labels
 	switch strResType
-		case 'mvparoicrossclassify'
+		case 'mvparoiclassify'
 			stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
 		otherwise
 			stat.label	= {};
@@ -192,7 +192,7 @@ function stat = ConfusionTest(conf,model,strLevel)
 		switch strLevel
 			case 'group'
 				switch strResType
-					case 'mvparoicrossclassify'
+					case 'mvparoiclassify'
 						cSz		= arrayfun(@(n) ones(n,1),sz(3:end),'uni',false);
 						cConf	= squeeze(mat2cell(conf,sz(1),sz(2),cSz{:}));
 					otherwise
@@ -201,7 +201,7 @@ function stat = ConfusionTest(conf,model,strLevel)
 				end
 			case {'subject','subjectJK'}
 				switch strResType
-					case 'mvparoicrossclassify'
+					case 'mvparoiclassify'
 						cSz		= arrayfun(@(n) ones(n,1),sz(3:end-1),'uni',false);
 						
 						%convert jackknifed versions of the confusion matrices

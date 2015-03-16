@@ -24,7 +24,7 @@ function [gc,subSrc,subDst] = GrangerCausalitySubsets(src, dst, varargin)
 %	subDst	- an nSubsetDst x opt.size array of the variables included in each
 %			  destination subset
 % 
-% Updated: 2015-02-09
+% Updated: 2015-03-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -44,12 +44,12 @@ nVariableSrc	= size(src,2);
 nVariableDst	= size(dst,2);
 
 %get the subsets
-	subSrc		= arrayfun(@(s) handshakes(1:nVariableSrc,s),1:opt.size,'uni',false);
+	subSrc		= arrayfun(@(s) handshakes(1:nVariableSrc,'group',s),1:opt.size,'uni',false);
 	subSrc		= cellfun(@(c) mat2cell(c,ones(size(c,1),1),size(c,2)),subSrc,'uni',false);
 	subSrc		= cat(1,subSrc{:});
 	nSubsetSrc	= size(subSrc,1);
 	
-	subDst		= arrayfun(@(s) handshakes(1:nVariableDst,s),1:opt.size,'uni',false);
+	subDst		= arrayfun(@(s) handshakes(1:nVariableDst,'group',s),1:opt.size,'uni',false);
 	subDst		= cellfun(@(c) mat2cell(c,ones(size(c,1),1),size(c,2)),subDst,'uni',false);
 	subDst		= cat(1,subDst{:});
 	nSubsetDst	= size(subDst,1);

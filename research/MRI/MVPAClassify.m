@@ -8,10 +8,10 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % In:
 % 	cPathData	- the path to the nX x nY x nZ x nSample NIfTI file to analyze,
 %				  or a cell of paths. for classifications that require paired
-%				  datasets (matched dataset cross-classification and information
-%				  flow classification), then this must be a cell whose last
-%				  dimension has size 2. in this case, both datasets must have
-%				  the same target/chunk structure.
+%				  datasets (matched dataset cross-classification and directed
+%				  connectivity classification), then this must be a cell whose
+%				  last dimension has size 2. in this case, both datasets must
+%				  have the same target/chunk structure.
 %	cTarget		- an nSample x 1 cell specifying the target of each sample, or a
 %				  cell of sample cell arrays (one for each dataset)
 %	kChunk		- an nSample x 1 array specifying the chunk of each sample, or a
@@ -57,8 +57,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								sensivities cannot be saved if more than one
 %								classifier is specified.
 %		average:				(false) true to average samples from the same
-%								target and chunk
+%								target and chunk (ignored for directed
+%								connectivity classifications)
 %		spatiotemporal:			(false) true to do a spatiotemporal analysis
+%								(ignored for directed connectivity
+%								classifications)
 %		matchedcrossclassify:	(false) true to perform matched dataset
 %								cross-classification, but only if the data are
 %								formatted as described above. in this case, two
@@ -74,14 +77,16 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %		match_include_blank:	(true) only applies to matched dataset
 %								cross-classifications. true to include blank
 %								samples in the feature matching step
-%		informationflow:		(false) true to perform an information-flow
+%		dcclassify:				(false) true to perform a directed connectivity
 %								classification, but only if the data are
-%								formatted as described above. in this analysis
-%								information flow patterns for each target and
-%								chunk are constructed by calculating the Granger
-%								Causality from each feature of dataset 1 to each
-%								feature of dataset 2. the classification is
-%								performed on these patterns.
+%								formatted as described above. in this analysis,
+%								directed connectivity patterns for each target
+%								and chunk are constructed by calculating the
+%								Granger Causality from each feature of dataset 1
+%								to each feature of dataset 2. the classification
+%								is performed on these patterns.
+%		dcclassify_lags:		(1) the number of lags to use in a directed
+%								connectivity classification
 %		selection:				(1) the number/fraction of features to select
 %								for classification, based on a one-way ANOVA. if
 %								a number less than one is passed, it is
@@ -104,7 +109,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								to skip z-scoring.
 %		target_balancer:		(true) the number of permutations to perform for
 %								unbalanced targets. set to false to skip target
-%								balancing.
+%								balancing. this is ignored for directed
+%								connectivity classifications.
 %		mean_control:			(false) true to perform a control classification
 %								on the mean pattern values
 %		sample_attr:			(<none>) a struct of nSample x 1 arrays (or
@@ -151,8 +157,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % Out:
 % 	res	- a struct array of analysis results
 % 
-% Updated: 2015-01-24
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -173,7 +179,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'matchedcrossclassify'	, false			, ...
 			'match_features'		, false			, ...
 			'match_include_blank'	, true			, ...
-			'informationflow'		, false			, ...
+			'dcclassify'			, false			, ...
+			'dcclassify_lags'		, 1				, ...
 			'selection'				, 1				, ...
 			'save_selected'			, false			, ...
 			'target_subset'			, {}			, ...
@@ -217,11 +224,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 	%classification?
 		szData						= size(cPathData);
 		bPairedDataset				= iscell(cPathData) && szData(end)==2;
-		opt.informationflow			= opt.informationflow && bPairedDataset;
-		opt.matchedcrossclassify	= ~opt.informationflow && opt.matchedcrossclassify && bPairedDataset;
+		opt.dcclassify				= opt.dcclassify && bPairedDataset;
+		opt.matchedcrossclassify	= ~opt.dcclassify && opt.matchedcrossclassify && bPairedDataset;
 		
-		if opt.matchedcrossclassify || opt.informationflow
-			strAnalysis	= conditional(opt.informationflow,'Information-flow Classification','Matched Dataset Cross-classification');
+		if opt.matchedcrossclassify || opt.dcclassify
+			strAnalysis	= conditional(opt.dcclassify,'Directed Connectivity Classification','Matched Dataset Cross-classification');
 			status(sprintf('%s will be performed since last dimension of the data has size 2.',strAnalysis),'silent',opt.silent);
 			
 			%reformat data as a cell of 2x1 cells of file paths

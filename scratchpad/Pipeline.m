@@ -73,6 +73,7 @@ methods
 	%		CRecurX:	(0.1) recurrence coefficient (should be <= 1)
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
+	%		normVar:	(false) normalize signal variances (approximately)
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
@@ -119,6 +120,7 @@ methods
 			'CRecurX'		, 0.1		, ...
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
+			'normVar'		, false		, ...
 			'WFullness'		, 0.1		, ...
 			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
@@ -281,14 +283,23 @@ methods
 		WZ	= sW.WZ;
 
 		if u.WSumTweak
+			if u.normVar
+				error('Combination WSumTweak and normVar not supported.');
+			end
 			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
 			sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-tweakedWSum-u.CRecurX).*randn(u.nSig,1);
 			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
 			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 		else
-			sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
-			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
-			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+			if u.normVar
+				sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + sqrt(1-(sum(WZ,1).^2)'-u.CRecurX^2).*randn(u.nSig,1);
+				destOut			= u.CRecurY.*destIn + W'*sourceIn + sqrt(1-(sum(W,1).^2)'-u.CRecurY^2).*randn(u.nSig,1);
+				preSourceOut	= u.CRecurZ.*preSourceIn + sqrt(1-u.CRecurZ^2).*randn(u.nSig,u.nSig);
+			else
+				sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
+				destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
+				preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+			end
 		end
 
 		if doDebug && ~u.WSumTweak

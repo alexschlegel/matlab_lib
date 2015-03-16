@@ -143,7 +143,7 @@ nScript					= numel(cScript);
 				progress(nScript,'label',opt.description,'status',true,'silent',opt.silent);
 			end
 			for kS=1:nScript
-				[vExitCode(kS),cOutput{kS}]	= RunOne(cPathMetaScript{kS},cPathLogTemp{kS});
+				[vExitCode(kS),cOutput{kS}]	= RunOne(cPathMetaScript{kS},cPathLogTemp{kS},opt);
 				
 				if ~opt.silent
 					progress;

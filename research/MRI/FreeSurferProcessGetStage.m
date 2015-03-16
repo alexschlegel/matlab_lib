@@ -25,59 +25,53 @@ function kStage = FreeSurferProcessGetStage(cDirFreeSurfer,varargin)
 %							2.5: autorecon2 has been checked
 %							3:   autorecon3 has been run
 % 
-% Updated: 2012-03-12
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+persistent kStageAll nStage cDirStage cFileStage
+
+if isempty(kStageAll)
+	kStageAll	= [-1 0 1 1.5 2 2.5 3 4];
+	nStage		= numel(kStageAll);
+	
+	cDirStage	=	{
+						{'mri'}
+						{'mri'}
+						{'surf'}
+						{}
+						{'stats'}
+						{}
+					};
+	cFileStage	=	{
+						{'001'				'mgz'}
+						{'brainmask'		'mgz}
+						{'stage1checked'	''}
+						{'rh'				'inflated.K'}
+						{'stage2checked'	''}
+						{'wmparc'			'stats'}
+					};
+end
+
 opt			= ParseArgs(varargin,...
 				'offset'	, 0		, ...
 				'silent'	, false	  ...
 				);
-kStageAll	= [-1 0 1 1.5 2 2.5 3 4];
-nStage		= numel(kStageAll);
 
 cDirFreeSurfer	= ForceCell(cDirFreeSurfer);
 sDir			= size(cDirFreeSurfer);
 
-kStage	= -1*ones(sDir);
+kStage	= kStageAll(1)*ones(sDir);
 bCheck	= true(sDir);
 
-%check for stage 3
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,'stats'),'wmparc','stats')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 3;
-	bCheck(bInStage)	= false;
-%check for stage 2.5
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(d,'stage2checked','')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 2.5;
-	bCheck(bInStage)	= false;
-%check for stage 2
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,'surf'),'rh','inflated.K')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 2;
-	bCheck(bInStage)	= false;
-%check for stage 1.5
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(d,'stage1checked','')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 1.5;
-	bCheck(bInStage)	= false;
-%check for stage 1
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,'mri'),'brainmask','mgz')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 1;
-	bCheck(bInStage)	= false;
-%check for stage 0
-	bInStage			= bCheck;
-	bInStage(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,'mri','orig'),'001','mgz')),cDirFreeSurfer(bCheck));
-	
-	kStage(bInStage)	= 0;
-	bCheck(bInStage)	= false;
+%check for each stage
+	for kS=nStage-1:-1:2
+		bCheckCur			= bCheck;
+		bCheckCur(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,cDirStage{kS}{:}),cFileStage{kS}{:})),cDirFreeSurfer(bCheck));
+		
+		kStage(bCheckCur)	= kStageAll(kS);
+		bCheck(bCheckCur)	= false;
+	end
 
 %add the offset
 	[b,kkStage]	= ismember(kStage,kStageAll);

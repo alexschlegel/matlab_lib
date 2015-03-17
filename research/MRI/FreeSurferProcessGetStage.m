@@ -32,23 +32,21 @@ function kStage = FreeSurferProcessGetStage(cDirFreeSurfer,varargin)
 persistent kStageAll nStage cDirStage cFileStage
 
 if isempty(kStageAll)
-	kStageAll	= [-1 0 0 1 1.5 2 2.5 3 4];
+	kStageAll	= [-1 0 1 1.5 2 2.5 3 4];
 	nStage		= numel(kStageAll);
 	
 	cDirStage	=	{
-						{}
-						{'mri' 'orig'}
-						{'mri'}
-						{'mri'}
-						{}
-						{'surf'}
-						{}
-						{'stats'}
-						{}
+						{{}}
+						{{'mri' 'orig'} {'mri'}}
+						{{'mri'}}
+						{{}}
+						{{'surf'}}
+						{{}}
+						{{'stats'}}
+						{{}}
 					};
 	cFileStage	=	{
 						{}
-						{'001'				'mgz'}
 						{'001'				'mgz'}
 						{'brainmask'		'mgz'}
 						{'stage1checked'	''}
@@ -73,7 +71,7 @@ bCheck	= true(sDir);
 %check for each stage
 	for kS=nStage-1:-1:2
 		bCheckCur			= bCheck;
-		bCheckCur(bCheck)	= cellfun(@(d) FileExists(PathUnsplit(DirAppend(d,cDirStage{kS}{:}),cFileStage{kS}{:})),cDirFreeSurfer(bCheck));
+		bCheckCur(bCheck)	= CheckStageFiles(cDirFreeSurfer(bCheck),cDirStage{kS},cFileStage{kS});
 		
 		kStage(bCheckCur)	= kStageAll(kS);
 		bCheck(bCheckCur)	= false;
@@ -83,3 +81,18 @@ bCheck	= true(sDir);
 	[b,kkStage]	= ismember(kStage,kStageAll);
 	kkStage		= kkStage + opt.offset;
 	kStage		= kStageAll(kkStage);
+
+%------------------------------------------------------------------------------%
+function b = CheckStageFiles(cDirFreeSurfer,cDirCheck,cFileCheck)
+	nDirFS		= numel(cDirFreeSurfer);
+	nDirCheck	= numel(cDirCheck);
+	
+	b	= false(nDirFS,1);
+	for kD=1:nDirCheck
+		cDirCur		= cDirCheck{kD};
+		
+		bCheck		= ~b;
+		cPathCheck	= cellfun(@(d) PathUnsplit(DirAppend(d,cDirCur{:}),cFileCheck{:}),cDirFreeSurfer(bCheck),'uni',false);
+		b(bCheck)	= cellfun(@FileExists,cPathCheck);
+	end
+%------------------------------------------------------------------------------%

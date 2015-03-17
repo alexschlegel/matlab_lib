@@ -90,6 +90,7 @@ methods
 	%
 	%		analysis:	('total') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
+	%		loadJavaTE:	(false) Load Lizier's infodynamics JAR for calculating TE
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
 	%
@@ -131,6 +132,7 @@ methods
 			'noiseMix'		, 0.1		, ...
 			'analysis'		, 'total'	, ...
 			'kraskov_k'		, 4			, ...
+			'loadJavaTE'	, false		, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
@@ -150,7 +152,7 @@ methods
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
 		obj.explicitOptionNames	= varargin(1:2:end);
-		if isempty(obj.infodyn_teCalc)
+		if isempty(obj.infodyn_teCalc) && opt.loadJavaTE
 			try
 				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
 			catch err
@@ -755,6 +757,9 @@ methods
 		end
 		if isfield(opt,'WSumTweak') && opt.WSumTweak
 			cNote{end+1}	= 'wstwk';
+		end
+		if isfield(opt,'normVar') && opt.normVar ~= 0
+			cNote{end+1}	= sprintf('normVar=%d',opt.normVar);
 		end
 		note		= strjoin(cNote,',');
 	end

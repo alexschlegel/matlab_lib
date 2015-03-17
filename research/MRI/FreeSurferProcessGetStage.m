@@ -36,20 +36,24 @@ if isempty(kStageAll)
 	nStage		= numel(kStageAll);
 	
 	cDirStage	=	{
+						{}
 						{'mri'}
 						{'mri'}
+						{}
 						{'surf'}
 						{}
 						{'stats'}
 						{}
 					};
 	cFileStage	=	{
+						{}
 						{'001'				'mgz'}
-						{'brainmask'		'mgz}
+						{'brainmask'		'mgz'}
 						{'stage1checked'	''}
 						{'rh'				'inflated.K'}
 						{'stage2checked'	''}
 						{'wmparc'			'stats'}
+						{}
 					};
 end
 

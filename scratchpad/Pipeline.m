@@ -28,6 +28,8 @@ properties
 	uopt
 end
 properties (SetAccess = private)
+	version				= struct('pipeline',20150317,...
+							'capsuleFormat',20150317)
 	analyses			= {'alex','lizier','seth'}
 	explicitOptionNames
 	infodyn_teCalc
@@ -74,6 +76,7 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		normVar:	(false) normalize signal variances (approximately)
+	%		preSource:	(true) include pre-source causal effects
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
@@ -122,6 +125,7 @@ methods
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
 			'normVar'		, false		, ...
+			'preSource'		, true		, ...
 			'WFullness'		, 0.1		, ...
 			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
@@ -284,6 +288,10 @@ methods
 		W	= sW.W;
 		WZ	= sW.WZ;
 
+		if ~u.preSource
+			WZ(:)	= 0;
+		end
+
 		if u.WSumTweak
 			if u.normVar ~= 0
 				error('Combination WSumTweak and normVar not supported.');
@@ -332,6 +340,9 @@ methods
 
 	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
 		u				= obj.uopt;
+		if u.WSumTweak || u.normVar ~= 0 || u.preSource
+			error('WSumTweak, normVar, and preSource not supported for non-empty xCausAlpha.');
+		end
 		sourceOut		= sW.WXX' * sourceIn + (1-sum(sW.WXX,1)').*randn(u.nSig,1);
 		destOut			= sW.W' * sourceIn + sW.WYY' * destIn + (1-sum(sW.W)'-sum(sW.WYY)').*randn(u.nSig,1);
 		preSourceOut	= preSourceIn;
@@ -725,7 +736,8 @@ methods
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
 		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
-		capsule.format		= 2;
+		capsule.format		= 2; %TODO: remove
+		capsule.version		= obj.version;
 		capsule.plotSpec	= plotSpec;
 		capsule.opt			= obj.uopt;
 		capsule.result		= cResult;
@@ -761,6 +773,9 @@ methods
 		if isfield(opt,'normVar') && opt.normVar ~= 0
 			cNote{end+1}	= sprintf('normVar=%d',opt.normVar);
 		end
+		if isfield(opt,'preSource') && opt.preSource == 0
+			cNote{end+1}	= '~preSrc';
+		end
 		note		= strjoin(cNote,',');
 	end
 
@@ -773,6 +788,7 @@ methods
 			error('Invalid capsule cell dimensions.');
 		end
 		cap1		= cCapsule{1};
+		%TODO: if cap1.version.capsuleFormat ~= obj.version.capsuleFormat
 		if cap1.format ~= 2
 			error('Incompatible capsule format.');
 		end

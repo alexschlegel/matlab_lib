@@ -32,11 +32,12 @@ function kStage = FreeSurferProcessGetStage(cDirFreeSurfer,varargin)
 persistent kStageAll nStage cDirStage cFileStage
 
 if isempty(kStageAll)
-	kStageAll	= [-1 0 1 1.5 2 2.5 3 4];
+	kStageAll	= [-1 0 0 1 1.5 2 2.5 3 4];
 	nStage		= numel(kStageAll);
 	
 	cDirStage	=	{
 						{}
+						{'mri' 'orig'}
 						{'mri'}
 						{'mri'}
 						{}
@@ -47,6 +48,7 @@ if isempty(kStageAll)
 					};
 	cFileStage	=	{
 						{}
+						{'001'				'mgz'}
 						{'001'				'mgz'}
 						{'brainmask'		'mgz'}
 						{'stage1checked'	''}

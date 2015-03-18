@@ -1363,40 +1363,6 @@ def preprocess_data_one(param, ds, show_status=True):
 			
 			avg = mean_group_sample(attrs)
 			ds  = ds.get_mapped(avg)
-		
-		#make sure we should actually do target balancing
-		param['do_target_balancer'] = False
-		if notfalse(param['target_balancer']):
-			#check whether each chunk's complement has the same number of each target
-			for chunk in ds.uniquechunks:
-				#get the number of each target in the complement
-				chunk_targets = list(ds.targets[ds.chunks != chunk])
-				target_count = [chunk_targets.count(trg) for trg in ds.uniquetargets]
-			
-				#make sure the complement has all the targets
-				target_zero = np.array(target_count) == 0
-				if np.any(target_zero):
-					raise Exception("The following target(s) are not in chunk %d's complement: %s" %
-						(chunk, ", ".join(list(ds.uniquetargets[target_zero]))))
-				
-				#unequal numbers of targets, so yep
-				if len(np.unique(target_count)) != 1:
-					status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
-					param['do_target_balancer'] = True
-					break
-			
-			#do one last quick and dirty check to see if targets are unbalanced
-			#across the whole dataset
-			if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
-				target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
-				if len(np.unique(target_count)) != 1:
-					status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
-					param['do_target_balancer'] = True
-			
-			if not param['do_target_balancer']:
-				status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
-		else:
-			status('target balancer not selected', indent=1, debug='all', show=show_status)
 	
 	return ds
 	
@@ -1414,6 +1380,40 @@ def preprocess_data(param, ds):
 		ds = compute_directed_connectivity_patterns(dsp[0], dsp[1], lags=param['dcclassify_lags'], targets=targets)
 	else: #stack the data
 		ds = vstack(dsp)
+	
+	#make sure we should actually do target balancing
+	param['do_target_balancer'] = False
+	if notfalse(param['target_balancer']):
+		#check whether each chunk's complement has the same number of each target
+		for chunk in ds.uniquechunks:
+			#get the number of each target in the complement
+			chunk_targets = list(ds.targets[ds.chunks != chunk])
+			target_count = [chunk_targets.count(trg) for trg in ds.uniquetargets]
+		
+			#make sure the complement has all the targets
+			target_zero = np.array(target_count) == 0
+			if np.any(target_zero):
+				raise Exception("The following target(s) are not in chunk %d's complement: %s" %
+					(chunk, ", ".join(list(ds.uniquetargets[target_zero]))))
+			
+			#unequal numbers of targets, so yep
+			if len(np.unique(target_count)) != 1:
+				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
+				param['do_target_balancer'] = True
+				break
+		
+		#do one last quick and dirty check to see if targets are unbalanced
+		#across the whole dataset
+		if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
+			target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
+			if len(np.unique(target_count)) != 1:
+				status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
+				param['do_target_balancer'] = True
+		
+		if not param['do_target_balancer']:
+			status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
+	else:
+		status('target balancer not selected', indent=1, debug='all', show=show_status)
 	
 	#also stack the feature match dataset
 	if param['matchedcrossclassify'] and param['match_features']:

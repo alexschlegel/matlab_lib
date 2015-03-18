@@ -1,14 +1,10 @@
-function res = MVPAROICrossClassify(varargin)
-% MVPAROICrossClassify
+function res = MVPAROIClassify(varargin)
+% MVPAROIClassify
 % 
-% Description:	perform an ROI cross-classification analysis, in which a
-%				classifier is trained on data from one ROI and tested on data
-%				from another. PCA (via FSL's MELODIC) is performed on each ROI's
-%				dataset first, in order to establish feature spaces with the
-%				same dimensionality. Cross-classification is performed for every
-%				pair in the set of specified masks.
+% Description:	perform an ROI classification analysis. PCA (via FSL's MELODIC)
+%				is optionally performed on each ROI's dataset first.
 % 
-% Syntax:	res = MVPAROICrossClassify(<options>)
+% Syntax:	res = MVPAROIClassify(<options>)
 % 
 % In:
 % 	<options>:
@@ -18,7 +14,6 @@ function res = MVPAROICrossClassify(varargin)
 %		melodic:	(true) true to perform MELODIC on the extracted ROIs before
 %					classification
 %		pcaonly:	(true) (see FSLMELODIC)
-%		dim:		(50) (see FSLMELODIC)
 %		targets:	(<required>) a cell specifying the target for each sample,
 %					or a cell of cells (one for each dataset)
 %		chunks:		(<required>) an array specifying the chunks for each sample,
@@ -35,7 +30,7 @@ function res = MVPAROICrossClassify(varargin)
 %
 % Example:
 %	cMask	= {'dlpfc';'occ';'ppc'};
-%	res = MVPAROICrossClassify(...
+%	res = MVPAROIClassify(...
 %			'dir_data'			, strDirData	, ...
 %			'subject'			, cSubject		, ...
 %			'mask'				, cMask			, ...
@@ -74,8 +69,7 @@ function res = MVPAROICrossClassify(varargin)
 %extract the ROI data
 	if opt.melodic
 		opt_melodic	= optadd(sPath.opt_extra,...
-						'pcaonly'	, true	, ...
-						'dim'		, 50	  ...
+						'pcaonly'	, true	  ...
 						);
 		opt_melodic	= optreplace(opt_melodic,...
 						'path_functional'	, sPath.functional	, ...
@@ -98,25 +92,24 @@ function res = MVPAROICrossClassify(varargin)
 		cPathDataROI	= fMRIROI(opt_roi);
 	end
 
-%construct every pair of ROIs
+%get the ROI names
 	cSession					= sPath.functional_session;
 	[cPathDataROI,cMaskName]	= varfun(@(x) ForceCell(x,'level',2),cPathDataROI,sPath.mask_name);
 	
-	[cPathDataPair,kShake]	= cellfun(@handshakes,cPathDataROI,'uni',false);
-	cNamePair				= cellfun(@(s,cm,ks) arrayfun(@(k) sprintf('%s-%s-%s',s,cm{ks(k,:)}),(1:size(ks,1))','uni',false),cSession,cMaskName,kShake,'uni',false);
+	cNameROI	= cellfun(@(s,cm) cellfun(@(m) sprintf('%s-%s',s,m),cm,'uni',false),cSession,cMaskName,'uni',false);
 
 %classify!
 	%get a target/chunk pair for each classification
 		cTarget	= ForceCell(opt.targets,'level',2);
 		kChunk	= ForceCell(opt.chunks);
 		
-		[cPathDataPair,cTarget,kChunk]	= FillSingletonArrays(cPathDataPair,cTarget,kChunk);
+		[cPathDataROI,cTarget,kChunk]	= FillSingletonArrays(cPathDataROI,cTarget,kChunk);
 		
-		cTargetRep	= cellfun(@(d,t) repmat({t},[size(d,1) 1]),cPathDataPair,cTarget,'uni',false);
-		kChunkRep	= cellfun(@(d,c) repmat({c},[size(d,1) 1]),cPathDataPair,kChunk,'uni',false);
+		cTargetRep	= cellfun(@(d,t) repmat({t},[size(d,1) 1]),cPathDataROI,cTarget,'uni',false);
+		kChunkRep	= cellfun(@(d,c) repmat({c},[size(d,1) 1]),cPathDataROI,kChunk,'uni',false);
 	
 		%flatten for MVPAClassify
-			[cPathDataFlat,cTargetFlat,kChunkFlat,cNameFlat]	= varfun(@(x) cat(1,x{:}),cPathDataPair,cTargetRep,kChunkRep,cNamePair);
+			[cPathDataFlat,cTargetFlat,kChunkFlat,cNameFlat]	= varfun(@(x) cat(1,x{:}),cPathDataROI,cTargetRep,kChunkRep,cNameROI);
 	
 	opt_mvpa	= optadd(sPath.opt_extra,...
 					'output_prefix'	, cNameFlat	, ...
@@ -126,12 +119,10 @@ function res = MVPAROICrossClassify(varargin)
 	bCombine	= opt_mvpa.combine;
 	bGroupStats	= opt_mvpa.group_stats;
 	opt_mvpa	= optreplace(opt_mvpa,...
-					'matchedcrossclassify'	, true			, ...
-					'match_features'		, true			, ...
-					'combine'				, false			, ...
-					'nthread'				, opt.nthread	, ...
-					'force'					, opt.force		, ...
-					'silent'				, opt.silent	  ...
+					'combine'			, false			, ...
+					'nthread'			, opt.nthread	, ...
+					'force'				, opt.force		, ...
+					'silent'			, opt.silent	  ...
 					);
 					
 	res	= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
@@ -140,14 +131,13 @@ function res = MVPAROICrossClassify(varargin)
 	if bCombine
 		try
 			nSubject	= numel(sPath.functional);
-			cMask		= reshape(cMaskName{1},1,[]);
-			cMaskPair	= cMask(kShake{1});
-			nMaskPair	= size(cMaskPair,1);
+			cMask		= reshape(cMaskName{1},[],1);
+			nMask		= numel(cMask);
 			
-			sCombine	= [nMaskPair nSubject];
+			sCombine	= [nMask nSubject];
 			
 			res			= structtreefun(@CombineResult,res{:});
-			res.mask	= cMaskPair;
+			res.mask	= cMask;
 		catch me
 			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
 		end

@@ -12,6 +12,7 @@ function res = MVPAROIDCClassify(varargin)
 % 
 % In:
 % 	<options>:
+%		<+ options for MRIParseDataPaths>
 %		<+ options for FSLMELODIC/fMRIROI>
 %		<+ options for MVPAClassify>
 %		melodic:	(true) true to perform MELODIC on the extracted ROIs before
@@ -45,7 +46,7 @@ function res = MVPAROIDCClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-13
+% Updated: 2015-03-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

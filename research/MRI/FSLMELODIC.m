@@ -15,8 +15,8 @@ function sOut = FSLMELODIC(varargin)
 % 	cPathData	- the path or cell of paths to 4D NIfTI data files
 %	<options>: see the melodic command line tool for more (and inadequate) help
 %				on these options
-%		<+ options for MRIParseDataPaths> (use masks options to restrict
-%			melodic computation to ROIs)
+%		<+ options for MRIParseDataPaths> (use masks option to restrict melodic
+%			computation to ROIs)
 %		dir_out:		(<auto>) the output directory/cell of directories
 %		pcaonly:		(false) true to return the PCA components & weights
 %		dim:			(<auto>) number of dimensions for the dimension-
@@ -47,7 +47,7 @@ function sOut = FSLMELODIC(varargin)
 %			dir_out:	the output directory(ies)
 %			path_data:	the output data path(s)
 % 
-% Updated: 2015-03-09
+% Updated: 2015-03-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

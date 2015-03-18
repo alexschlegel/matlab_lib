@@ -107,7 +107,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								array to use as a custom attribute (or a cell of
 %								arrays, one for each dataset). set to false
 %								to skip z-scoring.
-%		target_balancer:		(true) the number of permutations to perform for
+%		target_balancer:		(10) the number of permutations to perform for
 %								unbalanced targets. set to false to skip target
 %								balancing. this is ignored for directed
 %								connectivity classifications.
@@ -157,7 +157,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % Out:
 % 	res	- a struct array of analysis results
 % 
-% Updated: 2015-03-13
+% Updated: 2015-03-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

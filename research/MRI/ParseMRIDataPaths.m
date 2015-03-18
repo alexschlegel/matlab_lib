@@ -19,9 +19,12 @@ function s = MRIParseDataPaths(varargin)
 %							<dir_functional> and <file_functional>.
 %		dir_mask:			({<dir_data>/mask/<subject>}) a cell of mask data
 %							directories. overrides <dir_data> and <subject>.
-%		path_mask:			({<dir_mask>/<mask>.nii.gz}) a cell of cells of
-%							paths to mask data. overrides <dir_mask> and
-%							<masks>.
+%		mask_variant:		([]) the name of a mask variant, if subdirectories
+%							of the mask directories exist with the mask variants
+%							to use (i.e. <dir_mask>/<mask_variant>/*)
+%		path_mask:			({<dir_mask>/[<mask_variant>/]<mask>.nii.gz}) a cell
+%							of cells of paths to mask data. overrides <dir_mask>
+%							and <masks>.
 %		require:			(<none>) a cell of data path types ('functional' or
 %							'mask') to require
 %		mask_type:			('nested') a string specifying how the <mask>
@@ -35,7 +38,7 @@ function s = MRIParseDataPaths(varargin)
 % Out:
 % 	s	- a struct of user-specified path info
 % 
-% Updated: 2015-03-06
+% Updated: 2015-03-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -49,6 +52,7 @@ opt	= ParseArgs(varargin,...
 		'file_functional'	, 'data_cat'	, ...
 		'path_functional'	, []			, ...
 		'dir_mask'			, []			, ...
+		'mask_variant'		, []			, ...
 		'path_mask'			, []			, ...
 		'require'			, {}			, ...
 		'mask_type'			, 'nest'		  ...
@@ -97,6 +101,10 @@ s.opt_extra	= opt.opt_extra;
 			[cDirMask,bNoCellDir]	= ForceCell(opt.dir_mask);
 			
 			s.cell_input.mask	= ~bNoCellDir;
+		end
+		
+		if ~isempty(opt.mask_variant)
+			cDirMask	= cellfun(@(d) DirAppend(d,opt.mask_variant),cDirMask,'uni',false);
 		end
 		
 		switch strMaskType

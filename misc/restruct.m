@@ -25,7 +25,7 @@ function s = restruct(s,varargin)
 	if iscell(s)
 		c	= cellnestflatten(s);
 		
-		if ~isempty(c) && all(cellfun(@isstruct,c)) && uniform(cellfun(@fieldnames,c));
+		if ~isempty(c) && all(cellfun(@isstruct,c)) && uniform(cellfun(@fieldnames,c,'uni',false));
 			cField	= fieldnames(c{1});
 			
 			%invert the array

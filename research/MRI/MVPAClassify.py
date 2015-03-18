@@ -1408,7 +1408,7 @@ def preprocess_data(param, ds):
 	if param['dcclassify']: #compute a DC pattern dataset
 		#get the targets and chunks we are interested in
 		targets = param['target_subset']
-		status('including targets: %s' % (", ".join(targets)), indent=1, debug='all', show=show_status)
+		status('including targets: %s' % (", ".join(targets)), indent=1, debug='all')
 	
 		#compute the directed connectivity patterns
 		ds = compute_directed_connectivity_patterns(dsp[0], dsp[1], lags=param['dcclassify_lags'], targets=targets)

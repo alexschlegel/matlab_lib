@@ -35,7 +35,7 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK		- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-03-16
+% Updated: 2015-03-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 BASE_PORT = 30000;
 
@@ -142,6 +142,13 @@ function MultiTaskParallel()
 %distribute the jobs amongst a group of workers
 	%open the pool
 		nPool 		= Pool('open');
+		
+		if nPool==1
+			Pool('close');
+			MultiTaskSerial;
+			return;
+		end
+		
 		bSentTask	= false(nPool, 1);
 	
 	%get the tcp/ip ports to use
@@ -223,8 +230,6 @@ function MultiTaskParallel()
 	%merge the outputs
 		if ~bError
 			cOut = cellfun(@(varargin) cat(2,varargin{:}), CompositeOut{:},'uni',false);
-			
-			x	= cOut;%***
 			
 			bBlank			= cellfun(@isempty,cOut);
 			cOut(bBlank)	= {cell(nOut,1)};

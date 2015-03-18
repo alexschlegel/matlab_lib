@@ -1398,7 +1398,7 @@ def preprocess_data(param, ds):
 			
 			#unequal numbers of targets, so yep
 			if len(np.unique(target_count)) != 1:
-				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all', show=show_status)
+				status("unbalanced targets in chunk %d's complement, using target balancer" % (chunk), indent=1, debug='all')
 				param['do_target_balancer'] = True
 				break
 		
@@ -1407,13 +1407,13 @@ def preprocess_data(param, ds):
 		if not param['do_target_balancer'] and isinstance(param['partitioner'],NFoldPartitioner) and param['partitioner'].cvtype > 1:
 			target_count = [ds.targets.count(trg) for trg in ds.uniquetargets]
 			if len(np.unique(target_count)) != 1:
-				status('unbalanced targets, using target balancer', indent=1, debug='all', show=show_status)
+				status('unbalanced targets, using target balancer', indent=1, debug='all')
 				param['do_target_balancer'] = True
 		
 		if not param['do_target_balancer']:
-			status('target balancer selected but not needed', indent=1, debug='all', show=show_status)
+			status('target balancer selected but not needed', indent=1, debug='all')
 	else:
-		status('target balancer not selected', indent=1, debug='all', show=show_status)
+		status('target balancer not selected', indent=1, debug='all')
 	
 	#also stack the feature match dataset
 	if param['matchedcrossclassify'] and param['match_features']:

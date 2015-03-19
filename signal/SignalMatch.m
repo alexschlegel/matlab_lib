@@ -1,9 +1,9 @@
-function [xMatch,yMatch] = SignalMatch(x,y,varargin)
+function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 % SignalMatch
 % 
 % Description:	find the best match between two sets of signals
 % 
-% Syntax:	[xMatch,yMatch] = SignalMatch(x,y,<options>)
+% Syntax:	[xMatch,yMatch,sMatch] = SignalMatch(x,y,<options>)
 % 
 % In:
 % 	x	- an nSample x nSignal array of signals
@@ -25,9 +25,10 @@ function [xMatch,yMatch] = SignalMatch(x,y,varargin)
 % Out:
 % 	xMatch	- the reordered set of x signals (i.e. x(:,k) matches y(:,k))
 %	yMatch	- the reordered set of y signals
+%	sMatch	- a struct of info about the match process
 % 
-% Updated: 2014-07-20
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -52,6 +53,8 @@ function [xMatch,yMatch] = SignalMatch(x,y,varargin)
 	xMatch	= x;
 	yMatch	= NaN(nSample,nSignal);
 	
+	sMatch	= dealstruct('D','negate','idx_y2x',cell(nChunk));
+	
 	progress(nChunk,'label','Processing each chunk','silent',opt.silent);
 	for kC=1:nChunk
 		chunk	= chunks(kC);
@@ -68,7 +71,8 @@ function [xMatch,yMatch] = SignalMatch(x,y,varargin)
 			xComp	= x(bComplement,:);
 			yComp	= y(bComplement,:);
 		%calculate the distance between each pair of signals
-			D	= pdist2(xComp',yComp','correlation');
+			D				= pdist2(xComp',yComp','correlation');
+			sMatch.D{kC}	= D;
 		%make negative correlations positive, and mark them for negating if they
 		%end up being matches
 			if opt.anticorrelated
@@ -80,6 +84,7 @@ function [xMatch,yMatch] = SignalMatch(x,y,varargin)
 			else
 				bNeg	= false(size(D));
 			end
+			sMatch.negate{kC}	= bNeg;
 		%minimize the correlation distances
 			try
 				kY2X	= mintrace(D);
@@ -95,6 +100,7 @@ function [xMatch,yMatch] = SignalMatch(x,y,varargin)
 					rethrow(me);
 				end
 			end
+			sMatch.idx_y2x{kC}	= kY2X;
 		%match up y with x
 			yMatch(bChunk,:)	= y(bChunk,kY2X);
 		%negate the components with negative correlations

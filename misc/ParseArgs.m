@@ -10,7 +10,9 @@ function varargout = ParseArgs(vargin,varargin)
 % Syntax:	[v1,v2,...,vn,[opt]] = ParseArgs(vargin,d1,...,dn[,opt1,opt1def,...,optM,optMdef])
 %
 % In:
-%	vargin		- the varargin cell
+%	vargin		- the varargin cell or an opt struct. if the last element of the
+%				  cell is an opt struct, then that is treated as the options
+%				  portion of the input
 %	dK			- the default value of the Kth optional argument
 %	[optJ]		- the name of the Jth option
 %	[optJdef]	- the default value of the Jth option
@@ -26,10 +28,17 @@ function varargout = ParseArgs(vargin,varargin)
 %		explicitly set in the options section, then vN-1 will be confused with
 %		the option.
 % 
-% Updated: 2015-01-20
+% Updated: 2015-03-06
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+
+if isoptstruct(vargin)
+	vargin	= opt2cell(vargin);
+elseif numel(vargin)>0 && isoptstruct(vargin{end})
+	cOpt	= reshape(opt2cell(vargin{end}),1,[]);
+	vargin	= [reshape(vargin(1:end-1),1,[]) cOpt];
+end
 
 nUser		= numel(vargin);
 nDefault	= numel(varargin);
@@ -116,7 +125,8 @@ function out = DoParseOpt
 						[userOptKey,userOptVal,userOptKeyExtra,userOptValExtra]	= deal({});
 					end
 			else
-				out	= [defArgument; cell2struct(defOptVal,defOptKey)];
+				opt	= ConstructOpt(cell2struct(defOptVal,defOptKey));
+				out	= [defArgument; opt];
 				
 				return;
 			end
@@ -141,7 +151,7 @@ function out = DoParseOpt
 		if ~isempty(userOptKeyExtra)
 			try
 			%first assume there are no duplicate field names
-				opt.opt_extra	= cell2struct(userOptValExtra, userOptKeyExtra);
+				opt_extra	= cell2struct(userOptValExtra, userOptKeyExtra);
 			catch me
 				[errMsg,errID]	= lasterr;
 				switch errID
@@ -149,17 +159,28 @@ function out = DoParseOpt
 					%ok, this will be a bit slower
 						[userOptKeyExtra,kUnique]	= unique(userOptKeyExtra);
 						userOptValExtra				= userOptValExtra(kUnique);
-						opt.opt_extra				= cell2struct(userOptValExtra, userOptKeyExtra);
+						opt_extra				= cell2struct(userOptValExtra, userOptKeyExtra);
 					otherwise
 						disp(errID);
 						rethrow(me);
 				end
 			end
 		else
-			opt.opt_extra	= struct;
+			opt_extra	= struct;
 		end
 		
-		out{end+1}	= opt; 
+		out{end+1}	= ConstructOpt(opt,opt_extra); 
+end
+%------------------------------------------------------------------------------%
+function opt = ConstructOpt(opt,varargin)
+	if numel(varargin)>0
+		opt.opt_extra	= varargin{1};
+	else
+		opt.opt_extra	= struct;
+	end
+	
+	opt.isoptstruct				= true;
+	opt.opt_extra.isoptstruct	= true;
 end
 %------------------------------------------------------------------------------%
 

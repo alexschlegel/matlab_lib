@@ -88,7 +88,7 @@ opt	= ParseArgs(varargin,...
 	hCell	= opt.h/r;
 	
 %load the images
-	im	= cellfunprogress(@(x) LoadResize(x,hCell),im,'UniformOutput',false,'label','Image Grid');
+	im	= cellfunprogress(@(x) LoadResize(x,hCell),im,'UniformOutput',false,'label','Image Grid','silent',opt.silent);
 
 %initialize the image
 	%get the size of the biggest image

@@ -25,8 +25,8 @@ classdef File < PTB.Object
 % 	<options>:
 %	 	dir_base:	(<auto>) the base directory for files
 % 
-% Updated: 2012-03-27
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-11
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -80,7 +80,7 @@ classdef File < PTB.Object
 					%just use the current directory
 						strDir	= pwd;
 					else
-						strDirHome		= GetHomeDir;
+						strDirHome		= GetDirUser;
 						strDirHomeTemp	= DirAppend(strDirHome,'temp');
 						
 						if IsWritable(strDirHomeTemp)

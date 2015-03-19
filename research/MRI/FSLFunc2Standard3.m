@@ -22,8 +22,8 @@ function [bSuccess,cPathOut] = FSLFunc2Standard3(cPathFunc,varargin)
 %				  successfully
 %	cPathOut	- the output file path/cell of output paths
 % 
-% Updated: 2014-12-09
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 if isempty(cPathFunc)
@@ -32,7 +32,7 @@ if isempty(cPathFunc)
 end
 
 %parse the inputs
-	opt	= ParseArgsOpt(varargin,...
+	opt	= ParseArgs(varargin,...
 			'output'	, []	, ...
 			'force'		, true	, ...
 			'force_pre'	, false	, ...

@@ -35,8 +35,8 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK		- a cell or array of the Kth set of outputs
 % 
-% Updated: 2014-03-27
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 BASE_PORT = 30000;
 
 TASK_UNASSIGNED	= 0;
@@ -76,20 +76,24 @@ warning('off','parallel:cluster:CannotLoadCorrectly');
 	[f,cIn{:}]	= ForceCell(f,cIn{:});
 	[f,cIn{:}]	= FillSingletonArrays(f,cIn{:});
 	
+	if any(0==cellfun(@numel,cIn))
+		f	= [];
+	end
+	
 	nTask	= numel(f);
 	sTask	= size(f);
 	nIn		= numel(cIn);
 	
-	if nIn~=0
-		cIn	= cellfun(@(varargin) varargin,cIn{:},'UniformOutput',false);
-	end
-	
 	nOut	= nargout;
 	cOut	= repmat({cell(nOut,1)},[nTask 1]);
 	
-	if nTask==0 || isempty(cIn)
+	if nTask==0 || nIn==0
 		[varargout{1:nOut}]	= deal([]);
 		return;
+	end
+	
+	if nIn~=0
+		cIn	= cellfun(@(varargin) varargin,cIn{:},'UniformOutput',false);
 	end
 
 %prepare the progress bar

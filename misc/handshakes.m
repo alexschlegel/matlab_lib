@@ -1,51 +1,74 @@
-function [g,k] = handshakes(x,varargin)
+function [xGroup,kGroup] = handshakes(x,varargin)
 % handshakes
 % 
 % Description:	return every possible pairing (or other grouping) of elements in
 %				x
 % 
-% Syntax:	[g,k] = handshakes(x,[N]=2)
+% Syntax:	[xGroup,kGroup] = handshakes(x,<options>)
 % 
 % In:
 % 	x	- an array
-%	N	- the number of elements in one grouping
+%	<options>:
+%		group:		(2) the number of element in one group
+%		ordered:	(false) true if the order of members in a group matters
 % 
 % Out:
-%	g	- an nGroup x N array of groupings
-%	k	- the indices in x of the elements in h
+%	xGroup	- an nGroup x <group> array of groupings
+%	kGroup	- the indices in x of the elements in xGroup
 % 
-% Updated: 2011-03-23
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-N	= ParseArgs(varargin,2);
+% Updated: 2015-03-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+opt	= ParseArgs(varargin,...
+		'group'		, 2		, ...
+		'ordered'	, false	  ...
+		);
 
 n	= numel(x);
 
-if n<N
-	error('Fewer elements than group size.');
-end
+assert(n>=opt.group,'fewer elements than group size');
 
-if N==1
-	g	= reshape(x,[],1);
-	k	= reshape(1:n,[],1);
+if opt.group==1
+	xGroup	= reshape(x,[],1);
+	kGroup	= reshape(1:n,[],1);
 	return;
 end
 
-if N==2
-	nHandshake	= sum(1:n-1);
-else
-	nHandshake	= choose(n,N);
-end
-g				= repmat(x(1),[nHandshake N]);
-k				= zeros(nHandshake,N);
+%get the group indices
+	if opt.ordered
+		kSub	= handshakes(2:n,'group',opt.group-1,'ordered',true);
+		nSub	= size(kSub,1);
+		kSub	= [ones(nSub,1) kSub];
+		
+		kGroup	= zeros(nSub*n,opt.group);
+		
+		kX	= 1:n;
+		for k=1:n
+			kCur	= kX([k 1:k-1 k+1:end]);
+			
+			kStart	= nSub*(k-1) + 1;
+			kEnd	= kStart + nSub - 1;
+			
+			kGroup(kStart:kEnd,:)	= kCur(kSub);
+		end
+	else
+		n	= numel(x);
+		
+		nGroup	= choose(n,opt.group);
+		
+		kGroup	= zeros(nGroup,opt.group);
+		kStart	= 1;
+		for k=1:n-opt.group+1
+			kSub	= handshakes(k+1:n,'group',opt.group-1,'ordered',false);
+			nSub	= size(kSub,1);
+			
+			kEnd	= kStart + nSub - 1;
+			kCur	= kStart:kEnd;
+			
+			kGroup(kCur,1)		= k;
+			kGroup(kCur,2:end)	= kSub;
+			
+			kStart	= kEnd+1;
+		end
+	end
 
-kH	= 1;
-for k1=1:n-N+1
-	[gCur,kCur]	= handshakes(x(k1+1:end),N-1);
-	nHCur		= size(gCur,1);
-	kHCur		= kH:kH+nHCur-1;
-	
-	g(kHCur,:)	= [repmat(x(k1),[nHCur 1]) gCur];
-	k(kHCur,:)	= [repmat(k1,[nHCur 1]) kCur+k1];
-	
-	kH	= kH + nHCur;
-end
+xGroup	= x(kGroup);

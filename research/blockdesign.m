@@ -52,20 +52,23 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %add rows until we have the desired number of runs
 	[nRow,nCol]	= size(C);
 	
-	%make sure we can get the number of runs we need
-		if nRun > factorial(nCol)
-			error('Cannot generate %d runs of unique combinations of %d blocks.',nRun,nCol);
-		end
+	%attempt to add random permutations
+		nNeeded	= nRun - nRow;
+		C		= [C; genperm(nBlock,nNeeded,'exclude',C)];
 	
-	while nRow<nRun
-		CRow	= randperm(nBlock);
+	%add random duplicates if we still don't have enough
+		[nRow,nCol]	= size(C);
 		
-		if ~ismember(CRow,C,'rows')
-			C(end+1,:)	= CRow;
+		if nRow < nRun
+			warning('Cannot generate %d runs of unique combinations of %d blocks.',nRun,nCol);
+			
+			while nRow<nRun
+				nNeeded	= min(nRow,nRun-nRow);
+				kRepeat	= randFrom(1:nRow,[nNeeded 1]);
+				C		= [C; C(kRepeat,:)];
+				nRow	= size(C,1);
+			end
 		end
-		
-		nRow	= size(C,1);
-	end
 %map to the conditions
 	C	= block(C);
 %randomize across rows

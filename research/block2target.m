@@ -1,7 +1,7 @@
 function cTarget = block2target(block,durBlock,durRest,cCondition,varargin)
 % block2target
 % 
-% Description:	generate a target cell array, given an block design
+% Description:	generate a target cell array, given a block design
 %				specification
 % 
 % Syntax:	cTarget = block2target(block,durBlock,durRest,cCondition,[durPre]=0,[durPost]=0,<options>)

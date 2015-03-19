@@ -9,8 +9,13 @@ function t = ExcelDate2ms(t)
 % Assumptions: if t is a string, assumes it can be automatically converted via
 %				FormatTime
 % 
-% Updated: 2011-10-13
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-10
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+persistent serialEpoch
+
+if isempty(serialEpoch)
+	serialEpoch	= FormatTime('1899-12-30 00:00:00');
+end
 
 if ~isnan(t)
 	switch class(t)
@@ -18,6 +23,6 @@ if ~isnan(t)
 			t	= FormatTime(t);
 		otherwise
 		%t is a serial date
-			t	= t*86400000 + FormatTime('1899-12-30 00:00:00');
+			t	= t*86400000 + serialEpoch;
 	end
 end

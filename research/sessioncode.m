@@ -10,11 +10,15 @@ function strCode = sessioncode(strInit,t)
 %	t		- the session time
 % 
 % Out:
-% 	strCode	- the session code
+% 	strCode	- the session code, or '' if the time is invalid
 % 
 % Updated: 2014-03-14
 % Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-strDate	= lower(FormatTime(t,'ddmmmyy'));
-strCode	= [strDate strInit];
+if isnan(t)
+	strCode	= '';
+else
+	strDate	= lower(FormatTime(t,'ddmmmyy'));
+	strCode	= [strDate strInit];
+end

@@ -41,8 +41,8 @@ function [vExitCode,cOutput] = RunBashScript(cScript,varargin)
 % 	cOutput		- the stdout and stderr output from the script execution (or a
 %				  cell of outputs)
 % 
-% Updated: 2012-03-17
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 opt	= ParseArgs(varargin,...
 		'description'	, 'Running Bash Script'	, ...
 		'file_prefix'	, 'runbashscript'		, ...
@@ -63,9 +63,7 @@ sScript					= size(cScript);
 nScript					= numel(cScript);
 
 %make sure we're in a Unix environment
-	if ~isunix
-		error('Bash scripts can only be run in a Unix environment.');
-	end
+	assert(isunix,'bash scripts can only be run in a unix environment.');
 %format the script/log paths
 	cPathScript		= ForceCell(opt.script_path);
 	cPathScript		= cellfun(@(fs) conditional(isdir(fs),PathUnsplit(fs,opt.file_prefix,'sh'),fs),cPathScript,'UniformOutput',false);
@@ -145,14 +143,18 @@ nScript					= numel(cScript);
 				progress(nScript,'label',opt.description,'status',true,'silent',opt.silent);
 			end
 			for kS=1:nScript
-				[vExitCode(kS),cOutput{kS}]	= RunOne(cPathMetaScript{kS},cPathLogTemp{kS});
+				[vExitCode(kS),cOutput{kS}]	= RunOne(cPathMetaScript{kS},cPathLogTemp{kS},opt);
 				
 				if ~opt.silent
 					progress;
 				end
 			end
 		else
-			[vExitCode,cOutput]	= MultiTask(@RunOne,{cPathMetaScript, cPathLogTemp},'nthread',opt.nthread,'description',opt.description,'silent',opt.silent);
+			[vExitCode,cOutput]	= MultiTask(@RunOne,{cPathMetaScript, cPathLogTemp, opt},...
+									'nthread'		, opt.nthread		, ...
+									'description'	, opt.description	, ...
+									'silent'		, opt.silent		  ...
+									);
 			vExitCode			= cell2mat(vExitCode);
 		end
 	end
@@ -186,7 +188,7 @@ nScript					= numel(cScript);
 	end
 
 %------------------------------------------------------------------------------%
-function [vExitCode,strOutput] = RunOne(strPathMetaScript,strPathLog)
+function [vExitCode,strOutput] = RunOne(strPathMetaScript,strPathLog,opt)
 	setenv('cmd',strPathMetaScript);
 	
 	cEcho					= conditional(opt.silent,{},{'-echo'});
@@ -197,7 +199,4 @@ function [vExitCode,strOutput] = RunOne(strPathMetaScript,strPathLog)
 	catch me
 		strOutput	= '';
 	end
-end
 %------------------------------------------------------------------------------%
-
-end

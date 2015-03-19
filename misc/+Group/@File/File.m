@@ -25,8 +25,8 @@ classdef File < Group.Object
 % 	<start options>:
 %	 	base_dir:	(<auto>) the base directory for files
 % 
-% Updated: 2011-12-27
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-11
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -66,7 +66,7 @@ classdef File < Group.Object
 					%just use the current directory
 						strDir	= pwd;
 					else
-						strDirHome		= GetHomeDir;
+						strDirHome		= GetDirUser;
 						strDirHomeTemp	= DirAppend(strDirHome,'temp');
 						
 						if IsWritable(strDirHomeTemp)

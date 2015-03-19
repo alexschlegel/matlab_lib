@@ -13,8 +13,8 @@ function [w,stat] = svr(x,y,varargin)
 % Out:
 % 	w	- the N x K predicted values of y 
 % 
-% Updated: 2014-02-08
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-06
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 persistent strTemplate;
@@ -65,7 +65,7 @@ K		= size(y,2);
 	
 	[r,stat]	= cellfun(@(y,w) corrcoef2(y,w'),cY,cW);
 	
-	stat	= StructArrayRestructure(stat);
+	stat	= restruct(stat);
 	stat.r	= r;
 
 %delete the temporary files

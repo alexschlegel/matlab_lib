@@ -12,15 +12,14 @@ function strDir = DirAppend(strDir,varargin)
 % Out:
 % 	strDir	- the new directory path
 % 
-% Updated:	2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
 
 %get the slash type
-	if any(strDir=='\')
-		strSlash	= '\';
-	else
-		strSlash	= '/';
-	end
+	strSlash	= conditional(any(strDir=='\'),'\','/');
 %add a slash to the end of the directory
 	if numel(strDir) && strDir(end)~=strSlash
 		strDir	= [strDir strSlash];

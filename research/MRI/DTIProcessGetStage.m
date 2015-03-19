@@ -46,7 +46,7 @@ cSession	= cell(sSession);
 
 progress(nSession,'label','Determining DTI Processing Stage','status',true,'silent',opt.silent)
 for kS=1:nSession
-	cSession{kS}	= PathFindSessionCode(cDirSession{kS});
+	cSession{kS}	= PathGetSession(cDirSession{kS});
 	
 	if isempty(cSession{kS})
 		cSession(kS)	= DirSplit(cDirSession{kS},'limit',1);

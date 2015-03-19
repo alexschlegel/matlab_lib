@@ -23,8 +23,8 @@ function [aSub,bSub,kASub,kBSub,stat] = SubsetPairMatch(a,b,varargin)
 %	kBSub	- the indices of the elements of b that were chosen
 %	stat	- a struct of stats about the subsets
 % 
-% Updated: 2013-07-05
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 tStart	= nowms;
@@ -71,7 +71,7 @@ for dSubOpt=1:n1
 %the maximum sub-optimality depth
 	for nSubOpt=1:n1
 	%the number of elements to choose suboptimal values for
-		kSubOpt			= handshakes(1:n1,nSubOpt);
+		kSubOpt			= handshakes(1:n1,'group',nSubOpt);
 		nSubOptGroup	= size(kSubOpt,1);
 		
 		for kSOGroup=1:nSubOptGroup

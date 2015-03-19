@@ -50,21 +50,7 @@ function b = SendEmailByTemplate(cTemplate,ifo,varargin)
 	
 	%make info an Nx1 cell of structs
 		if numel(ifo)==1
-			N	= unique(structfun(@numel,ifo));
-			
-			if numel(N)==1
-				ifo2	= struct;
-				
-				cField	= fieldnames(ifo);
-				nField	= numel(cField);
-				
-				for kF=1:nField
-					f							= conditional(iscell(ifo.(cField{kF})),ifo.(cField{kF}),num2cell(ifo.(cField{kF})));
-					[ifo2(1:N).(cField{kF})]	= deal(f{:});
-				end
-				
-				ifo	= ifo2;
-			end
+			ifo	= restruct(ifo);
 		end
 		
 		ifo	= reshape(num2cell(ifo),[],1);

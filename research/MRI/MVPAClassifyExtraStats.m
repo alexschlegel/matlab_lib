@@ -32,8 +32,8 @@ function stat = MVPAClassifyExtraStats(res,varargin)
 %							(p value based on permutation testing by permuting
 %							labels), nperm (the number of permutations used)
 % 
-% Updated: 2014-07-24
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -45,15 +45,27 @@ opt	= ParseArgs(varargin,...
 opt.confusion_model	= ForceCell(opt.confusion_model);
 nModel				= numel(opt.confusion_model);
 
-%get the labels
-	stat.label	= {};
-	
-	lbl	= structtreefun(@(s) NaN,res,'offset',2);
-	while isstruct(lbl)
-		stat.label{end+1}	= fieldnames(lbl);
-		lbl					= lbl.(stat.label{end}{1});
+%are these MVPAClassify or MVPAROI*Classify results?
+	if isfield(res,'mask') && size(res.mask,2)==2
+		strResType	= 'mvparoiclassify';
+	else
+		strResType	= 'mvpaclassify';
 	end
-	stat.label	= reshape(stat.label,[],1);
+
+%get the labels
+	switch strResType
+		case 'mvparoiclassify'
+			stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
+		otherwise
+			stat.label	= {};
+			
+			lbl	= structtreefun(@(s) NaN,res,'offset',2);
+			while isstruct(lbl)
+				stat.label{end+1}	= fieldnames(lbl);
+				lbl					= lbl.(stat.label{end}{1});
+			end
+			stat.label	= reshape(stat.label,[],1);
+	end
 %construct the array-form of the stats
 	cType	=	{
 					'accuracy'
@@ -128,8 +140,10 @@ function x = Result2Array(res,strType)
 	
 	%--------------------------------------------------------------------------%
 	function x = Result2ArraySingle(s,strType)
-		cField	= fieldnames(s);
-		nField	= numel(cField);
+		cField		= fieldnames(s);
+		bConvert	= cellfun(@(f) isstruct(s.(f)),cField);
+		cField		= cField(bConvert);
+		nField		= numel(cField);
 		
 		x	= struct;
 		for kF=1:nField
@@ -173,40 +187,66 @@ end
 %------------------------------------------------------------------------------%
 function stat = ConfusionTest(conf,model,strLevel)
 	%get each confusion matrix
-	switch strLevel
-		case 'group'
-			sz		= size(conf);
-			cSz		= arrayfun(@(n) ones(n,1),sz(1:end-2),'uni',false);
-			cConf	= cellfun(@squeeze,mat2cell(conf,cSz{:},sz(end-1),sz(end)),'uni',false);
-		case {'subject','subjectJK'}
-			sz			= size(conf);
-			cSz			= arrayfun(@(n) ones(n,1),sz(1:end-3),'uni',false);
-			
-			%convert jackknifed versions of the confusion matrices
-			if strcmp(strLevel,'subjectJK')
-				nCondition	= prod(sz(1:end-3));
-				confJK		= reshape(conf,[nCondition sz(end-2:end)]);
-				for kC=1:nCondition
-					confC				= permute(squeeze(confJK(kC,:,:,:)),[3 1 2]);
-					confC				= jackknife(@(x) mean(x,1), confC(:,:));
-					confJK(kC,:,:,:)	= reshape(permute(confC,[2 3 1]),sz(end-2:end));
+		sz	= size(conf);
+		
+		switch strLevel
+			case 'group'
+				switch strResType
+					case 'mvparoiclassify'
+						cSz		= arrayfun(@(n) ones(n,1),sz(3:end),'uni',false);
+						cConf	= squeeze(mat2cell(conf,sz(1),sz(2),cSz{:}));
+					otherwise
+						cSz		= arrayfun(@(n) ones(n,1),sz(1:end-2),'uni',false);
+						cConf	= cellfun(@squeeze,mat2cell(conf,cSz{:},sz(end-1),sz(end)),'uni',false);
 				end
-				conf	= reshape(confJK,sz);
-			end
-			
-			szSubject	= ones(sz(end),1);
-			cConf		= cellfun(@squeeze,squeeze(mat2cell(conf,cSz{:},sz(end-2),sz(end-1),szSubject)),'uni',false);
-		otherwise
-			error('invalid level.');
-	end
+			case {'subject','subjectJK'}
+				switch strResType
+					case 'mvparoiclassify'
+						cSz		= arrayfun(@(n) ones(n,1),sz(3:end-1),'uni',false);
+						
+						%convert jackknifed versions of the confusion matrices
+						if strcmp(strLevel,'subjectJK')
+							nCondition	= prod(sz(3:end-1));
+							confJK		= reshape(conf,[sz(1) sz(2) nCondition sz(end)]);
+							for kC=1:nCondition
+								confC				= permute(squeeze(confJK(:,:,kC,:)),[3 1 2]);
+								confC				= jackknife(@(x) mean(x,1), confC(:,:));
+								confJK(:,:,kC,:)	= reshape(permute(confC,[2 3 1]),sz([1:2 end]));
+							end
+							conf	= reshape(confJK,sz);
+						end
+						
+						szSubject	= ones(sz(end),1);
+						cConf		= squeeze(mat2cell(conf,sz(1),sz(2),cSz{:},szSubject));
+					otherwise
+						cSz	= arrayfun(@(n) ones(n,1),sz(1:end-3),'uni',false);
+						
+						%convert jackknifed versions of the confusion matrices
+						if strcmp(strLevel,'subjectJK')
+							nCondition	= prod(sz(1:end-3));
+							confJK		= reshape(conf,[nCondition sz(end-2:end)]);
+							for kC=1:nCondition
+								confC				= permute(squeeze(confJK(kC,:,:,:)),[3 1 2]);
+								confC				= jackknife(@(x) mean(x,1), confC(:,:));
+								confJK(kC,:,:,:)	= reshape(permute(confC,[2 3 1]),sz(end-2:end));
+							end
+							conf	= reshape(confJK,sz);
+						end
+						
+						szSubject	= ones(sz(end),1);
+						cConf		= cellfun(@squeeze,squeeze(mat2cell(conf,cSz{:},sz(end-2),sz(end-1),szSubject)),'uni',false);
+					end
+			otherwise
+				error('invalid level.');
+		end
 	
 	%regular old correlation test
 		[r,stat]	= cellfun(@(m) cellfun(@(c) corrcoef2(m(:),c(:)','twotail',false),cConf),model,'uni',false);
 		
 		if numel(model) > 1
-			stat	= StructArrayRestructure(cellfun(@StructArrayRestructure,stat));
+			stat	= restruct(cellfun(@restruct,stat));
 		else
-			stat	= structfun2(@(x) {x},StructArrayRestructure(stat{1}));
+			stat	= structfun2(@(x) {x},restruct(stat{1}));
 		end
 		
 		nd	= numel(size(stat.r{1}));

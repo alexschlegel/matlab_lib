@@ -2,7 +2,7 @@ function [bSuccess,cDirOut] = FreeSurferProcess(cPathStructural,varargin)
 % FreeSurferProcess
 % 
 % Description:	run a structural data set through the freesurfer reconstruction
-%				pipeline. the pipelinen is divided into four stages:
+%				pipeline. the pipeline is divided into four stages:
 %					0)   set up the freesurfer directory structure for the data
 %					1)   normalization, talairaching, skull stripping
 %					1.5) check the results of stage 1 
@@ -22,8 +22,10 @@ function [bSuccess,cDirOut] = FreeSurferProcess(cPathStructural,varargin)
 %						specifying a specific stage (e.g. '-skullstrip')
 %		stage_check:	(true) true to make sure the data is ready to be
 %						processed at the specified stage(s)
-%		wmedit:			(false) true if running stage 2 for the second time after
-%						making white matter edits
+%		check_results:	(true) true to perform the intermediate result checking
+%						stages
+%		wmedit:			(false) true if running stage 2 for the second time
+%						after making white matter edits
 %		opt:			('') extra options for the recon-all calls
 %		force:			(false) true to redo the specified processing steps
 %		nthread:		(1) the number of threads to use
@@ -35,13 +37,14 @@ function [bSuccess,cDirOut] = FreeSurferProcess(cPathStructural,varargin)
 %	cDirOut		- the freesurfer directory or cell of directories associated with
 %				  the input
 % 
-% Updated: 2012-06-12
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
 		'stage'			, [0 1 1.5 2 2.5 3]	, ...
 		'stage_check'	, true				, ...
+		'check_results'	, true				, ...
 		'wmedit'		, false				, ...
 		'opt'			, ''				, ...
 		'force'			, false				, ...
@@ -140,7 +143,7 @@ function bSuccess = FreeSurferProcessStage(cPathStructural,cDirOut,kStage)
 									'description'	, 'running autorecon1'	  ...
 									);
 				case 1.5
-					bSuccess	= FreeSurferCheck(cDirOut,1);
+					bSuccess	= FreeSurferCheck(cDirOut,1,'check',opt.check_results);
 				case 2
 					strExtra	= conditional(opt.wmedit,'-wm','');
 					
@@ -151,7 +154,7 @@ function bSuccess = FreeSurferProcessStage(cPathStructural,cDirOut,kStage)
 					[bSuccess,bRerun]	= deal(true(size(cDirOut)));
 					
 					while any(bRerun)
-						[bSuccess(bRerun),bRerun(bRerun)]	= FreeSurferCheck(cDirOut(bRerun),2);
+						[bSuccess(bRerun),bRerun(bRerun)]	= FreeSurferCheck(cDirOut(bRerun),2,'check',opt.check_results);
 						
 						if any(bRerun)
 							bWMEditOld	= opt.wmedit;

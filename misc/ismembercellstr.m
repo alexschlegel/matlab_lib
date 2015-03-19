@@ -1,7 +1,7 @@
 function [b,k] = ismembercellstr(x,y)
 % ismembercellstr
 % 
-% Description:	a version of ismember that is much fast for comparing cells
+% Description:	a version of ismember that is much faster for comparing cells
 %				of strings
 % 
 % Syntax:	[b,k] = ismembercellstr(x,y)

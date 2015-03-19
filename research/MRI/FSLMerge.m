@@ -15,15 +15,15 @@ function bSuccess = FSLMerge(cPathIn,cPathOut,varargin)
 %		nthread:	(1) the number of threads to use
 %		silent:		(false) true to suppress status messages
 %		run:		(true) true to actually carry out the merging, false to just
-%					return a command to do it (see Syntax).  not only one merge
-%					operation can be specified in this case.
+%					return a command to do it (see Syntax).  note that only one
+%					merge operation can be specified in this case.
 % 
 % Out:
 % 	bSuccess	- true if the files were sucessfully merged
 %	strScript	- the script that would merge the specified files
 % 
-% Updated: 2014-04-24
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 opt	= ParseArgs(varargin,...
 		'force'		, true	, ...
 		'nthread'	, 1		, ...
@@ -44,24 +44,24 @@ if opt.run
 		bProcess	= ~FileExists(cPathOut);
 	end
 	
-	bSuccess(bProcess)	= MultiTask(@MergeOne,{cPathIn(bProcess) cPathOut(bProcess) true},...
+	bSuccess(bProcess)	= MultiTask(@MergeOne,{cPathIn(bProcess) cPathOut(bProcess) true opt},...
 							'description'	, 'Merging NIfTI files'	, ...
-							'nthread'		, opt.nthread				, ...
-							'uniformoutput'	, true						, ...
-							'silent'		, opt.silent				  ...
+							'nthread'		, opt.nthread			, ...
+							'uniformoutput'	, true					, ...
+							'silent'		, opt.silent			  ...
 							);
 else
-	bSuccess	= MergeOne(cPathIn{1},cPathOut{1},false);
+	bSuccess	= MergeOne(cPathIn{1},cPathOut{1},false,opt);
 end
 
 %------------------------------------------------------------------------------%
-function b = MergeOne(cPathIn,strPathOut,bDo)
+function b = MergeOne(cPathIn,strPathOut,bDo,opt)
 	%save the input paths to a file so they don't make our command too long
 		strPaths	= join(cPathIn,10);
 		strPathTemp	= GetTempFile;
 		fput(strPaths,strPathTemp);
 	%run the fslmerge script
-		strScript	= ['cat ' strPathTemp ' | xargs fslmerge -a ' strPathOut];
+		strScript	= sprintf('cat %s | xargs fslmerge -a %s',strPathTemp,strPathOut);
 		
 		if bDo
 			[vExitCode,strOutput]	= RunBashScript(strScript,'silent',opt.silent);
@@ -73,7 +73,4 @@ function b = MergeOne(cPathIn,strPathOut,bDo)
 		delete(strPathTemp);
 	
 	b	= ~vExitCode && FileExists(strPathOut);
-end
 %------------------------------------------------------------------------------%
-
-end

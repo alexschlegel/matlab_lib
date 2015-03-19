@@ -14,33 +14,46 @@ function opt = optadd(opt,varargin)
 % Out:
 % 	opt	- the updated opt struct/varargin cell
 % 
-% Updated: 2014-10-18
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-19
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-cOpt	= varargin(1:2:end);
-cOptVal	= varargin(2:2:end);
+cKey	= varargin(1:2:end);
+cVal	= varargin(2:2:end);
+nKey	= numel(cKey);
 
 switch class(opt)
 	case 'cell'
-		cOptExist		= opt(1:2:end);
-		cOptValExist	= opt(2:2:end);
+		%existing options
+			cKeyOld	= reshape(opt(1:2:end),1,[]);
+			cValOld	= reshape(opt(2:2:end),1,[]);
 		
-		bOptAdd		= ~ismember(cOpt,cOptExist);
-		cOptAdd		= reshape(cOpt(bOptAdd),1,[]);
-		cOptValAdd	= reshape(cOptVal(bOptAdd),1,[]);
+		%which of the new options already exist?
+			[bExist,kExist]	= ismember(cKey,cKeyOld);
 		
-		cSize		= switch2(size(opt,1),1,{1,[]},{[],1});
-		varginAdd	= reshape([cOptAdd; cOptValAdd],cSize{:});
-		opt			= append(opt,varginAdd);
+		%options that don't already exist
+			cKeyNew	= reshape(cKey(~bExist),1,[]);
+			cValNew	= reshape(cVal(~bExist),1,[]);
+		
+		%check if the existing options are empty
+			cValExist	= cVal(bExist);
+			kExist		= kExist(bExist);
+			nExist		= numel(kExist);
+			for kE=1:nExist
+				if isempty(cValOld{kExist(kE)})
+					cValOld{kExist(kE)}	= cValExist{kExist(kE)};
+				end
+			end
+		
+		cSize	= switch2(size(opt,1),1,{1,[]},{[],1});
+		opt		= reshape([cKeyOld cKeyNew; cValOld cValNew],cSize{:});
 	case 'struct'
-		cOptExist		= fieldnames(opt);
-		[cOptAdd,kAdd]	= setdiff(cOpt,cOptExist);
-		nAdd			= numel(kAdd);
-		
-		for kA=1:nAdd
-			kAddCur				= kAdd(kA);
-			opt.(cOpt{kAddCur})	= cOptVal{kAddCur};
+		for kK=1:nKey
+			strKey	= cKey{kK};
+			
+			if ~isfield(opt,strKey) || isempty(opt.(strKey))
+				opt.(strKey)	= cVal{kK};
+			end
 		end
 	otherwise
 		error('Invalid opt argument');

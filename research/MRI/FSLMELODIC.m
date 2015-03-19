@@ -47,7 +47,7 @@ function sOut = FSLMELODIC(varargin)
 %			dir_out:	the output directory(ies)
 %			path_data:	the output data path(s)
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-19
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -193,7 +193,13 @@ function s = DoMELODIC(strPathData,strPathMask,strDirOut,varargin)
 		if ~isempty(opt.mindim) && nDim<opt.mindim
 			assert(isempty(mnDim),'minimimum dimensionality (%d) could not be achieved for %s.',opt.mindim,strPathData);
 			
-			status(sprintf('Estimated dimensions (%d) were fewer than minimum (%d) for %s. Rerunning...',nDim,opt.mindim,strPathData),'warning',true,'silent',opt.silent);
+			if ~isempty(strPathMask)
+				strPath	= sprintf('%s (%s)',strPathData,PathGetFilePre(strPathMask));
+			else
+				strPath	= strPathData;
+			end
+			
+			status(sprintf('Estimated dimensions (%d) were fewer than minimum (%d) for %s. Rerunning...',nDim,opt.mindim,strPath),'warning',true,'silent',opt.silent);
 			
 			s	= DoMELODIC(strPathData,strPathMask,strDirOut,opt.mindim);
 		end
@@ -230,6 +236,7 @@ function c = ConstructOutputDatasets(strDirOut)
 	
 	strTypeRet	= conditional(opt.pcaonly,'pca','ica');
 	
+	c	= [];
 	for kT=1:nType
 		strType	= cType{kT};
 		

@@ -13,41 +13,41 @@ function opt = optreplace(opt,varargin)
 % Out:
 % 	opt	- the updated opt struct/varargin cell
 % 
-% Updated: 2014-10-18
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-19
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-cOpt	= varargin(1:2:end);
-cOptVal	= varargin(2:2:end);
+cKey	= varargin(1:2:end);
+cVal	= varargin(2:2:end);
+nKey	= numel(cKey);
 
 switch class(opt)
 	case 'cell'
-		bReshape	= size(opt,1)>1;
-		opt			= reshape(opt,1,[]);
+		%existing options
+			cKeyOld	= reshape(opt(1:2:end),1,[]);
+			cValOld	= reshape(opt(2:2:end),1,[]);
 		
-		cOptExist		= opt(1:2:end);
-		cOptValExist	= opt(2:2:end);
+		%which of the new options already exist?
+			[bExist,kExist]	= ismember(cKey,cKeyOld);
 		
-		[bOptReplace,kOptReplace]				= ismember(cOpt,cOptExist);
-		cOptValExist(kOptReplace(bOptReplace))	= cOptVal(bOptReplace);
+		%options that don't already exist
+			cKeyNew	= reshape(cKey(~bExist),1,[]);
+			cValNew	= reshape(cVal(~bExist),1,[]);
 		
-		bOptAdd		= ~bOptReplace;
-		cOptAdd		= reshape(cOpt(bOptAdd),1,[]);
-		cOptValAdd	= reshape(cOptVal(bOptAdd),1,[]);
+		%replace existing options
+			cValExist	= cVal(bExist);
+			kExist		= kExist(bExist);
+			nExist		= numel(kExist);
+			for kE=1:nExist
+				cValOld{kExist(kE)}	= cValExist{kExist(kE)};
+			end
 		
-		cOpt	= [cOptExist cOptAdd];
-		cOptVal	= [cOptValExist cOptValAdd];
-		
-		opt	= reshape([cOpt; cOptVal],1,[]);
-		
-		if bReshape
-			opt	= reshape(opt,[],1);
-		end
+		cSize	= switch2(size(opt,1),1,{1,[]},{[],1});
+		opt		= reshape([cKeyOld cKeyNew; cValOld cValNew],cSize{:});
 	case 'struct'
-		nReplace	= numel(cOpt);
-		
-		for kR=1:nReplace
-			opt.(cOpt{kR})	= cOptVal{kR};
+		for kK=1:nKey
+			strKey			= cKey{kK};
+			opt.(strKey)	= cVal{kK};
 		end
 	otherwise
 		error('Invalid opt argument');

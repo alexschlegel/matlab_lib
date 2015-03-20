@@ -54,6 +54,7 @@ if s.nOutlier>0
 			case 3
 				m	= nanmean(nii.data(~bOutlier));
 			case 4
+				nT	= sz(4);
 				n	= sum(~bOutlier,4);
 				m	= sum(nii.data.*(1-bOutlier),4);
 				m	= repmat(m./n,[1 1 1 nT]);

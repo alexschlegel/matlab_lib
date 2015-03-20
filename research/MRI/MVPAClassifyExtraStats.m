@@ -55,7 +55,8 @@ nModel				= numel(opt.confusion_model);
 %get the labels
 	switch strResType
 		case 'mvparoiclassify'
-			stat.label	= cellfun(@(m1,m2) sprintf('%s-%s',m1,m2),res.mask(:,1),res.mask(:,2),'uni',false);
+			cMask		= mat2cell(res.mask,ones(size(res.mask,1),1),size(res.mask,2));
+			stat.label	= cellfun(@(cm) join(cm,'-'),cMask,'uni',false);
 		otherwise
 			stat.label	= {};
 			

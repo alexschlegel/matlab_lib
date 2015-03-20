@@ -134,7 +134,8 @@ function res = MVPAROICrossClassify(varargin)
 					'silent'				, opt.silent	  ...
 					);
 					
-	res	= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
+	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
+	res.type	= 'roicrossclassify';
 	
 %combine the results
 	if bCombine

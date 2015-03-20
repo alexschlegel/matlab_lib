@@ -42,7 +42,7 @@ function res = MVPAROIClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -125,7 +125,8 @@ function res = MVPAROIClassify(varargin)
 					'silent'			, opt.silent	  ...
 					);
 					
-	res	= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
+	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
+	res.type	= 'roiclassify';
 	
 %combine the results
 	if bCombine

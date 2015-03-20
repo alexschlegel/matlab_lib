@@ -47,7 +47,7 @@ function sOut = FSLMELODIC(varargin)
 %			dir_out:	the output directory(ies)
 %			path_data:	the output data path(s)
 % 
-% Updated: 2015-03-19
+% Updated: 2015-03-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -194,7 +194,7 @@ function s = DoMELODIC(strPathData,strPathMask,strDirOut,varargin)
 			assert(isempty(mnDim),'minimimum dimensionality (%d) could not be achieved for %s.',opt.mindim,strPathData);
 			
 			if ~isempty(strPathMask)
-				strPath	= sprintf('%s (%s)',strPathData,PathGetFilePre(strPathMask));
+				strPath	= sprintf('%s (%s)',strPathData,PathGetFilePre(strPathMask,'favor','nii.gz'));
 			else
 				strPath	= strPathData;
 			end

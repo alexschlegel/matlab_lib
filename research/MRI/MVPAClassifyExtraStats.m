@@ -32,7 +32,7 @@ function stat = MVPAClassifyExtraStats(res,varargin)
 %							(p value based on permutation testing by permuting
 %							labels), nperm (the number of permutations used)
 % 
-% Updated: 2015-03-13
+% Updated: 2015-03-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -46,7 +46,7 @@ opt.confusion_model	= ForceCell(opt.confusion_model);
 nModel				= numel(opt.confusion_model);
 
 %are these MVPAClassify or MVPAROI*Classify results?
-	if isfield(res,'mask') && size(res.mask,2)==2
+	if isfield(res,'type') && ismember(res.type,{'roidcclassify','roicrossclassify','roiclassify'})
 		strResType	= 'mvparoiclassify';
 	else
 		strResType	= 'mvpaclassify';

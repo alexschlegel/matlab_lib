@@ -133,11 +133,22 @@ function res = MVPAROIDCClassify(varargin)
 					);
 					
 	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
-	res.type	= 'roidcclassify';
 	
 %combine the results
 	if bCombine
 		try
+			%construct dummy structs for failed classifications
+				bFailed	= cellfun(@isempty,res);
+				if any(bFailed)
+					kGood	= find(~bFailed,1);
+					if isempty(kGood)
+						error('everything sucks');
+					end
+					
+					resDummy		= dummy(res{kGood});
+					res(bFailed)	= {resDummy};
+				end
+			
 			nSubject	= numel(sPath.functional);
 			cMask		= reshape(cMaskName{1},1,[]);
 			cMaskPair	= cMask(kShake{1});
@@ -147,8 +158,10 @@ function res = MVPAROIDCClassify(varargin)
 			
 			res			= structtreefun(@CombineResult,res{:});
 			res.mask	= cMaskPair;
+			res.type	= 'roidcclassify';
 		catch me
 			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
+			return;
 		end
 		
 		if bGroupStats && size(cPathDataFlat,1) > 1
@@ -185,8 +198,8 @@ function res = GroupStats(res)
 				nd		= ndims(acc);
 				chance	= res.accuracy.chance(1,end);
 				
-				res.stats.accuracy.mean	= mean(acc,nd);
-				res.stats.accuracy.se	= stderr(acc,[],nd);
+				res.stats.accuracy.mean	= nanmean(acc,nd);
+				res.stats.accuracy.se	= nanstderr(acc,[],nd);
 				
 				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
 				
@@ -198,8 +211,8 @@ function res = GroupStats(res)
 				conf	= res.confusion;
 				
 				if ~iscell(conf)
-					res.stats.confusion.mean	= mean(conf,4);
-					res.stats.confusion.se		= stderr(conf,[],4);
+					res.stats.confusion.mean	= nanmean(conf,4);
+					res.stats.confusion.se		= nanstderr(conf,[],4);
 				end
 		end
 	end

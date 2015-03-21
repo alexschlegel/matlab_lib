@@ -47,7 +47,7 @@ function res = MVPAROICrossClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -135,11 +135,22 @@ function res = MVPAROICrossClassify(varargin)
 					);
 					
 	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
-	res.type	= 'roicrossclassify';
 	
 %combine the results
 	if bCombine
 		try
+			%construct dummy structs for failed classifications
+				bFailed	= cellfun(@isempty,res);
+				if any(bFailed)
+					kGood	= find(~bFailed,1);
+					if isempty(kGood)
+						error('everything sucks');
+					end
+					
+					resDummy		= dummy(res{kGood});
+					res(bFailed)	= {resDummy};
+				end
+			
 			nSubject	= numel(sPath.functional);
 			cMask		= reshape(cMaskName{1},1,[]);
 			cMaskPair	= cMask(kShake{1});
@@ -149,8 +160,10 @@ function res = MVPAROICrossClassify(varargin)
 			
 			res			= structtreefun(@CombineResult,res{:});
 			res.mask	= cMaskPair;
+			res.type	= 'roicrossclassify';
 		catch me
 			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
+			return;
 		end
 		
 		if bGroupStats && size(cPathDataFlat,1) > 1
@@ -187,8 +200,8 @@ function res = GroupStats(res)
 				nd		= ndims(acc);
 				chance	= res.accuracy.chance(1,end);
 				
-				res.stats.accuracy.mean	= mean(acc,nd);
-				res.stats.accuracy.se	= stderr(acc,[],nd);
+				res.stats.accuracy.mean	= nanmean(acc,nd);
+				res.stats.accuracy.se	= nanstderr(acc,[],nd);
 				
 				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
 				
@@ -200,8 +213,8 @@ function res = GroupStats(res)
 				conf	= res.confusion;
 				
 				if ~iscell(conf)
-					res.stats.confusion.mean	= mean(conf,4);
-					res.stats.confusion.se		= stderr(conf,[],4);
+					res.stats.confusion.mean	= nanmean(conf,4);
+					res.stats.confusion.se		= nanstderr(conf,[],4);
 				end
 		end
 	end

@@ -152,12 +152,17 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								'warn', or 'error'
 %		debug_multitask:		('warn') the debug level for the call to
 %								MultiTask
+%		error:					(false) true to raise an error if one related to
+%								script execution occurs (some other errors may
+%								occur regardless). false to just display the
+%								error as a warning an return an empty array.
 %		silent:					(false) true to suppress status messages
 % 
 % Out:
-% 	res	- a struct array of analysis results
+% 	res	- if <combine> is selected, then a struct array of analysis results.
+%		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -202,6 +207,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'run'					, true			, ...
 			'debug'					, 'info'		, ...
 			'debug_multitask'		, 'warn'		, ...
+			'error'					, false			, ...
 			'silent'				, false			  ...
 			);
 	
@@ -217,7 +223,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		opt.nan_remove		= CheckInput(opt.nan_remove,'nan_remove',{'none','sample','feature'});
 	
 		if opt.selection<0 || (opt.selection>1 && ~isint(opt.selection))
-			error('Uninterpretable selection parameter.');
+			error('uninterpretable selection parameter.');
 		end
 	
 	%are we doing matched dataset cross-classification or information flow
@@ -305,8 +311,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 						'silent'		, opt.silent						  ...
 						);
 
-x	= res;
-
 if opt.combine
 	try
 		res	= structtreefun(@CombineResult,res{:});
@@ -325,6 +329,8 @@ end
 
 %------------------------------------------------------------------------------%
 function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
+	res	= [];
+	
 	tNow	= nowms;
 	L		= Log('level',param.debug,'silent',param.silent);
 	
@@ -359,6 +365,25 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 		
 		%run the python script
 			if param.run
+				%do some final error checking
+				try
+					assert(FileExists(param.path_data),'%s does not exist',param.path_data);
+					assert(FileExists(param.path_attribute),'%s does not exist',param.path_attribute);
+					assert(FileExists(param.path_param),'%s does not exist',param.path_param);
+					
+					nMask	= numel(param.path_mask);
+					for kM=1:nMask
+						assert(FileExists(param.path_mask{kM}),'%s does not exist',param.path_mask{kM});
+					end
+				catch me
+					if param.error
+						rethrow(me);
+					else
+						warning(sprintf('%s. classification will not be performed.',me.message));
+						return;
+					end
+				end
+				
 				L.Print('calling python classification script','all');
 				[ec,str]	= CallProcess('python',{param.path_script param.path_param});
 				L.Print('python classification script finished','all');
@@ -366,7 +391,13 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 				str	= str{1};
 				
 				if ec~=0
-					error(['python script error (' str ')']);
+					strError	= sprintf('python script error (%s)',str);
+					if param.error
+						error(strError);
+					else
+						warning(strError);
+						return;
+					end
 				end
 			end
 	end
@@ -376,8 +407,6 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 			L.Print('loading classification results','all');
 			res	= getfield(load(param.path_result),'result');
 			L.Print('loaded classification results','all');
-		else
-			res	= [];
 		end
 	
 	%delete the temporary files

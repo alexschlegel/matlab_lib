@@ -130,7 +130,7 @@ s.opt_extra	= opt.opt_extra;
 		end
 	else
 		if s.cell_input.functional
-			s.cell_input.mask_inner	= iscell(opt.path_mask) && any(cellfun(@iscell,opt.path_mask));
+			s.cell_input.mask_inner	= iscell(opt.path_mask) && any(cellfun(@iscell,opt.path_mask(:)));
 		else
 			s.cell_input.mask_inner	= false;
 		end

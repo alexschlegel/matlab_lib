@@ -368,7 +368,7 @@ function res = ProcessError(res,strError,opt)
 	res.error	= strError;
 	
 	if ~opt.silent
-		warn(strError);
+		warning(strError);
 	end
 end
 %------------------------------------------------------------------------------%

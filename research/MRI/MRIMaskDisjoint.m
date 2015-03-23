@@ -51,6 +51,7 @@ end
 	
 	%get the output file paths
 		cPathOut				= ForceCell(opt.output,'level',2);
+		[cPathMask,cPathOut]	= FillSingletonArrays(cPathMask,cPathOut);
 		[cPathMask,cPathOut]	= cellfun(@FillSingletonArrays,cPathMask,cPathOut,'uni',false);
 		cPathOut				= cellfun(@(ci,co) cellfun(@ParseOutput,ci,co,'uni',false),cPathMask,cPathOut,'uni',false);
 

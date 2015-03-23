@@ -35,7 +35,7 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK		- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-03-22
+% Updated: 2015-03-23
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 BASE_PORT = 30000;
 
@@ -199,7 +199,6 @@ function MultiTaskParallel()
 								CompositeOut{kTask}				= cell(nOut,1);
 								[CompositeOut{kTask}{1:nOut}]	= f{kTask}(cIn{kTask}{:});
 								
-								%***
 								if ~isempty(CompositeOut{kTask}) && isempty(CompositeOut{kTask}{1})
 									PWorkerStatus(labindex,'empty!!!','warn');
 								end
@@ -228,7 +227,7 @@ function MultiTaskParallel()
 		StopManager(hManager);
 	
 	%merge the outputs
-		if ~err
+		if isempty(err)
 			cOut = cellfun(@(varargin) cat(2,varargin{:}), CompositeOut{:},'uni',false);
 			
 			bBlank			= cellfun(@isempty,cOut);
@@ -239,7 +238,7 @@ function MultiTaskParallel()
 		Pool('close');
 	
 	%did an error occur?
-		if err
+		if ~isempty(err)
 			error('An error occurred: %s',err);
 		end
 end

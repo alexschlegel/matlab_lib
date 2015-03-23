@@ -42,9 +42,10 @@ if isstruct(opt)
 		cField	= fieldnames(opt);
 	end
 	
-	cVal	= struct2cell(opt);
+	cField	= reshape(cField,1,[]);
+	cVal	= reshape(struct2cell(opt),1,[]);
 	
-	cOpt	= reshape([cField cVal]',[],1);
+	cOpt	= reshape([cField; cVal],[],1);
 else
 	cOpt	= {};
 end

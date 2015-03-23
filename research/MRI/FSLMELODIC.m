@@ -57,7 +57,7 @@ function res = FSLMELODIC(varargin)
 %					comp_dataset:	comp transformed to a NIfTI dataset
 %					weight:			the weight NIfTI file
 % 
-% Updated: 2015-03-22
+% Updated: 2015-03-23
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -92,6 +92,9 @@ function res = FSLMELODIC(varargin)
 	sData		= size(cPathData);
 	cPathMask	= repto(ForceCell(unless(sPath.mask,[])),sData);
 	cDirOut		= repto(ForceCell(opt.dir_out),sData);
+	
+	%cut down on the variables space for workers
+		opt	= rmfield(opt,'opt_extra');
 
 %MELODIC!
 	%initialize the outputs
@@ -116,7 +119,7 @@ function res = FSLMELODIC(varargin)
 	%compute the new results
 		bDo	= ~bExist;
 		if any(bDo)
-			res(bDo)	= MultiTask(@(r) DoMELODIC(r,opt),{res(bDo)},...
+			res(bDo)	= MultiTask(@DOMELODIC,{res(bDo) opt},...
 							'description'	, 'running MELODIC'	, ...
 							'nthread'		, opt.nthread		, ...
 							'silent'		, opt.silent		  ...

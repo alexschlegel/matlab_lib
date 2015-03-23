@@ -79,6 +79,8 @@ function res = FSLMELODIC(varargin)
 			'silent'		, false	  ...
 			);
 	
+	bNoDirOut	= isempty(opt.dir_out);
+	
 	opt.comptype	= CheckInput(opt.comptype,'component type',{'ica','pca'});
 	
 	assert(isempty(opt.dim) || isempty(opt.mindim) || opt.dim<opt.mindim,'dim option is less than mindim option.');
@@ -97,8 +99,19 @@ function res = FSLMELODIC(varargin)
 		opt	= rmfield(opt,'opt_extra');
 
 %MELODIC!
+	%handle the special case where no output directory was specified, we only
+	%want PCA data, we specified the number of dimensions, we aren't forcing
+	%computation, the outputs don't already exist, and a previous run produced
+	%at least as many PCA components. in this case, we will just copy a subset
+	%of the previously computed components.
+	bSpecialPCA	= bNoDirOut && strcmp(opt.comptype,'pca') && ~isempty(opt.dim) && ~opt.force;
+	
 	%initialize the outputs
-		res			= cellfun(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false);
+		if bSpecialPCA
+			res		= cellfunprogress(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false,'label','initializing results');
+		else
+			res		= cellfun(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false);
+		end
 		[res,uf]	= cellnestflatten(res);
 		n			= numel(res);
 	
@@ -145,6 +158,8 @@ function res = InitializeResults(strPathData,strPathMask,strDirOut)
 		strDirOut	= repto(ForceCell(strDirOut),size(strPathMask));
 		res			= cellfun(@(o,m) InitializeResults(strPathData,m,o),strDirOut,strPathMask,'uni',false);
 	else
+		bNoDirOut	= isempty(strDirOut);
+		
 		strDirOut	= ParseOutputDir(strPathData,strPathMask,strDirOut);
 		
 		res			= struct(...
@@ -163,6 +178,10 @@ function res = InitializeResults(strPathData,strPathMask,strDirOut)
 		
 		res.path.result	= GetOutputPaths(res);
 		res.path.data	= res.path.result.(opt.comptype).comp_dataset;
+		
+		if bSpecialPCA && ~OutputExists(res)
+			res	= CheckForExistingPCA(res);
+		end
 	end
 end
 %------------------------------------------------------------------------------%
@@ -184,19 +203,123 @@ function strDirOut = ParseOutputDir(strPathData,strPathMask,strDirOut)
 	end
 end
 %------------------------------------------------------------------------------%
-function s = GetOutputPaths(res)
+function s = GetOutputPaths(res,varargin)
+%	s = GetOutputPaths(res/strDirOut,[subPCADim])
+	if isstruct(res)
+		strDirOut	= res.path.output;
+	else
+		strDirOut	= res;
+	end
+	
 	s	= struct(...
 			'pca'	, struct(...
-						'comp'			, PathUnsplit(res.path.output,'melodic_dewhite')		, ...
-						'comp_dataset'	, PathUnsplit(res.path.output,'data_pca','nii.gz')		, ...
-						'weight'		, PathUnsplit(res.path.output,'melodic_pca','nii.gz')	  ...
+						'comp'			, PathUnsplit(strDirOut,'melodic_dewhite')		, ...
+						'comp_dataset'	, PathUnsplit(strDirOut,'data_pca','nii.gz')		, ...
+						'weight'		, PathUnsplit(strDirOut,'melodic_pca','nii.gz')	  ...
 						),...
 			'ica'	, struct(...
-						'comp'			, PathUnsplit(res.path.output,'melodic_mix')			, ...
-						'comp_dataset'	, PathUnsplit(res.path.output,'data_ica','nii.gz')		, ...
-						'weight'		, PathUnsplit(res.path.output,'melodic_IC','nii.gz')	  ...
+						'comp'			, PathUnsplit(strDirOut,'melodic_mix')			, ...
+						'comp_dataset'	, PathUnsplit(strDirOut,'data_ica','nii.gz')		, ...
+						'weight'		, PathUnsplit(strDirOut,'melodic_IC','nii.gz')	  ...
 						)...
 			);
+	
+	if numel(varargin)>0
+		subPCADim	= varargin{1};
+		strSuffix	= sprintf('-%d',subPCADim);
+		s.pca		= structfun2(@(f) PathAddSuffix(f,strSuffix,'favor','nii.gz'),s.pca);
+		s.ica		= structfun2(@(f) '',s.ica);
+	end
+end
+%------------------------------------------------------------------------------%
+function res = CheckForExistingPCA(res)
+	%search for matching directories
+		cDir			= DirSplit(res.path.output);
+		strDirParent	= DirUnsplit(cDir(1:end-1));
+		
+		sMatch	= regexp(cDir{end},'(?<pre>.+)-\d+\.ica','names');
+		if isempty(sMatch)
+			return;
+		end
+		
+		re			= [StringForRegExp(sMatch.pre) '[-]?\d*\.ica'];
+		cDirMatch	= FindDirectories(strDirParent,re);
+		nMatch		= numel(cDirMatch);
+		
+		if isempty(cDirMatch)
+			return;
+		end
+	
+	%get the dimension number for each matching directory
+		cDirMatchSplit	= cellfun(@DirSplit,cDirMatch,'uni',false);
+		cMatch			= cellfun(@(c) c{end},cDirMatchSplit,'uni',false);
+		
+		re		= [StringForRegExp(sMatch.pre) '[-]?(?<dim>\d*)\.ica'];
+		sDim	= regexp(cMatch,re,'names');
+	
+	%do any of these work?
+		for kM=1:nMatch
+			if isempty(sDim{kM})
+				continue;
+			end
+			
+			d	= str2double(sDim{kM}.dim);
+			
+			if d>=opt.dim || (isnan(d) && PCADim(cDirMatch{kM})>=opt.dim)
+			%match!
+				res	= CreateSubPCA(res,cDirMatch{kM},opt.dim);
+				return;
+			end
+		end
+end
+%------------------------------------------------------------------------------%
+function d = PCADim(strDirMELODIC)
+	strPathComp	= PathUnsplit(strDirMELODIC,'melodic_dewhite');
+	
+	if ~FileExists(strPathComp)
+		d	= 0;
+		return;
+	end
+	
+	r	= LoadComp(struct('comp',[]),strPathComp,opt);
+	d	= size(r.comp,2);
+end
+%------------------------------------------------------------------------------%
+function res = CreateSubPCA(res,strDirMELODIC,d)
+	resPre	= GetOutputPaths(strDirMELODIC);
+	
+	if ~all(structfun(@FileExists,resPre.pca))
+		return;
+	end
+	
+	resSub	= GetOutputPaths(strDirMELODIC,d);
+	
+	%comp
+		if ~FileExists(resSub.pca.comp)
+			res			= LoadComp(res,resPre.pca.comp,opt);
+			res.comp	= res.comp(:,end-opt.dim+1:end);
+			fput(array2str(res.comp,'precision',10),resSub.pca.comp);
+		end
+	%dataset
+		if ~FileExists(resSub.pca.comp_dataset)
+			nii			= NIfTIRead(resPre.pca.comp_dataset);
+			nii.data	= nii.data(end-opt.dim+1:end,:,:,:);
+			NIfTIWrite(nii,resSub.pca.comp_dataset);
+		end
+	%weights
+		if ~FileExists(resSub.pca.weight)
+			nii			= NIfTIRead(resPre.pca.weight);
+			nii.data	= nii.data(:,:,:,end-opt.dim+1:end);
+			NIfTIWrite(nii,resSub.pca.weight);
+			
+			if opt.load_weight
+				res.weight	= nii.data;
+			end
+		end
+	
+	res.path.output	= PathGetDir(resSub.pca.comp);
+	res.path.result	= resSub;
+	res.path.data	= resSub.pca.comp_dataset;
 end
 %------------------------------------------------------------------------------%
 end

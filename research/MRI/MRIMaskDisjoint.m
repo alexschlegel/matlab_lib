@@ -104,7 +104,7 @@ function b = DisjointOne(cPathMask,cPathOut)
 		nMask	= numel(msk);
 	
 	%create each output mask
-		bNo	= msk{1}.data;
+		bNo	= logical(msk{1}.data);
 		sz	= size(bNo);
 		for kM=2:nMask
 			%make sure we have the correct space

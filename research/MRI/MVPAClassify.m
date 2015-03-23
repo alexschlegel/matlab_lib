@@ -139,6 +139,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %		group_stats:			(true) true to perform group stats on the
 %								accuracies and confusion matrices (<combine>
 %								must also be true)
+%		extra_stats:			(<group_stats>) true to calcuate some extra
+%								stats (FDR corrected p-values and confusion
+%								matrix correlations)
+%		confusion_model:		(<none>) the confusion models for the extra
+%								stats (see MVPAClassifyExtraStats)
 %		nthread:				(1) the number of threads to use
 %		closepool:				(true) true to close the matlab pool before
 %								and after the MultiTask call
@@ -162,7 +167,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % 	res	- if <combine> is selected, then a struct array of analysis results.
 %		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-03-20
+% Updated: 2015-03-23
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -200,6 +205,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'array_to_file'			, false			, ...
 			'combine'				, true			, ...
 			'group_stats'			, true			, ...
+			'extra_stats'			, []			, ...
+			'confusion_model'		, []			, ...
 			'nthread'				, 1				, ...
 			'closepool'				, true			, ...
 			'force'					, true			, ...
@@ -212,6 +219,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			);
 	
 	opt.path_script	= PathAddSuffix(mfilename('fullpath'),'','py');
+	opt.extra_stats	= unless(opt.extra_stats,opt.group_stats);
 	opt.force_each	= unless(opt.force_each,opt.force);
 	
 	%make sure we have a scalar cell of a cell of classifiers so everything gets
@@ -320,6 +328,12 @@ if opt.combine
 	
 	if opt.group_stats && nAnalysis > 1
 		res	= GroupStats(res);
+		
+		if opt.extra_stats
+			res.stat	= MVPAClassifyExtraStats(res,...
+							'confusion_model'	, opt.confusion_model	  ...
+							);
+		end
 	end
 end
 

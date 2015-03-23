@@ -13,7 +13,7 @@ function res = MVPAROIClassify(varargin)
 %		<+ options for MVPAClassify>
 %		melodic:	(true) true to perform MELODIC on the extracted ROIs before
 %					classification
-%		pcaonly:	(true) (see FSLMELODIC)
+%		comptype:	('pca') (see FSLMELODIC)
 %		targets:	(<required>) a cell specifying the target for each sample,
 %					or a cell of cells (one for each dataset)
 %		chunks:		(<required>) an array specifying the chunks for each sample,
@@ -42,7 +42,7 @@ function res = MVPAROIClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-20
+% Updated: 2015-03-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -69,7 +69,7 @@ function res = MVPAROIClassify(varargin)
 %extract the ROI data
 	if opt.melodic
 		opt_melodic	= optadd(sPath.opt_extra,...
-						'pcaonly'	, true	  ...
+						'comptype'	, 'pca'	  ...
 						);
 		opt_melodic	= optreplace(opt_melodic,...
 						'path_functional'	, sPath.functional	, ...
@@ -80,7 +80,7 @@ function res = MVPAROIClassify(varargin)
 						);
 		
 		sMELODIC		= FSLMELODIC(opt_melodic);
-		cPathDataROI	= sMELODIC.path_data;
+		cPathDataROI	= sMELODIC.path.data;
 	else
 		opt_roi			= optreplace(sPath.opt_extra,...
 							'path_functional'	, sPath.functional	, ...
@@ -112,103 +112,24 @@ function res = MVPAROIClassify(varargin)
 			[cPathDataFlat,cTargetFlat,kChunkFlat,cNameFlat]	= varfun(@(x) cat(1,x{:}),cPathDataROI,cTargetRep,kChunkRep,cNameROI);
 	
 	opt_mvpa	= optadd(sPath.opt_extra,...
-					'output_prefix'	, cNameFlat	, ...
-					'combine'		, true		, ...
-					'group_stats'	, true		  ...
+					'output_prefix'	, cNameFlat	  ...
 					);
-	bCombine	= opt_mvpa.combine;
-	bGroupStats	= opt_mvpa.group_stats;
 	opt_mvpa	= optreplace(opt_mvpa,...
-					'combine'			, false			, ...
-					'nthread'			, opt.nthread	, ...
-					'force'				, opt.force		, ...
-					'silent'			, opt.silent	  ...
+					'combine'		, false			, ...
+					'group_stats'	, false			, ...
+					'extra_stats'	, false			, ...
+					'nthread'		, opt.nthread	, ...
+					'force'			, opt.force		, ...
+					'silent'		, opt.silent	  ...
 					);
-					
-	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
 	
-%combine the results
-	if bCombine
-		try
-			%construct dummy structs for failed classifications
-				bFailed	= cellfun(@isempty,res);
-				if any(bFailed)
-					kGood	= find(~bFailed,1);
-					if isempty(kGood)
-						error('everything sucks');
-					end
-					
-					resDummy		= dummy(res{kGood});
-					res(bFailed)	= {resDummy};
-				end
-			
-			nSubject	= numel(sPath.functional);
-			cMask		= reshape(cMaskName{1},[],1);
-			nMask		= numel(cMask);
-			
-			sCombine	= [nMask nSubject];
-			
-			res			= structtreefun(@CombineResult,res{:});
-			res.mask	= cMask;
-			res.type	= 'roiclassify';
-		catch me
-			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
-			return;
-		end
-		
-		if bGroupStats && size(cPathDataFlat,1) > 1
-			res	= GroupStats(res);
-		end
-	end
+	res	= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
 
-
-%------------------------------------------------------------------------------%
-function x = CombineResult(varargin)
-	if nargin==0
-		x	= [];
-	else
-		if isnumeric(varargin{1}) && uniform(cellfun(@size,varargin,'uni',false))
-			if isscalar(varargin{1})
-				x	= reshape(cat(1,varargin{:}),sCombine);
-			else
-				sz	= size(varargin{1});
-				x	= reshape(stack(varargin{:}),[sz sCombine]);
-			end
-		else
-			x	= reshape(varargin,sCombine);
-		end
-	end
-end
-%------------------------------------------------------------------------------%
-function res = GroupStats(res)
-	if isstruct(res)
-		res	= structfun2(@GroupStats,res);
-		
-		if isfield(res,'accuracy')
-			%accuracies
-				acc		= res.accuracy.mean;
-				nd		= ndims(acc);
-				chance	= res.accuracy.chance(1,end);
-				
-				res.stats.accuracy.mean	= nanmean(acc,nd);
-				res.stats.accuracy.se	= nanstderr(acc,[],nd);
-				
-				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
-				
-				res.stats.accuracy.chance	= chance;
-				res.stats.accuracy.df		= stats.df;
-				res.stats.accuracy.t		= stats.tstat;
-				res.stats.accuracy.p		= p;
-			%confusion matrices
-				conf	= res.confusion;
-				
-				if ~iscell(conf)
-					res.stats.confusion.mean	= nanmean(conf,4);
-					res.stats.confusion.se		= nanstderr(conf,[],4);
-				end
-		end
-	end
-end
-%------------------------------------------------------------------------------%
-
-end
+%post-processing
+	opt_pp	= optadd(sPath.opt_extra,...
+				'type'		, 'roiclassify'	, ...
+				'silent'	, opt.silent	  ...
+				);
+	
+	cMask	= reshape(cMaskName{1},[],1);
+	res		= MVPAROIPostProcess(res,cMask,opt_pp);

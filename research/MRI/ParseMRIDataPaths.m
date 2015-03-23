@@ -38,7 +38,7 @@ function s = MRIParseDataPaths(varargin)
 % Out:
 % 	s	- a struct of user-specified path info
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -69,7 +69,7 @@ s.opt_extra	= opt.opt_extra;
 %parse the functional data paths
 	if isempty(opt.path_functional)
 		if isempty(opt.dir_functional)
-			cDirFunctional	= cellfun(@(s) DirAppend(opt.dir_data,'functional',s),cSubject,'uni',false);
+			cDirFunctional	= cellfun(@(s) conditional(isempty(s),'',DirAppend(opt.dir_data,'functional',s)),cSubject,'uni',false);
 			
 			s.cell_input.functional	= ~bNoCellSubject;
 		else
@@ -78,7 +78,7 @@ s.opt_extra	= opt.opt_extra;
 			s.cell_input.functional	= ~bNoCellDir;
 		end
 		
-		cPathFunctional	= cellfun(@(d) PathUnsplit(d,opt.file_functional,'nii.gz'),cDirFunctional,'uni',false);
+		cPathFunctional	= cellfun(@(d) conditional(isempty(d),'',PathUnsplit(d,opt.file_functional,'nii.gz')),cDirFunctional,'uni',false);
 	else
 		[cPathFunctional,bNoCellPath]	= ForceCell(opt.path_functional);
 		
@@ -94,7 +94,7 @@ s.opt_extra	= opt.opt_extra;
 %parse the mask data paths
 	if isempty(opt.path_mask)
 		if isempty(opt.dir_mask)
-			cDirMask	= cellfun(@(s) DirAppend(opt.dir_data,'mask',s),cSubject,'uni',false);
+			cDirMask	= cellfun(@(s) conditional(isempty(s),'',DirAppend(opt.dir_data,'mask',s)),cSubject,'uni',false);
 			
 			s.cell_input.mask	= ~bNoCellSubject;
 		else
@@ -104,12 +104,12 @@ s.opt_extra	= opt.opt_extra;
 		end
 		
 		if ~isempty(opt.mask_variant)
-			cDirMask	= cellfun(@(d) DirAppend(d,opt.mask_variant),cDirMask,'uni',false);
+			cDirMask	= cellfun(@(d) conditional(isempty(d),'',DirAppend(d,opt.mask_variant)),cDirMask,'uni',false);
 		end
 		
 		switch strMaskType
 			case 'nest'
-				cPathMask	= cellfun(@(d) cellfun(@(m) PathUnsplit(d,m,'nii.gz'),cMask,'uni',false),cDirMask,'uni',false);
+				cPathMask	= cellfun(@(d) cellfun(@(m) conditional(isempty(d) || isempty(m),'',PathUnsplit(d,m,'nii.gz')),cMask,'uni',false),cDirMask,'uni',false);
 				cNameMask	= cellfun(@(d) cellfun(@(m) m,cMask,'uni',false),cDirMask,'uni',false);
 				
 				s.cell_input.mask_inner	= ~bNoCellMask;
@@ -122,7 +122,7 @@ s.opt_extra	= opt.opt_extra;
 					else
 						cMask	= repto(cMask,size(cDirMask));
 					end
-					cPathMask	= cellfun(@(d,m) PathUnsplit(d,m,'nii.gz'),cDirMask,cMask,'uni',false);
+					cPathMask	= cellfun(@(d,m) conditional(isempty(d) || isempty(m),'',PathUnsplit(d,m,'nii.gz')),cDirMask,cMask,'uni',false);
 					cNameMask	= cMask;
 				end
 				

@@ -47,7 +47,7 @@ function res = MVPAROICrossClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-20
+% Updated: 2015-03-23
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -86,7 +86,7 @@ function res = MVPAROICrossClassify(varargin)
 						);
 		
 		sMELODIC		= FSLMELODIC(opt_melodic);
-		cPathDataROI	= sMELODIC.path_data;
+		cPathDataROI	= sMELODIC.path.data;
 	else
 		opt_roi			= optreplace(sPath.opt_extra,...
 							'path_functional'	, sPath.functional	, ...
@@ -135,90 +135,13 @@ function res = MVPAROICrossClassify(varargin)
 					);
 					
 	res			= MVPAClassify(cPathDataFlat,cTargetFlat,kChunkFlat,opt_mvpa);
+
+%post-processing
+	opt_pp	= optadd(sPath.opt_extra,...
+				'type'		, 'roicrossclassify'	, ...
+				'silent'	, opt.silent			  ...
+				);
 	
-%combine the results
-	if bCombine
-		try
-			%construct dummy structs for failed classifications
-				bFailed	= cellfun(@isempty,res);
-				if any(bFailed)
-					kGood	= find(~bFailed,1);
-					if isempty(kGood)
-						error('everything sucks');
-					end
-					
-					resDummy		= dummy(res{kGood});
-					res(bFailed)	= {resDummy};
-				end
-			
-			nSubject	= numel(sPath.functional);
-			cMask		= reshape(cMaskName{1},1,[]);
-			cMaskPair	= cMask(kShake{1});
-			nMaskPair	= size(cMaskPair,1);
-			
-			sCombine	= [nMaskPair nSubject];
-			
-			res			= structtreefun(@CombineResult,res{:});
-			res.mask	= cMaskPair;
-			res.type	= 'roicrossclassify';
-		catch me
-			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
-			return;
-		end
-		
-		if bGroupStats && size(cPathDataFlat,1) > 1
-			res	= GroupStats(res);
-		end
-	end
-
-
-%------------------------------------------------------------------------------%
-function x = CombineResult(varargin)
-	if nargin==0
-		x	= [];
-	else
-		if isnumeric(varargin{1}) && uniform(cellfun(@size,varargin,'uni',false))
-			if isscalar(varargin{1})
-				x	= reshape(cat(1,varargin{:}),sCombine);
-			else
-				sz	= size(varargin{1});
-				x	= reshape(stack(varargin{:}),[sz sCombine]);
-			end
-		else
-			x	= reshape(varargin,sCombine);
-		end
-	end
-end
-%------------------------------------------------------------------------------%
-function res = GroupStats(res)
-	if isstruct(res)
-		res	= structfun2(@GroupStats,res);
-		
-		if isfield(res,'accuracy')
-			%accuracies
-				acc		= res.accuracy.mean;
-				nd		= ndims(acc);
-				chance	= res.accuracy.chance(1,end);
-				
-				res.stats.accuracy.mean	= nanmean(acc,nd);
-				res.stats.accuracy.se	= nanstderr(acc,[],nd);
-				
-				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
-				
-				res.stats.accuracy.chance	= chance;
-				res.stats.accuracy.df		= stats.df;
-				res.stats.accuracy.t		= stats.tstat;
-				res.stats.accuracy.p		= p;
-			%confusion matrices
-				conf	= res.confusion;
-				
-				if ~iscell(conf)
-					res.stats.confusion.mean	= nanmean(conf,4);
-					res.stats.confusion.se		= nanstderr(conf,[],4);
-				end
-		end
-	end
-end
-%------------------------------------------------------------------------------%
-
-end
+	cMask		= reshape(cMaskName{1},1,[]);
+	cMaskPair	= cMask(kShake{1});
+	res			= MVPAROIPostProcess(res,cMaskPair,opt_pp);

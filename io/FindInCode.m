@@ -1,43 +1,88 @@
-function [cFiles,cDirSearch] = FindInCode(str,varargin)
+function [cPathFound,cPathSearch,cDirSearch] = FindInCode(str,varargin)
 % FindInCode
 % 
 % Description:	find instances of str in files in the code directories
 %				(excluding the "_old" directories)
 % 
-% Syntax:	[cFiles,cDirSearch] = FindInCode(str,[cDirSearch]=<see below>)
+% Syntax:	[cPathFound,cPathSearch,cDirSearch] = FindInCode(str,<options>)
+%
+% In:
+%	str	- the string to search for
+%	<options>:
+%		dir:	(<find>) a cell of directories to search
+%		path:	(<find>) a cell of files to search (overrides <dir>)
+%
+% Out:
+%	cPathFound	- a cell of code paths in which the search string was found
 % 
-% Updated:	2012-11-21
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-cDirSearch	= ParseArgs(varargin,[]);
+% Updated: 2015-03-22
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+opt	= ParseArgs(varargin,...
+		'dir'	, []	, ...
+		'path'	, []	  ...
+		);
 
-%get the directories to search
-	if isempty(cDirSearch)
-		status('Finding directories');
+%get the files to search
+	if isempty(opt.path)
+		if isempty(opt.dir)
+		%get the directories to search
+			%base code directories
+				strDirUser	= GetDirUser;
+				cDirBase	=	{
+									{'code','MATLAB','lib'}
+									{'studies'}
+									{'projects','Art','work'}
+									{'projects','Graphics'}
+								};
+				cDirBase	= cellfun(@(c) DirAppend(strDirUser,c{:}),cDirBase,'uni',false);
+			%find all code directories
+				cDirSearch		= GetDirectories(cDirBase);
+		else
+			cDirSearch	= reshape(ForceCell(opt.dir),[],1);
+		end
 		
-		%base code directories
-			if isunix
-				cDirBase	=	{
-									'~/code/MATLAB/lib/'
-									'~/studies/'
-									'~/projects/Art/work/'
-									'~/projects/Graphics/'
-								};
-			else
-				cDirBase	=	{
-									'C:\code\MATLAB\lib\'
-									'C:\studies\'
-									'C:\Projects\Art\work\'
-									'C:\Projects\Graphics\'
-								};
-			end
-		%find non '_old' directories
-			cDirSearch	= [cDirBase; FindDirectories(cDirBase,'^_old$','subdir',true,'maxdepth',3,'casei',true,'negate',true,'progress',true)];
+		%get the .m files to search
+			cPathSearch	= FindFilesByExtension(cDirSearch,'m','progress',true);
+	else
+		cDirSearch	= opt.dir;
+		cPathSearch	= reshape(ForceCell(opt.path),[],1);
 	end
-%get the .m files in the remaining directories
-	status('Finding files');
-	[cFiles,cDirSearch]	= FindFilesByExtension(cDirSearch,'m','groupbydir',true,'progress',true);
-%get one cell for files and directories
-	cFiles		= append(cFiles{:});
+	
 %search in the .m files
-	status('Searching in files');
-	cFiles	= SearchInFiles(cFiles,str,true);
+	cPathFound	= SearchInFiles(cPathSearch,str);
+
+%------------------------------------------------------------------------------%
+function cDir = GetDirectories(cDir)
+	nDir	= numel(cDir);
+	
+	progress(nDir,'label','finding directories');
+	
+	kD	= 1;
+	while kD<=nDir
+		strDir	= cDir{kD};
+		
+		%get the non-old subdirectories
+			d	= dir(strDir);
+			d	= d([d.isdir]);
+			d	= reshape({d.name},[],1);
+			
+			cExclude	= {'_old';'.';'..'};
+			bKeep		= cellfun(@(d) ~any(strcmpi(d,cExclude)),d);
+			d			= d(bKeep);
+			
+			cDirSub	= cellfun(@(d) DirAppend(strDir,d),d,'uni',false);
+		
+		%append them
+			cDir	= [cDir; cDirSub];
+			nDir	= numel(cDir);
+		
+		progress('n',nDir);
+		
+		kD	= kD+1;
+	end
+end
+%------------------------------------------------------------------------------%
+
+end

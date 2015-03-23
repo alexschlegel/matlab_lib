@@ -35,7 +35,7 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK		- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-03-18
+% Updated: 2015-03-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 BASE_PORT = 30000;
 
@@ -107,7 +107,7 @@ warning('off','parallel:cluster:CannotLoadCorrectly');
 	%engage
 		%so the parallel manager can keep track of tasks
 			taskState		= repmat(TASK_UNASSIGNED, [nTask 1]);
-			bError			= false;
+			err				= [];
 			hTimerProgress	= [];
 			bProgressEnd	= false;
 		%for communication
@@ -228,7 +228,7 @@ function MultiTaskParallel()
 		StopManager(hManager);
 	
 	%merge the outputs
-		if ~bError
+		if ~err
 			cOut = cellfun(@(varargin) cat(2,varargin{:}), CompositeOut{:},'uni',false);
 			
 			bBlank			= cellfun(@isempty,cOut);
@@ -239,8 +239,8 @@ function MultiTaskParallel()
 		Pool('close');
 	
 	%did an error occur?
-		if bError
-			error('An error occurred.  See message above.');
+		if err
+			error('An error occurred: %s',err);
 		end
 end
 %------------------------------------------------------------------------------%
@@ -438,7 +438,7 @@ function kTask = FindNextTask(kWorker)
 %find the next unassigned task
 	kTask	= find(taskState==TASK_UNASSIGNED,1);
 	
-	if isempty(kTask) || bError
+	if isempty(kTask) || ~isempty(err)
 	%finished!
 		kTask	= 'finish';
 		
@@ -471,12 +471,12 @@ function WorkerError(kWorker, client, kT, me)
 	WorkerMessage(kWorker, client, 'error', me.message);
 end
 %------------------------------------------------------------------------------%
-function ManagerError(err)
+function ManagerError(strError)
 	if ~opt.catch
 		progress('end', 'name', pName);
-		bError	= true;
+		err	= strError;
 		
-		ManagerStatus(sprintf('aborting the job because an error occurred: %s',err),'error');
+		ManagerStatus(sprintf('aborting the job because an error occurred: %s',strError),'error');
 	end
 end
 %------------------------------------------------------------------------------%
@@ -499,7 +499,7 @@ end
 %------------------------------------------------------------------------------%
 function UserAbort()
 	ManagerStatus('user aborted. workers are being notified...','error');
-	bError	= true;
+	err	= 'user aborted.';
 	
 	Pool('close');
 end

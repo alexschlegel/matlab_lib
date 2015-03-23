@@ -28,8 +28,8 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150317,...
-							'capsuleFormat',20150317)
+	version				= struct('pipeline',20150323,...
+							'capsuleFormat',20150323)
 	analyses			= {'alex','lizier','seth'}
 	explicitOptionNames
 	infodyn_teCalc
@@ -45,11 +45,12 @@ methods
 	%					-- Debugging/diagnostic options:
 	%
 	%		DEBUG:		(false) Display debugging information
-	%		fudge:		({}) Fudge specified details (e.g., {'fakecause'})
+	%		fudge:		({}) Fudge specified details (e.g., {'stubsim'})
 	%		nofigures:	(false) Suppress figures
 	%		nowarnings:	(false) Suppress warnings
 	%		progress:	(true) Show progress
 	%		seed:		(randseed2) Seed to use for randomizing
+	%		subSilent:	(true) Suppress status messages from TE, etc.
 	%		szIm:		(200) Pixel height of debug images
 	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
@@ -76,7 +77,7 @@ methods
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		normVar:	(false) normalize signal variances (approximately)
-	%		preSource:	(true) include pre-source causal effects
+	%		preSource:	(false) include pre-source causal effects
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
@@ -100,7 +101,7 @@ methods
 	%					-- Batch processing
 	%
 	%		max_cores:	(1) Maximum number of cores to request for multitasking
-	%		saveplot:	(true) Save individual plot capsules to mat files on generation
+	%		saveplot:	(false) Save individual plot capsules to mat files on generation
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
@@ -111,6 +112,7 @@ methods
 			'nowarnings'	, false		, ...
 			'progress'		, true		, ...
 			'seed'			, randseed2	, ...
+			'subSilent'		, true		, ...
 			'szIm'			, 200		, ...
 			'verbosity'		, 1			, ...
 			'nSubject'		, 20		, ...
@@ -125,7 +127,7 @@ methods
 			'CRecurY'		, 0.7		, ...
 			'CRecurZ'		, 0.5		, ...
 			'normVar'		, false		, ...
-			'preSource'		, true		, ...
+			'preSource'		, false		, ...
 			'WFullness'		, 0.1		, ...
 			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
@@ -140,7 +142,7 @@ methods
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
-			'saveplot'		, true		  ...
+			'saveplot'		, false		  ...
 			);
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
 			extraOpts	= opt2cell(opt.opt_extra);
@@ -148,7 +150,10 @@ methods
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
 		end
-		invalidFudges			= ~ismember(opt.fudge,{'fakecause'});
+		if ~iscell(opt.fudge)
+			error('Invalid fudge: must be a cell.');
+		end
+		invalidFudges			= ~ismember(opt.fudge,{'fakecause','stubsim'});
 		if any(invalidFudges)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudges}));
 		end
@@ -257,7 +262,7 @@ methods
 				aX			= squeeze(s.XFudge);
 				aY			= squeeze(s.YFudge);
 				aTE1		= calculateCausality(obj,aX,aY,...
-								2:size(aX,1),'te');
+								2:size(aX,1),'te'); %#ok
 				%FIXME: redundant, alternate computation
 				aTE1		= TransferEntropy(aX,aY,...
 								'kraskov_k', u.kraskov_k);
@@ -297,30 +302,30 @@ methods
 				error('Combination WSumTweak and normVar not supported.');
 			end
 			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
-			sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-tweakedWSum-u.CRecurX).*randn(u.nSig,1);
-			destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
+			sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + (1-tweakedWSum-u.CRecurX).*randn(u.nSig,1);
+			destOut			= u.CRecurY.*destIn + W.'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
 			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 		else
 			switch u.normVar
 				case 0
-					sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + (1-sum(WZ,1)'-u.CRecurX).*randn(u.nSig,1);
-					destOut			= u.CRecurY.*destIn + W'*sourceIn + (1-sum(W,1)'-u.CRecurY).*randn(u.nSig,1);
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + (1-sum(WZ,1).'-u.CRecurX).*randn(u.nSig,1);
+					destOut			= u.CRecurY.*destIn + W.'*sourceIn + (1-sum(W,1).'-u.CRecurY).*randn(u.nSig,1);
 					preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
 				case 1
-					sourceOut		= applyVarianceNormalizationToWeightedSum(obj,...
+					sourceOut		= computeWeightedSumWithVarianceNormalization(obj,...
 										{u.CRecurX,sourceIn},...
-										{WZ',preSourceIn},...
-										{1-sum(WZ,1)'-u.CRecurX,randn(u.nSig,1)});
-					destOut			= applyVarianceNormalizationToWeightedSum(obj,...
+										{WZ.',preSourceIn},...
+										{1-sum(WZ,1).'-u.CRecurX,randn(u.nSig,1)});
+					destOut			= computeWeightedSumWithVarianceNormalization(obj,...
 										{u.CRecurY,destIn},...
-										{W',sourceIn},...
-										{1-sum(W,1)'-u.CRecurY,randn(u.nSig,1)});
-					preSourceOut	= applyVarianceNormalizationToWeightedSum(obj,...
+										{W.',sourceIn},...
+										{1-sum(W,1).'-u.CRecurY,randn(u.nSig,1)});
+					preSourceOut	= computeWeightedSumWithVarianceNormalization(obj,...
 										{u.CRecurZ,preSourceIn},...
 										{1-u.CRecurZ,randn(u.nSig,u.nSig)});
 				case 2  % Alternative approach to variance normalization (TODO: remove?)
-					sourceOut		= u.CRecurX.*sourceIn + sum(WZ'.*preSourceIn,2) + sqrt(1-sum(WZ.^2,1)'-u.CRecurX^2).*randn(u.nSig,1);
-					destOut			= u.CRecurY.*destIn + W'*sourceIn + sqrt(1-sum(W.^2,1)'-u.CRecurY^2).*randn(u.nSig,1);
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + sqrt(1-sum(WZ.^2,1).'-u.CRecurX^2).*randn(u.nSig,1);
+					destOut			= u.CRecurY.*destIn + W.'*sourceIn + sqrt(1-sum(W.^2,1).'-u.CRecurY^2).*randn(u.nSig,1);
 					preSourceOut	= u.CRecurZ.*preSourceIn + sqrt(1-u.CRecurZ^2).*randn(u.nSig,u.nSig);
 				otherwise
 					error('Invalid normVar value %d',u.normVar);
@@ -328,8 +333,8 @@ methods
 		end
 
 		if doDebug && ~u.WSumTweak
-			coeffsumx	= u.CRecurX.*ones(size(sourceIn)) + sum(WZ'.*ones(size(preSourceIn)),2) + (1-sum(WZ,1)'-u.CRecurX).*ones(u.nSig,1);
-			coeffsumy	= u.CRecurY.*ones(size(destIn)) + W'*ones(size(sourceIn)) + (1-sum(W,1)'-u.CRecurY).*ones(u.nSig,1);
+			coeffsumx	= u.CRecurX.*ones(size(sourceIn)) + sum(WZ.'.*ones(size(preSourceIn)),2) + (1-sum(WZ,1).'-u.CRecurX).*ones(u.nSig,1);
+			coeffsumy	= u.CRecurY.*ones(size(destIn)) + W.'*ones(size(sourceIn)) + (1-sum(W,1).'-u.CRecurY).*ones(u.nSig,1);
 			coeffsumz	= u.CRecurZ.*ones(size(preSourceIn)) + (1-u.CRecurZ).*ones(u.nSig,u.nSig);
 			errors		= abs([coeffsumx coeffsumy coeffsumz] - 1);
 			if any(errors > 1e-8)
@@ -338,44 +343,14 @@ methods
 		end
 	end
 
-	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
+	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug) %#ok
 		u				= obj.uopt;
 		if u.WSumTweak || u.normVar ~= 0 || u.preSource
 			error('WSumTweak, normVar, and preSource not supported for non-empty xCausAlpha.');
 		end
-		sourceOut		= sW.WXX' * sourceIn + (1-sum(sW.WXX,1)').*randn(u.nSig,1);
-		destOut			= sW.W' * sourceIn + sW.WYY' * destIn + (1-sum(sW.W)'-sum(sW.WYY)').*randn(u.nSig,1);
+		sourceOut		= sW.WXX.' * sourceIn + (1-sum(sW.WXX,1).').*randn(u.nSig,1);
+		destOut			= sW.W.' * sourceIn + sW.WYY.' * destIn + (1-sum(sW.W).'-sum(sW.WYY).').*randn(u.nSig,1);
 		preSourceOut	= preSourceIn;
-	end
-
-	function out = applyVarianceNormalizationToWeightedSum(~,varargin)
-		coeffSigPairs	= varargin;
-		nPair			= numel(coeffSigPairs);
-		if nPair < 1
-			error('No arguments.');
-		end
-		firstPair		= coeffSigPairs{1};
-		sizeSigs		= size(firstPair{2});
-		weightedSum		= zeros(sizeSigs);
-		sumSqCoeffs		= zeros(sizeSigs);
-		for kP=1:nPair
-			pair		= coeffSigPairs{kP};
-			coeff		= pair{1};
-			sig			= pair{2};
-			sqCoeff		= coeff.^2;
-			if all(size(coeff) == size(sig))
-				term	= coeff.*sig;
-			else
-				term	= coeff*sig;
-			end
-			if sizeSigs(2) == 1
-				term	= sum(term,2);
-				sqCoeff	= sum(sqCoeff,2);
-			end
-			weightedSum	= weightedSum + term;
-			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
-		end
-		out				= weightedSum./sqrt(sumSqCoeffs);
 	end
 
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
@@ -397,7 +372,8 @@ methods
 			case 'te'
 				c	= TransferEntropy(X,Y,...
 						'samples'		, indicesOfSamples	, ...
-						'kraskov_k'		, u.kraskov_k		  ...
+						'kraskov_k'		, u.kraskov_k		, ...
+						'silent'		, u.subSilent		  ...
 						);
 			otherwise
 				error('Unrecognized causality kind %s',kind);
@@ -461,6 +437,8 @@ methods
 
 		res	= zeros(P.NumTestSets,1);
 		for kP=1:P.NumTestSets
+			% TODO: Refactor/restructure: redundancy in similar handling of WA, WB,
+			% and in similar handling of Train and Test
 			WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
 			WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
 
@@ -490,6 +468,69 @@ methods
 		p_binom	= 1 - binocdf(Xbin-1,Nbin,Pbin);
 		%accuracy
 		acc		= Xbin/Nbin;
+	end
+
+	%expected usage: product of cell arrays
+	%needn't be a method, could be a function
+	function cprod = computeCartesianProduct(obj,varargin)
+		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
+			error('Arguments must be cell vectors.');
+		end
+		if numel(varargin) == 0
+			cprod	= cell(1,0);
+		else
+			left	= varargin{1};
+			right	= computeCartesianProduct(obj,varargin{2:end});
+			repleft	= repmat(left(:).',size(right,1),1);
+			cprod	= [repleft(:) repmat(right,numel(left),1)];
+		end
+	end
+
+	%expected usage: product of cell arrays
+	%needn't be a method, could be a function
+	function cprod = computeLittleEndianCartesianProduct(obj,varargin)
+		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
+			error('Arguments must be cell vectors.');
+		end
+		if numel(varargin) == 0
+			cprod	= cell(1,0);
+		else
+			left		= computeLittleEndianCartesianProduct(...
+							obj,varargin{1:end-1});
+			right		= varargin{end};
+			repright	= repmat(right(:).',size(left,1),1);
+			cprod		= [repmat(left,numel(right),1) repright(:)];
+		end
+	end
+
+	function out = computeWeightedSumWithVarianceNormalization(~,varargin)
+		coeffSigPairs	= varargin;
+		nPair			= numel(coeffSigPairs);
+		if nPair < 1
+			error('No arguments.');
+		end
+		firstPair		= coeffSigPairs{1};
+		sizeSigs		= size(firstPair{2});
+		weightedSum		= zeros(sizeSigs);
+		sumSqCoeffs		= zeros(sizeSigs);
+		for kP=1:nPair
+			pair		= coeffSigPairs{kP};
+			coeff		= pair{1};
+			sig			= pair{2};
+			sqCoeff		= coeff.^2;
+			if all(size(coeff) == size(sig))
+				term	= coeff.*sig;
+			else
+				term	= coeff*sig;
+			end
+			if sizeSigs(2) == 1
+				term	= sum(term,2);
+				sqCoeff	= sum(sqCoeff,2);
+			end
+			weightedSum	= weightedSum + term;
+			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
+		end
+		out				= weightedSum./sqrt(sumSqCoeffs);
 	end
 
 	% TODO: clean up comments
@@ -677,46 +718,51 @@ methods
 		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
 	end
 
+	function label = getOptLabel(~,optName)
+		switch optName
+			case 'WFullness'
+				label	= 'W fullness';
+			case 'WSum'
+				label	= 'W column sum';
+			case 'nTBlock'
+				label	= 'Number of TRs per block';
+			case 'nSubject'
+				label	= 'Number of subjects';
+			case 'nRun'
+				label	= 'Number of runs';
+			otherwise
+				label	= optName;
+		end
+	end
+
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
 		opt	= ParseArgs(varargin,...
 			'saveplot'		, obj.uopt.saveplot	  ...
 			);
-		if ~isstruct(plotSpec)
-			error('Plot spec must be struct.');
-		end
-		requiredFields	= {
-			'xlabel'		, ...
-			'varName'		, ...
-			'varValues'		, ...
-			'nIteration'	  ...
-			};
-		missingFields	= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
-		if any(missingFields)
-			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
-		end
+		plotSpec	= regularizePlotSpec(obj,plotSpec);
 
 		pause(1);
 		start_ms	= nowms;
-		varName		= plotSpec.varName;
-		values		= plotSpec.varValues;
-		nValue		= numel(values);
-		nIteration	= plotSpec.nIteration;
-		nSim		= nValue * nIteration;
-
-		if ~iscell(values)
-			values	= num2cell(values);
-		end
+		varName		= ['kIteration'; plotSpec.varName];
+		varValues	= [{num2cell(1:plotSpec.nIteration)}; plotSpec.varValues];
+		valueGrid	= obj.computeLittleEndianCartesianProduct(varValues{:});
+		cValue		= num2cell(valueGrid,2);
+		nSim		= numel(cValue);
 
 		rng(obj.uopt.seed,'twister');
 
-		cValue				= reshape(repmat(values(:)',nIteration,1),1,[]);
 		cSeed				= num2cell(randi(intmax,1,nSim));
 
 		vopt				= repmat(obj.uopt,1,nSim);
-		[vopt.(varName)]	= deal(cValue{:});
 		[vopt.seed]			= deal(cSeed{:});
 		[vopt.progress]		= deal(false);
+		for kV=2:numel(varName)
+			name			= varName{kV};
+			%vals			= cellfun(@(tuple) tuple{kV},cValue,'uni',false);
+			vals			= valueGrid(:,kV);
+			[vopt.(name)]	= deal(vals{:});
+		end
 
 		cVopt				= num2cell(vopt);
 		parObj				= repmat(obj,1,nSim);
@@ -727,16 +773,16 @@ methods
 								'silent',true);
 
 		result				= repmat(struct,1,nSim);
-		[result.varName]	= deal(varName);
-		[result.varValue]	= deal(cValue{:});
+		[result.keyTuple]	= deal(varName.');
+		[result.valueTuple]	= deal(cValue{:});
 		[result.seed]		= deal(cSeed{:});
 		[result.summary]	= deal(summary{:});
-		cResult				= num2cell(reshape(result,nIteration,nValue));
+		cResult				= num2cell(reshape(result,...
+								cellfun(@(vv)numel(vv),varValues).'));
 
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
 		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
-		capsule.format		= 2; %TODO: remove
 		capsule.version		= obj.version;
 		capsule.plotSpec	= plotSpec;
 		capsule.opt			= obj.uopt;
@@ -745,7 +791,7 @@ methods
 		capsule.done		= FormatTime(end_ms);
 
 		if opt.saveplot
-			iflow_plot_capsule	= capsule;
+			iflow_plot_capsule	= capsule; %#ok
 			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
 		end
 	end
@@ -761,6 +807,8 @@ methods
 		end
 		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
 			cNote{end+1}	= 'recur=0';
+		elseif opt.CRecurX == u.CRecurX && opt.CRecurY ~= u.CRecurY && opt.CRecurZ == u.CRecurZ
+			cNote{end+1}	= sprintf('recurY=%.2f',opt.CRecurY);
 		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
 			cNote{end+1}	= 'recur=?';
 		end
@@ -779,60 +827,109 @@ methods
 		note		= strjoin(cNote,',');
 	end
 
-	function h = renderMultiLinePlot(obj,cCapsule,var2Spec,var2Indices)
+	function plotSpec = regularizePlotSpec(~,plotSpec)
+		if ~isstruct(plotSpec)
+			error('Plot spec must be struct.');
+		end
+		requiredFields	= {
+			'varName'		, ...
+			'varValues'		, ...
+			'nIteration'	  ...
+			};
+		missingFields	= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
+		if any(missingFields)
+			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
+		end
+
+		if ~iscell(plotSpec.varName)
+			plotSpec.varName	= {plotSpec.varName};
+			plotSpec.varValues	= {plotSpec.varValues};
+		else
+			if ~iscell(plotSpec.varValues) || ...
+					numel(plotSpec.varName) ~= numel(plotSpec.varValues)
+				error('Plot-spec varValues inconsistent with varName cell.');
+			end
+			plotSpec.varName	= plotSpec.varName(:);
+			plotSpec.varValues	= plotSpec.varValues(:);
+		end
+
+		for kVV=1:numel(plotSpec.varValues)
+			if ~iscell(plotSpec.varValues{kVV})
+				plotSpec.varValues{kVV}	= num2cell(plotSpec.varValues{kVV});
+			end
+			plotSpec.varValues{kVV}		= plotSpec.varValues{kVV}(:).';
+		end
+	end
+
+	function h = renderMultiLinePlot(obj,cCapsule,capMeta,capIndices)
 		if nargin < 4
-			var2Indices	= 1:numel(cCapsule);
+			capIndices	= 1:numel(cCapsule);
 		end
 		szCapsule	= size(cCapsule);
 		if szCapsule(1) == 0 || any(szCapsule(2:end) > 1)
 			error('Invalid capsule cell dimensions.');
 		end
 		cap1		= cCapsule{1};
-		%TODO: if cap1.version.capsuleFormat ~= obj.version.capsuleFormat
-		if cap1.format ~= 2
+		if ~isfield(cap1,'version') || ...
+				~isfield(cap1.version,'capsuleFormat') || ...
+				cap1.version.capsuleFormat ~= obj.version.capsuleFormat
 			error('Incompatible capsule format.');
 		end
 		spec1		= cap1.plotSpec;
 		result1		= cap1.result;
-		varName1	= spec1.varName;
+		if numel(spec1.varName) > 1
+			error('Multiple variables per capsule not supported this version.');
+		end
+		varName1_1	= spec1.varName{1};
+		varVals1_1	= spec1.varValues{1};
 		szResult	= size(result1);
 		if any(cellfun(@(c) any(size(c.result) ~= szResult),cCapsule))
 			error('Non-uniform capsule result sizes.');
 		end
-		if any(cellfun(@(c) ~strcmp(varName1,c.plotSpec.varName),cCapsule))
+		if any(cellfun(@(c) ~strcmp(c.plotSpec.varName{1},varName1_1),cCapsule))
 			error('Inconsistent capsule variable names.');
 		end
-		% TODO: Verify consistent variable values across subcapsules.
-
-		var2Labels	= arrayfun(@(i) sprintf('%s=%.2f',...
-						var2Spec.varName,var2Spec.varValues(i)),...
-						var2Indices,'uni',false);
-		acc			= zeros([szResult numel(var2Indices)]);
-
-		for kI=1:size(acc,3)
-			acc(:,:,kI)	= cellfun(@(r) r.summary.alex.acc,...
-								cCapsule{var2Indices(kI)}.result);
+		% Verify consistent variable values across subcapsules.
+		% TODO: Support *different* variable values across subcapsules.
+		if any(cellfun(@(c) any(size(c.plotSpec.varValues{1}) ~= size(varVals1_1)) || ...
+				any(cat(1,c.plotSpec.varValues{1}{:}) ~= cat(1,varVals1_1{:})),cCapsule))
+			error('Inconsistent capsule variable values.');
 		end
 
-		meanAcc		= mean(acc);
-		stderrAcc	= stderr(acc);
+		lineLabels	= arrayfun(@(i) sprintf('%s=%.2f',...
+						capMeta.varName,capMeta.varValues(i)),...
+						capIndices,'uni',false);
+		meanAcc		= zeros([szResult numel(capIndices)]);
+		stderrAcc	= zeros(size(meanAcc));
+
+		for kI=1:size(meanAcc,3)
+			meanAcc(:,:,kI)		= cellfun(@(r) r.summary.alex.meanAccAllSubj,...
+									cCapsule{capIndices(kI)}.result);
+			stderrAcc(:,:,kI)	= cellfun(@(r) r.summary.alex.stderrAccAllSu,...
+									cCapsule{capIndices(kI)}.result);
+		end
+
+		meanMean	= mean(meanAcc);
+		meanStderr	= mean(stderrAcc);	%Desired stat, but is it kosher?
+		%stderrMean	= stderr(meanAcc);  %Conventional stat, but not desired.
 
 		parennote	= noteVaryingOpts(obj,cap1);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end
 		title		= sprintf('Accuracy as a function of %s%s',...
-						varName1,parennote);
+						varName1_1,parennote);
+		xlabel		= getOptLabel(obj,varName1_1);
 		ylabel		= 'Accuracy (%)';
-		xvals		= cellfun(@(r) r.varValue, result1(1,:));
-		yvals		= num2cell(100*meanAcc,[1 2]);
-		errorvals	= num2cell(100*stderrAcc,[1 2]);
+		xvals		= cellfun(@(r) r.valueTuple{2}, result1(1,:));
+		yvals		= num2cell(100*meanMean,[1 2]);
+		errorvals	= num2cell(100*meanStderr,[1 2]);
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals		, ...
 						'title'		, title			, ...
-						'xlabel'	, spec1.xlabel	, ...
+						'xlabel'	, xlabel		, ...
 						'ylabel'	, ylabel		, ...
-						'legend'	, var2Labels	, ...
+						'legend'	, lineLabels	, ...
 						'errortype'	, 'bar'			  ...
 						);
 	end
@@ -933,24 +1030,40 @@ methods
 		if u.nowarnings
 			warningState	= warning('off','all');
 			try
-				summary		= simulateAllSubjectsInternal(obj);
+				summary		= simulateAllSubjectsCheckStub(obj);
 			catch ME
 				warning(warningState);
 				rethrow(ME);
 			end
 			warning(warningState);
 		else
-			summary			= simulateAllSubjectsInternal(obj);
+			summary			= simulateAllSubjectsCheckStub(obj);
 		end
 	end
 
-	function summary = simulateAllSubjectsInternal(obj)
-		u			= obj.uopt;
-		DEBUG		= u.DEBUG;
-		summary		= struct('start_ms',nowms);
+	function summary = simulateAllSubjectsCheckStub(obj)
+		summary.start_ms				= nowms;
+		u								= obj.uopt;
 
 		%initialize pseudo-random-number generator
 		rng(u.seed,'twister');
+
+		%perform simulations, or substitute stub if applicable
+		if ~ismember('stubsim',u.fudge)
+			summary		= simulateAllSubjectsInternal(obj,summary);
+		else
+			%stub actions; revise as necessary
+			summary.WSum				= u.WSum;
+			summary.nRun				= u.nRun;
+			summary.alex.meanAccAllSubj	= randn;
+			summary.alex.stderrAccAllSu	= randn;
+		end
+		summary.end_ms					= nowms;
+	end
+
+	function summary = simulateAllSubjectsInternal(obj,summary)
+		u			= obj.uopt;
+		DEBUG		= u.DEBUG;
 
 		%run each subject
 		results	= cell(u.nSubject,1);
@@ -963,7 +1076,8 @@ methods
 		if u.progress
 			progresstypes	= {'figure','commandline'};
 			progress(u.nSubject,'label','simulating each subject',...
-					'type',progresstypes{1+u.nofigures});
+					'type',progresstypes{1+u.nofigures},...
+					'log',false);
 		end
 		for kS=1:u.nSubject
 			doDebug		= DEBUG && kS==1;
@@ -976,13 +1090,18 @@ methods
 
 		%evaluate the classifier accuracies
 		if isfield(results{1},'alexAccSubj')
+			% TODO: Factor out common code between alex (here) and lizier and seth (below)
 			acc							= cellfun(@(r) r.alexAccSubj,results);
-			[~,p_grouplevel,~,stats]	= ttest(acc,0.5,'tail','right');
+			[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
 
-			summary.alex.acc			= mean(acc);
+			summary.alex.meanAccAllSubj	= mean(acc);
+			summary.alex.stderrAccAllSu	= stderr(acc);
+			summary.alex.h				= h;
 			summary.alex.p				= p_grouplevel;
+			summary.alex.ci				= ci;
+			summary.alex.stats			= stats;
 			if DEBUG
-				fprintf('Alex mean accuracy: %.2f%%\n',100*summary.alex.acc);
+				fprintf('Alex mean accuracy: %.2f%%\n',100*summary.alex.meanAccAllSubj);
 				fprintf('Alex group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
@@ -1015,12 +1134,9 @@ methods
 			end
 		end
 		summary.subjectResults			= results;
-		summary.end_ms					= nowms;
 	end
 
 	function subjectStats = simulateSubject(obj,doDebug)
-		u	= obj.uopt;
-
 		%causality matrices
 		sW	= generateStructOfWs(obj,doDebug);
 
@@ -1047,19 +1163,16 @@ methods (Static)
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 		pipeline	= pipeline.changeOptionDefault('saveplot',false);
 
-		spec.xlabel		= 'W fullness';
 		spec.varName	= 'WFullness';
 		spec.varValues	= 0.05:0.05:0.25;
 		spec.nIteration	= 5;
 		capsule{1}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'W column sum';
 		spec.varName	= 'WSum';
 		spec.varValues	= [0.05 0.1 0.2 0.3 0.4];
 		spec.nIteration	= 5;
 		capsule{2}		= pipeline.makePlotCapsule(spec);
 
-		spec.xlabel		= 'Number of TRs per block';
 		spec.varName	= 'nTBlock';
 		spec.varValues	= 1:5;
 		spec.nIteration	= 5;
@@ -1069,7 +1182,7 @@ methods (Static)
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
 		plot_data.label			= sprintf('Three fudged capsules w/ fakecause, etc.');
 		plot_data.cCapsule		= capsule;
-		save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
+		%save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
 	end
 
 	% constructTestPlotData
@@ -1082,47 +1195,45 @@ methods (Static)
 
 		spec				= repmat(struct,4,1);
 
-		spec(1).xlabel		= 'Number of subjects';
 		spec(1).varName		= 'nSubject';
 		spec(1).varValues	= [1 2 5 10 20];
 
-		spec(2).xlabel		= 'Number of runs';
 		spec(2).varName		= 'nRun';
 		spec(2).varValues	= 2:2:10;
 
-		spec(3).xlabel		= 'W fullness';
 		spec(3).varName		= 'WFullness';
 		spec(3).varValues	= 0.05:0.05:0.25;
 
-		spec(4).xlabel		= 'Number of TRs per block';
 		spec(4).varName		= 'nTBlock';
 		spec(4).varValues	= 1:5;
 
 		[spec(:).nIteration]	= deal(10);
 
-		var2Spec.label		= 'W column sum';
-		var2Spec.varName	= 'WSum';
-		var2Spec.varValues	= 0.1*(1:5);
+		capMeta.label		= 'W column sum';
+		capMeta.varName		= 'WSum';
+		capMeta.varValues	= 0.1*(1:5);
 
 		nSpec				= numel(spec);
-		nVar2				= numel(var2Spec.varValues);
-		capsule				= cell(nVar2,nSpec);
+		nCapvar				= numel(capMeta.varValues);
+		capsule				= cell(nCapvar,nSpec);
+		capseeds			= randi(intmax,1,nCapvar);
 
 		for kSpec=1:nSpec
-			for kVar2=1:nVar2
+			for kCapvar=1:nCapvar
 				p2							= pipeline;
-				p2.uopt.(var2Spec.varName)	= var2Spec.varValues(kVar2);
-				capsule{kVar2,kSpec}		= p2.makePlotCapsule(spec(kSpec));
+				p2.uopt.(capMeta.varName)	= capMeta.varValues(kCapvar);
+				p2.uopt.seed				= capseeds(kCapvar);
+				capsule{kCapvar,kSpec}		= p2.makePlotCapsule(spec(kSpec));
 			end
 		end
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
 		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
-									nVar2,nSpec,pipeline.uopt.nSubject);
-		plot_data.var2Spec		= var2Spec;
+									nCapvar,nSpec,pipeline.uopt.nSubject);
+		plot_data.capMeta		= capMeta;
 		plot_data.cCapsule		= capsule;
-		save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
+		%save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
 	end
 
 	% createDebugPipeline - static method for creating debug-pipeline

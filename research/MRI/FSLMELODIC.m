@@ -162,7 +162,7 @@ function res = InitializeResults(strPathData,strPathMask,strDirOut,varargin)
 		strDirOut	= repto(ForceCell(strDirOut),size(strPathMask));
 		res			= cellfun(@(o,m) InitializeResults(strPathData,m,o),strDirOut,strPathMask,'uni',false);
 	else
-		[nDim,nPCASubDim]	= ParseArgs(varargin,opt.dim,[]);
+		[nDim,bSubPCA]	= ParseArgs(varargin,opt.dim,false);
 		
 		strDirOut	= ParseOutputDir(strPathData,strPathMask,strDirOut,nDim);
 		
@@ -181,7 +181,7 @@ function res = InitializeResults(strPathData,strPathMask,strDirOut,varargin)
 										)...
 						);
 		
-		res.path.result	= GetOutputPaths(res,nPCASubDim);
+		res.path.result	= GetOutputPaths(res,bSubPCA);
 		res.path.data	= res.path.result.(opt.comptype).comp_dataset;
 	end
 end
@@ -205,7 +205,7 @@ function strDirOut = ParseOutputDir(strPathData,strPathMask,strDirOut,nDim)
 	end
 end
 %------------------------------------------------------------------------------%
-function sOut = GetOutputPaths(res,nPCASubDim)
+function sOut = GetOutputPaths(res,bSubPCA)
 	sOut	= struct(...
 				'pca'	, struct(...
 							'comp'			, PathUnsplit(res.path.output,'melodic_dewhite')		, ...
@@ -219,9 +219,7 @@ function sOut = GetOutputPaths(res,nPCASubDim)
 							)...
 				);
 	
-	if ~isempty(nPCASubDim)
-		strSuffix	= sprintf('-%d',nPCASubDim);
-		sOut.pca	= structfun2(@(f) PathAddSuffix(f,strSuffix,'favor','nii.gz'),sOut.pca);
+	if bSubPCA
 		sOut.ica	= structfun2(@(f) '',sOut.ica);
 	end
 end
@@ -262,35 +260,44 @@ function [res,bFound] = CheckForExistingPCA(res)
 			
 			nDim	= str2double(sDim{kM}.dim);
 			
-			if nDim>=opt.dim || (isnan(nDim) && PCADim(cDirMatch{kM})>=opt.dim)
+			if isnan(nDim)
+				nDimActual	= PCADim(cDirMatch{kM});
+			else
+				nDimActual	= nDim;
+			end
+			
+			if nDimActual>=opt.dim
 			%match!
-				[res,bFound]	= CreateSubPCA(res,cDirMatch{kM},nDim);
+				[res,bFound]	= CreateSubPCA(res,cDirMatch{kM},nDim,nDimActual);
 				return;
 			end
 		end
 end
 %------------------------------------------------------------------------------%
 function d = PCADim(strDirMELODIC)
-	strPathComp	= PathUnsplit(strDirMELODIC,'melodic_dewhite');
+	strPathCompD	= PathUnsplit(strDirMELODIC,'data_pca','nii.gz');
 	
-	if FileExists(strPathComp)
-		comp	= ReadComp(strPathComp);
-		d		= size(comp,2);
+	if FileExists(strPathCompD)
+		sz	= NIfTIGetSize(strPathCompD);
+		d	= sz(1);
 	else
 		d	= 0;
 	end
 end
 %------------------------------------------------------------------------------%
-function [res,bSuccess] = CreateSubPCA(res,strDirMELODIC,nDim)
+function [res,bSuccess] = CreateSubPCA(res,strDirMELODIC,nDimPre,nDimPreActual)
 	bSuccess	= false;
 	
-	resPre	= InitializeResults(res.path.input,res.path.mask,strDirMELODIC,nDim);
+	resPre	= InitializeResults(res.path.input,res.path.mask,strDirMELODIC,nDimPre);
 	
 	if ~all(structfun(@FileExists,resPre.path.result.pca))
 		return;
 	end
 	
-	resSub	= InitializeResults(res.path.input,res.path.mask,strDirMELODIC,[],opt.dim);
+	resSub	= InitializeResults(res.path.input,res.path.mask,res.path.output,[],true);
+	if ~CreateDirPath(resSub.path.output)
+		return;
+	end
 	
 	%NOTE: for some reason, melodic stores PCA data from least-significant
 	%component to most-significant component (wtf?). so, we actually want to
@@ -310,28 +317,26 @@ function [res,bSuccess] = CreateSubPCA(res,strDirMELODIC,nDim)
 		end
 	%dataset
 		if ~FileExists(resSub.path.result.pca.comp_dataset)
-			dComp	= ReadData(resPre.path.result.pca.comp_dataset);
+			b	= FSLROI(resPre.path.result.pca.comp_dataset,[nDimPreActual-opt.dim opt.dim 0 1 0 1],...
+					'output'	, resSub.path.result.pca.comp_dataset	, ...
+					'force'		, true									, ...
+					'silent'	, true									  ...
+					);
 			
-			if size(dComp,1)<opt.dim
+			if ~b
 				return;
 			end
-			
-			dComp	= dComp(end-opt.dim+1:end,:,:,:);
-			WriteData(dComp,resSub.path.result.pca.comp_dataset);
 		end
 	%weights
 		if ~FileExists(resSub.path.result.pca.weight)
-			weight	= ReadData(resPre.path.result.pca.weight);
+			b	= FSLROI(resPre.path.result.pca.weight,[nDimPreActual-opt.dim opt.dim],...
+					'output'	, resSub.path.result.pca.weight	, ...
+					'force'		, true							, ...
+					'silent'	, true							  ...
+					);
 			
-			if size(weight,4)<opt.dim
+			if ~b
 				return;
-			end
-			
-			weight	= weight(:,:,:,end-opt.dim+1:end);
-			WriteData(weight,resSub.path.result.pca.weight);
-			
-			if opt.load_weight
-				resSub.weight	= weight;
 			end
 		end
 	
@@ -519,11 +524,12 @@ function [res,comp] = LoadComp(res,opt,varargin)
 end
 %------------------------------------------------------------------------------%
 function comp = ReadComp(strPathComp)
-	comp	= str2array(fget(strPathComp));
+	comp	= importdata(strPathComp);
 end
 %------------------------------------------------------------------------------%
 function WriteComp(comp,strPathComp)
-	fput(array2str(comp,'precision',10),strPathComp);
+	strComp	= join(cellstr(num2str(comp,10)),10);
+	fput(strComp,strPathComp);
 end
 %------------------------------------------------------------------------------%
 function [res,weight] = LoadWeight(res,opt,varargin)

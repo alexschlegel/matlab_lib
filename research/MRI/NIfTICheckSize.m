@@ -16,8 +16,10 @@ function b = NIfTICheckSize(cPathNII,s)
 % 	b	- a logical array specifying which NIfTI files have the expected
 %		  dimensions
 %
-% Updated: 2012-02-14
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-24
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %cellify
 	cPathNII	= ForceCell(cPathNII);
@@ -33,7 +35,7 @@ function b = NIfTICheckSize(cPathNII,s)
 	bCheck	= FileExists(cPathNII);
 	nCheck	= sum(bCheck);
 %get the actual dimensions
-	sActual	= cellfunprogress(@NIfTIDimensions,cPathNII(bCheck),'UniformOutput',false,'label','Reading Dimensions');
+	sActual	= cellfunprogress(@NIfTIGetSize,cPathNII(bCheck),'UniformOutput',false,'label','Reading Dimensions');
 	ndMax	= max(max(cellfun(@numel,sActual)),max(cellfun(@numel,s)));
 	sActual	= cellfun(@(x) [x ones(1,ndMax-numel(x))],sActual,'UniformOutput',false);
 	s		= cellfun(@(x) [x ones(1,ndMax-numel(x))],s,'UniformOutput',false);

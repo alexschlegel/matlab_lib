@@ -11,10 +11,21 @@ function hdr = FSLReadHeader(strPathNII)
 % Out:
 % 	hdr	- a struct of header info
 % 
-% Updated: 2013-12-09
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-24
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+
+persistent strScript;
+
+if isempty(strScript)
+	cScript		=	{
+						sprintf('source %s > /dev/null',FSLPathConfig)
+						'fslhd '
+					};
+	strScript	= join(cScript,10);
+end
+
 hdr	= struct;
 
 nTry	= 4;
@@ -23,17 +34,7 @@ kTry	= 0;
 while kTry<nTry
 	try
 		%call fslhd
-			strScript		= ['#!/bin/bash -i' 10 'unset LD_LIBRARY_PATH' 10 'source ${FSLDIR}/etc/fslconf/fsl.sh > /dev/null' 10 'fslhd ' strPathNII];
-			strPathScript	= tempname;
-			
-			fput(strScript,strPathScript);
-			system(['chmod 777 ' strPathScript]);
-			
-			setenv('cmd',strPathScript);
-			
-			[ec,str]	= system('$cmd');
-			
-			delete(strPathScript);
+			[ec,str]	= system([strScript strPathNII]);
 		%parse the result
 			%keep only the header
 				kStart	= strfind(str,'filename');

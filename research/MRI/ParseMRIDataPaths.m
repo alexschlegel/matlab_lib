@@ -1,9 +1,9 @@
-function s = MRIParseDataPaths(varargin)
+function s = ParseMRIDataPaths(varargin)
 % MRIParseDataPaths
 % 
 % Description:	parse user inputs to construct a set of data paths
 % 
-% Syntax:	s = MRIParseDataPaths(<options>)
+% Syntax:	s = ParseMRIDataPaths(<options>)
 % 
 % In:
 %		dir_data:			([]) the root data directory

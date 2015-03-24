@@ -19,8 +19,8 @@ function res = FSLMELODIC(varargin)
 %		dir_out:		(<auto>) the output directory/cell of directories. note
 %						that existing directories will be removed.
 %		comptype:		('ica') the return component type ('ica' or 'pca')
-%		dim:			(<auto>) number of dimensions for the dimension-
-%						reduction step
+%		dim:			(NaN) number of dimensions for the dimension-reduction
+%						step. set to NaN to perform automated estimation.
 %		dimest:			(<auto>) the estimation technique for automatic
 %						dimension reduction
 %		mindim:			(<none>) the minimum number of dimensions to return
@@ -57,7 +57,7 @@ function res = FSLMELODIC(varargin)
 %					comp_dataset:	comp transformed to a NIfTI dataset
 %					weight:			the weight NIfTI file
 % 
-% Updated: 2015-03-23
+% Updated: 2015-03-24
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -65,7 +65,7 @@ function res = FSLMELODIC(varargin)
 	opt	= ParseArgs(varargin,...
 			'dir_out'		, []	, ...
 			'comptype'		, 'ica'	, ...
-			'dim'			, []	, ...
+			'dim'			, NaN	, ...
 			'dimest'		, []	, ...
 			'mindim'		, []	, ...
 			'nonlinearity'	, []	, ...
@@ -83,7 +83,7 @@ function res = FSLMELODIC(varargin)
 	
 	opt.comptype	= CheckInput(opt.comptype,'component type',{'ica','pca'});
 	
-	assert(isempty(opt.dim) || isempty(opt.mindim) || opt.dim<opt.mindim,'dim option is less than mindim option.');
+	assert(isnan(opt.dim) || isempty(opt.mindim) || opt.dim<opt.mindim,'dim option is less than mindim option.');
 	
 	opt_path	= optreplace(opt.opt_extra,...
 					'require'	, {'functional'}	  ...
@@ -99,19 +99,8 @@ function res = FSLMELODIC(varargin)
 		opt	= rmfield(opt,'opt_extra');
 
 %MELODIC!
-	%handle the special case where no output directory was specified, we only
-	%want PCA data, we specified the number of dimensions, we aren't forcing
-	%computation, the outputs don't already exist, and a previous run produced
-	%at least as many PCA components. in this case, we will just copy a subset
-	%of the previously computed components.
-	bSpecialPCA	= bNoDirOut && strcmp(opt.comptype,'pca') && ~isempty(opt.dim) && ~opt.force;
-	
 	%initialize the outputs
-		if bSpecialPCA
-			res		= cellfunprogress(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false,'label','initializing results');
-		else
-			res		= cellfun(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false);
-		end
+		res			= cellfun(@InitializeResults,cPathData,cPathMask,cDirOut,'uni',false);
 		[res,uf]	= cellnestflatten(res);
 		n			= numel(res);
 	
@@ -120,6 +109,21 @@ function res = FSLMELODIC(varargin)
 			bExist	= false(n,1);
 		else
 			bExist	= cellfun(@OutputExists,res);
+			
+			%handle the special case where no output directory was specified, we
+			%only want PCA data, we specified the number of dimensions, we
+			%aren't forcing computation, the outputs don't already exist, and a
+			%previous run produced at least as many PCA components. in this
+			%case, we will just copy a subset of the previously computed
+			%components.
+			if bNoDirOut && strcmp(opt.comptype,'pca') && ~isnan(opt.dim) && any(~bExist)
+				[res(~bExist),bFound]	= cellfunprogress(@CheckForExistingPCA,res(~bExist),...
+											'label'		, 'checking for compatible results'	, ...
+											'uni'		, false								, ...
+											'silent'	, opt.silent						  ...
+											);
+				bExist(~bExist)			= cell2mat(bFound);
+			end
 		end
 	
 	%load the existing results
@@ -153,18 +157,19 @@ function res = FSLMELODIC(varargin)
 
 
 %------------------------------------------------------------------------------%
-function res = InitializeResults(strPathData,strPathMask,strDirOut)
+function res = InitializeResults(strPathData,strPathMask,strDirOut,varargin)
 	if iscell(strPathMask) && ~isempty(strPathMask)
 		strDirOut	= repto(ForceCell(strDirOut),size(strPathMask));
 		res			= cellfun(@(o,m) InitializeResults(strPathData,m,o),strDirOut,strPathMask,'uni',false);
 	else
-		bNoDirOut	= isempty(strDirOut);
+		[nDim,nPCASubDim]	= ParseArgs(varargin,opt.dim,[]);
 		
-		strDirOut	= ParseOutputDir(strPathData,strPathMask,strDirOut);
+		strDirOut	= ParseOutputDir(strPathData,strPathMask,strDirOut,nDim);
 		
 		res			= struct(...
 						'success'	, true		, ...
 						'error'		, []		, ...
+						'dim'		, nDim		, ...
 						'comp'		, []		, ...
 						'weight'	, []		, ...
 						'path'		, struct(...
@@ -176,85 +181,77 @@ function res = InitializeResults(strPathData,strPathMask,strDirOut)
 										)...
 						);
 		
-		res.path.result	= GetOutputPaths(res);
+		res.path.result	= GetOutputPaths(res,nPCASubDim);
 		res.path.data	= res.path.result.(opt.comptype).comp_dataset;
-		
-		if bSpecialPCA && ~OutputExists(res)
-			res	= CheckForExistingPCA(res);
-		end
 	end
 end
 %------------------------------------------------------------------------------%
-function strDirOut = ParseOutputDir(strPathData,strPathMask,strDirOut)
+function strDirOut = ParseOutputDir(strPathData,strPathMask,strDirOut,nDim)
 	if isempty(strDirOut)
 		strDirBase	= PathGetDir(strPathData);
-		strDirPre	= PathGetFilePre(strPathData,'favor','nii.gz');
 		
-		cDirPost	= {};
+		cName	= {PathGetFilePre(strPathData,'favor','nii.gz')};
+		
 		if ~isempty(strPathMask)
-			cDirPost{end+1}	= PathGetFilePre(strPathMask,'favor','nii.gz');
+			cName{end+1}	= PathGetMaskName(strPathMask);
 		end
-		if ~isempty(opt.dim)
-			cDirPost{end+1}	= num2str(opt.dim);
+		if ~isnan(nDim)
+			cName{end+1}	= num2str(nDim);
 		end
-		strDirPost	= conditional(isempty(cDirPost),'',['-' join(cDirPost,'-')]);
 		
-		strDirOut	= DirAppend(strDirBase,sprintf('%s%s.ica',strDirPre,strDirPost));
+		strName	= join(cName,'-');
+		
+		strDirOut	= DirAppend(strDirBase,sprintf('%s.ica',strName));
 	end
 end
 %------------------------------------------------------------------------------%
-function s = GetOutputPaths(res,varargin)
-%	s = GetOutputPaths(res/strDirOut,[subPCADim])
-	if isstruct(res)
-		strDirOut	= res.path.output;
-	else
-		strDirOut	= res;
-	end
+function sOut = GetOutputPaths(res,nPCASubDim)
+	sOut	= struct(...
+				'pca'	, struct(...
+							'comp'			, PathUnsplit(res.path.output,'melodic_dewhite')		, ...
+							'comp_dataset'	, PathUnsplit(res.path.output,'data_pca','nii.gz')		, ...
+							'weight'		, PathUnsplit(res.path.output,'melodic_pca','nii.gz')	  ...
+							),...
+				'ica'	, struct(...
+							'comp'			, PathUnsplit(res.path.output,'melodic_mix')			, ...
+							'comp_dataset'	, PathUnsplit(res.path.output,'data_ica','nii.gz')		, ...
+							'weight'		, PathUnsplit(res.path.output,'melodic_IC','nii.gz')	  ...
+							)...
+				);
 	
-	s	= struct(...
-			'pca'	, struct(...
-						'comp'			, PathUnsplit(strDirOut,'melodic_dewhite')		, ...
-						'comp_dataset'	, PathUnsplit(strDirOut,'data_pca','nii.gz')		, ...
-						'weight'		, PathUnsplit(strDirOut,'melodic_pca','nii.gz')	  ...
-						),...
-			'ica'	, struct(...
-						'comp'			, PathUnsplit(strDirOut,'melodic_mix')			, ...
-						'comp_dataset'	, PathUnsplit(strDirOut,'data_ica','nii.gz')		, ...
-						'weight'		, PathUnsplit(strDirOut,'melodic_IC','nii.gz')	  ...
-						)...
-			);
-	
-	if numel(varargin)>0
-		subPCADim	= varargin{1};
-		strSuffix	= sprintf('-%d',subPCADim);
-		s.pca		= structfun2(@(f) PathAddSuffix(f,strSuffix,'favor','nii.gz'),s.pca);
-		s.ica		= structfun2(@(f) '',s.ica);
+	if ~isempty(nPCASubDim)
+		strSuffix	= sprintf('-%d',nPCASubDim);
+		sOut.pca	= structfun2(@(f) PathAddSuffix(f,strSuffix,'favor','nii.gz'),sOut.pca);
+		sOut.ica	= structfun2(@(f) '',sOut.ica);
 	end
 end
 %------------------------------------------------------------------------------%
-function res = CheckForExistingPCA(res)
-	%search for matching directories
+function [res,bFound] = CheckForExistingPCA(res)
+	bFound	= false;
+	
+	%search for existing MELODIC directories
 		cDir			= DirSplit(res.path.output);
+		if numel(cDir)<2
+			return;
+		end
+		
 		strDirParent	= DirUnsplit(cDir(1:end-1));
 		
-		sMatch	= regexp(cDir{end},'(?<pre>.+)-\d+\.ica','names');
+		sMatch	= regexp(cDir{end},'^(?<pre>.+)-\d+\.ica$','names');
 		if isempty(sMatch)
 			return;
 		end
 		
-		re			= [StringForRegExp(sMatch.pre) '[-]?\d*\.ica'];
+		re			= ['^' StringForRegExp(sMatch.pre) '[-]?\d*\.ica$'];
 		cDirMatch	= FindDirectories(strDirParent,re);
 		nMatch		= numel(cDirMatch);
-		
 		if isempty(cDirMatch)
 			return;
 		end
 	
 	%get the dimension number for each matching directory
-		cDirMatchSplit	= cellfun(@DirSplit,cDirMatch,'uni',false);
-		cMatch			= cellfun(@(c) c{end},cDirMatchSplit,'uni',false);
-		
-		re		= [StringForRegExp(sMatch.pre) '[-]?(?<dim>\d*)\.ica'];
+		cMatch	= cellfun(@(d) char(DirSplit(d,'limit',1)),cDirMatch,'uni',false);
+		re		= ['^' StringForRegExp(sMatch.pre) '[-]?(?<dim>\d*)\.ica$'];
 		sDim	= regexp(cMatch,re,'names');
 	
 	%do any of these work?
@@ -263,11 +260,11 @@ function res = CheckForExistingPCA(res)
 				continue;
 			end
 			
-			d	= str2double(sDim{kM}.dim);
+			nDim	= str2double(sDim{kM}.dim);
 			
-			if d>=opt.dim || (isnan(d) && PCADim(cDirMatch{kM})>=opt.dim)
+			if nDim>=opt.dim || (isnan(nDim) && PCADim(cDirMatch{kM})>=opt.dim)
 			%match!
-				res	= CreateSubPCA(res,cDirMatch{kM},opt.dim);
+				[res,bFound]	= CreateSubPCA(res,cDirMatch{kM},nDim);
 				return;
 			end
 		end
@@ -276,50 +273,72 @@ end
 function d = PCADim(strDirMELODIC)
 	strPathComp	= PathUnsplit(strDirMELODIC,'melodic_dewhite');
 	
-	if ~FileExists(strPathComp)
+	if FileExists(strPathComp)
+		comp	= ReadComp(strPathComp);
+		d		= size(comp,2);
+	else
 		d	= 0;
-		return;
 	end
-	
-	r	= LoadComp(struct('comp',[]),strPathComp,opt);
-	d	= size(r.comp,2);
 end
 %------------------------------------------------------------------------------%
-function res = CreateSubPCA(res,strDirMELODIC,d)
-	resPre	= GetOutputPaths(strDirMELODIC);
+function [res,bSuccess] = CreateSubPCA(res,strDirMELODIC,nDim)
+	bSuccess	= false;
 	
-	if ~all(structfun(@FileExists,resPre.pca))
+	resPre	= InitializeResults(res.path.input,res.path.mask,strDirMELODIC,nDim);
+	
+	if ~all(structfun(@FileExists,resPre.path.result.pca))
 		return;
 	end
 	
-	resSub	= GetOutputPaths(strDirMELODIC,d);
+	resSub	= InitializeResults(res.path.input,res.path.mask,strDirMELODIC,[],opt.dim);
+	
+	%NOTE: for some reason, melodic stores PCA data from least-significant
+	%component to most-significant component (wtf?). so, we actually want to
+	%keep the last components of the parent data below.
 	
 	%comp
-		if ~FileExists(resSub.pca.comp)
-			res			= LoadComp(res,resPre.pca.comp,opt);
-			res.comp	= res.comp(:,end-opt.dim+1:end);
-			fput(array2str(res.comp,'precision',10),resSub.pca.comp);
+		if ~FileExists(resSub.path.result.pca.comp)
+			comp	= ReadComp(resPre.path.result.pca.comp);
+			
+			if size(comp,2)<opt.dim
+				return;
+			end
+			
+			resSub.comp	= comp(:,end-opt.dim+1:end);
+			
+			WriteComp(resSub.comp,resSub.path.result.pca.comp);
 		end
 	%dataset
-		if ~FileExists(resSub.pca.comp_dataset)
-			nii			= NIfTIRead(resPre.pca.comp_dataset);
-			nii.data	= nii.data(end-opt.dim+1:end,:,:,:);
-			NIfTIWrite(nii,resSub.pca.comp_dataset);
+		if ~FileExists(resSub.path.result.pca.comp_dataset)
+			dComp	= ReadData(resPre.path.result.pca.comp_dataset);
+			
+			if size(dComp,1)<opt.dim
+				return;
+			end
+			
+			dComp	= dComp(end-opt.dim+1:end,:,:,:);
+			WriteData(dComp,resSub.path.result.pca.comp_dataset);
 		end
 	%weights
-		if ~FileExists(resSub.pca.weight)
-			nii			= NIfTIRead(resPre.pca.weight);
-			nii.data	= nii.data(:,:,:,end-opt.dim+1:end);
-			NIfTIWrite(nii,resSub.pca.weight);
+		if ~FileExists(resSub.path.result.pca.weight)
+			weight	= ReadData(resPre.path.result.pca.weight);
+			
+			if size(weight,4)<opt.dim
+				return;
+			end
+			
+			weight	= weight(:,:,:,end-opt.dim+1:end);
+			WriteData(weight,resSub.path.result.pca.weight);
 			
 			if opt.load_weight
-				res.weight	= nii.data;
+				resSub.weight	= weight;
 			end
 		end
 	
-	res.path.output	= PathGetDir(resSub.pca.comp);
-	res.path.result	= resSub;
-	res.path.data	= resSub.pca.comp_dataset;
+	res			= resSub;
+	bSuccess	= true;
+	
+	status(sprintf('%s: using PCA data from %s',JobName(res),JobName(resPre)),'silent',opt.silent);
 end
 %------------------------------------------------------------------------------%
 end
@@ -329,62 +348,63 @@ end
 function res = DoMELODIC(res,opt,varargin)
 	mnDim	= ParseArgs(varargin,[]);
 	
-	if opt.force || ~isempty(mnDim) || ~OutputExists(res)
-		%remove any existing files
-			if isdir(res.path.output)
-				rmdir(res.path.output,'s');
-			end
-			
-		%construct the MELODIC options
-			bMask	= ~isempty(res.path.mask);
+	%remove any existing files
+		if isdir(res.path.output)
+			rmdir(res.path.output,'s');
+		end
 		
-			cInput	= {'-i' res.path.input};
-			cOutput	= {'-o' res.path.output};
-			cMask	= conditional(bMask,{'-m', res.path.mask},{});
-			
-			if ~bMask
-				switch class(opt.bet)
-					case 'logical'
-						cBET	= conditional(opt.bet,{},{'--nomask'});
-					otherwise
-						cBET	= {sprintf('--bgthreshold=%d',opt.bet)};
-				end
-			else
-				cBET	= {};
+	%construct the MELODIC options
+		bMask	= ~isempty(res.path.mask);
+	
+		cInput	= {'-i' res.path.input};
+		cOutput	= {'-o' res.path.output};
+		cMask	= conditional(bMask,{'-m', res.path.mask},{});
+		
+		if ~bMask
+			switch class(opt.bet)
+				case 'logical'
+					cBET	= conditional(opt.bet,{},{'--nomask'});
+				otherwise
+					cBET	= {sprintf('--bgthreshold=%d',opt.bet)};
 			end
-			
-			if ~isempty(mnDim)
-				cDim	= {'-d',num2str(mnDim),'-n',num2str(mnDim)};
-				cDimEst	= {};
-			else
-				cDim	= conditional(opt.dim,{'-d',num2str(opt.dim),'-n',num2str(opt.dim)},{});
-				cDimEst	= conditional(opt.dimest,{sprintf('--dimest=%s',opt.dimest)},{});
-			end
-			
-			cNL			= conditional(opt.nonlinearity,{sprintf('--nl=%s',opt.nonlinearity)},{});
-			cVarNorm	= conditional(opt.varnorm,{},{'-vn'});
-			cReport		= conditional(opt.report,{'--report'},{});
-			cPCA		= {'--Opca','--Owhite'};
-			
-			cOption	= [cInput cOutput cMask cBET cDim cDimEst cNL cVarNorm cReport cPCA];
-		%call melodic
-			[ec,out]	= CallProcess('melodic',cOption,'silent',true);
-			
-			if ec
-				res	= ProcessError(res,sprintf('MELODIC exited with status %d: %s',ec,out{1}),opt);
-				return;
-			end
-		%construct the output data files
-			res	= ConstructOutputDatasets(res);
-			if ~res.success
-				return;
-			end
-		%make sure the output files were created
-			if ~OutputExists(res)
-				res	= ProcessError(res,'output file paths were not created.',opt);
-				return;
-			end
-	end
+		else
+			cBET	= {};
+		end
+		
+		if ~isempty(mnDim)
+			cDim	= {'-d',num2str(mnDim),'-n',num2str(mnDim)};
+			cDimEst	= {};
+		else
+			cDim	= conditional(~isnan(opt.dim),{'-d',num2str(opt.dim),'-n',num2str(opt.dim)},{});
+			cDimEst	= conditional(opt.dimest,{sprintf('--dimest=%s',opt.dimest)},{});
+		end
+		
+		cNL			= conditional(opt.nonlinearity,{sprintf('--nl=%s',opt.nonlinearity)},{});
+		cVarNorm	= conditional(opt.varnorm,{},{'-vn'});
+		cReport		= conditional(opt.report,{'--report'},{});
+		cPCA		= {'--Opca','--Owhite'};
+		
+		cOption	= [cInput cOutput cMask cBET cDim cDimEst cNL cVarNorm cReport cPCA];
+	
+	%call melodic
+		[ec,out]	= CallProcess('melodic',cOption,'silent',true);
+		
+		if ec
+			res	= ProcessError(res,sprintf('melodic exited with status %d: %s',ec,out{1}),opt);
+			return;
+		end
+	
+	%construct the output data files
+		res	= ConstructOutputDatasets(res);
+		if ~res.success
+			return;
+		end
+	
+	%make sure the output files were created
+		if ~OutputExists(res)
+			res	= ProcessError(res,'output file paths were not created',opt);
+			return;
+		end
 	
 	%construct the outputs
 		res	= LoadResults(res,opt);
@@ -395,22 +415,26 @@ function res = DoMELODIC(res,opt,varargin)
 	%did we get the number of dimensions that we need?
 		nDim	= size(res.comp,2);
 		if ~isempty(opt.mindim) && nDim<opt.mindim
-			if ~isempty(mnDim)
-				%tried to get to min dim but couldn't
-				strError	= sprintf('failed to achieve minimum dimensionality (%d) for %s.',opt.mindim,res.path.input);
-				res			= ProcessError(res,strError,opt);
-				return;
+			strBase	= sprintf('output dimensions (%d) were fewer than minimum (%d)',nDim,opt.mindim);
+			
+			if ~isempty(mnDim) %tried to get to min dim but couldn't
+				strError	= sprintf('%s. aborting.',strBase);
+				
+				res	= ProcessError(res,strError,opt);
+				
+				try
+					rmdir(res.path.output,'s');
+				catch me
+					warning('could not remove output directory: %s',res.path.output); 
+				end
+			else
+				strWarning	= sprintf('%s: %s. rerunning...',JobName(res),strBase);
+				status(strWarning,'warning',true,'silent',opt.silent);
+				
+				res.comp	= [];
+				res.weight	= [];
+				res			= DoMELODIC(res,opt,opt.mindim);
 			end
-			
-			strPath	= res.path.input;
-			if ~isempty(res.path.mask)
-				strPath	= [strPath sprintf(' (%s)',PathGetFilePre(res.path.mask,'favor','nii.gz'))];
-			end
-			
-			strWarning	= sprintf('output dimensions (%d) were fewer than minimum (%d) for %s. rerunning...',nDim,opt.mindim,strPath);
-			status(strWarning,'warning',true,'silent',opt.silent);
-			
-			res	= DoMELODIC(res,opt,opt.mindim);
 		end
 %------------------------------------------------------------------------------%
 function res = ConstructOutputDatasets(res)
@@ -422,68 +446,113 @@ function res = ConstructOutputDatasets(res)
 		sp		= res.path.result.(strType);
 		
 		%load the component
-			resCur	= LoadComp(res,sp.comp,opt);
-			if ~resCur.success
-				res.success	= false;
-				res.error	= resCur.error;
-				return;
-			end
+			[res,comp]	= LoadComp(res,opt,strType);
 			
-			if strcmp(strType,opt.comptype)
-				res	= resCur;
+			if ~res.success
+				return;
 			end
 		
 		%reshape to nFeature x 1 x 1 x nSample
-			comp	= permute(resCur.comp,[2 3 4 1]);
+			comp	= permute(comp,[2 3 4 1]);
 		
-		%construct a NIfTI dataset
-			nii	= make_nii(comp);
-		
-		%save it
-			NIfTIWrite(nii,sp.comp_dataset);
+		WriteData(comp,sp.comp_dataset);
 	end
 end
 %------------------------------------------------------------------------------%
 end
 
 
+%------------------------------------------------------------------------------%
+function strName = JobName(res)
+	strSession	= PathGetSession(res.path.input);
+	cName		= {strSession};
+	
+	if ~isempty(res.path.mask)
+		cName{end+1}	= PathGetMaskName(res.path.mask);
+	end
+	
+	strDim			= conditional(isnan(res.dim),'auto',num2str(res.dim));
+	cName{end+1}	= strDim;
+	
+	strName	= join(cName,'/');
+end
 %------------------------------------------------------------------------------%
 function b = OutputExists(res)
 	b	= FileExists(res.path.data);
 end
 %------------------------------------------------------------------------------%
 function res = LoadResults(res,opt)
-	sp	= res.path.result.(opt.comptype);
-	
 	if opt.load_comp
-		res	= LoadComp(res,sp.comp,opt);
+		res	= LoadComp(res,opt);
 		if ~res.success
 			return;
 		end
 	end
 	
 	if opt.load_weight
-		res	= LoadWeight(res,sp.weight,opt);
+		res	= LoadWeight(res,opt);
 		if ~res.success
 			return;
 		end
 	end
 end
 %------------------------------------------------------------------------------%
-function res = LoadComp(res,strPathComp,opt)
+function [res,comp] = LoadComp(res,opt,varargin)
+	strType		= ParseArgs(varargin,opt.comptype);
+	strPathComp	= res.path.result.(strType).comp;
+	
 	if ~FileExists(strPathComp)
-		res	= ProcessError(res,sprintf('%s does not exist.',strPathComp),opt);
-	elseif isempty(res.comp)
-		res.comp	= str2array(fget(strPathComp));
+		res		= ProcessError(res,sprintf('%s does not exist.',strPathComp),opt);
+		comp	= [];
+	else
+		if strcmp(strType,opt.comptype)
+			if isempty(res.comp)
+				comp		= ReadComp(strPathComp);
+				res.comp	= comp;
+			else
+				comp	= res.comp;
+			end
+		else
+			comp	= ReadComp(strPathComp);
+		end
 	end
 end
 %------------------------------------------------------------------------------%
-function res = LoadWeight(res,strPathWeight,opt)
+function comp = ReadComp(strPathComp)
+	comp	= str2array(fget(strPathComp));
+end
+%------------------------------------------------------------------------------%
+function WriteComp(comp,strPathComp)
+	fput(array2str(comp,'precision',10),strPathComp);
+end
+%------------------------------------------------------------------------------%
+function [res,weight] = LoadWeight(res,opt,varargin)
+	strType			= ParseArgs(varargin,opt.comptype);
+	strPathWeight	= res.path.result.(strType).weight;
+	
 	if ~FileExists(strPathWeight)
-		res	= ProcessError(res,sprintf('%s does not exist.',strPathWeight),opt);
-	elseif isempty(res.weight)
-		res.weight	= getfield(NIfTIRead(strPathWeight),'data');
+		res		= ProcessError(res,sprintf('%s does not exist.',strPathWeight),opt);
+		weight	= [];
+	else
+		if strcmp(strType,opt.comptype)
+			if isempty(res.weight)
+				weight		= ReadData(strPathWeight);
+				res.weight	= weight;
+			else
+				weight	= res.weight;
+			end
+		else
+			weight	= ReadData(strPathWeight);
+		end
 	end
+end
+%------------------------------------------------------------------------------%
+function data = ReadData(strPathData)
+	data	= getfield(NIfTIRead(strPathData),'data');
+end
+%------------------------------------------------------------------------------%
+function WriteData(data,strPathData)
+	NIfTIWrite(make_nii(data),strPathData);
 end
 %------------------------------------------------------------------------------%
 function res = ProcessError(res,strError,opt)
@@ -491,7 +560,7 @@ function res = ProcessError(res,strError,opt)
 	res.error	= strError;
 	
 	if ~opt.silent
-		warning(strError);
+		warning('%s: %s',JobName(res),strError);
 	end
 end
 %------------------------------------------------------------------------------%

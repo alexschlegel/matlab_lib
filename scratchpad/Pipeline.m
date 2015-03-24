@@ -28,10 +28,12 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150323,...
-							'capsuleFormat',20150323)
-	analyses			= {'alex','lizier','seth'}
+	version				= struct('pipeline',20150324,...
+							'capsuleFormat',20150324)
+	defaultOptions
+	implicitOptionNames
 	explicitOptionNames
+	analyses			= {'alex','lizier','seth'}
 	infodyn_teCalc
 end
 
@@ -105,7 +107,7 @@ methods
 	%
 	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
-		opt	= ParseArgs(varargin,...
+		obj.defaultOptions	= { ...
 			'DEBUG'			, false		, ...
 			'fudge'			, {}		, ...
 			'nofigures'		, false		, ...
@@ -143,9 +145,12 @@ methods
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
 			'saveplot'		, false		  ...
-			);
+			};
+		obj.implicitOptionNames	= obj.defaultOptions(1:2:end);
+		obj.explicitOptionNames	= varargin(1:2:end);
+		opt						= ParseArgs(varargin,obj.defaultOptions{:});
 		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
-			extraOpts	= opt2cell(opt.opt_extra);
+			extraOpts			= opt2cell(opt.opt_extra);
 			if numel(extraOpts) > 0
 				error('Unrecognized option ''%s''',extraOpts{1});
 			end
@@ -160,7 +165,6 @@ methods
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
-		obj.explicitOptionNames	= varargin(1:2:end);
 		if isempty(obj.infodyn_teCalc) && opt.loadJavaTE
 			try
 				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
@@ -747,6 +751,12 @@ methods
 		varName		= ['kIteration'; plotSpec.varName];
 		varValues	= [{num2cell(1:plotSpec.nIteration)}; plotSpec.varValues];
 		valueGrid	= obj.computeLittleEndianCartesianProduct(varValues{:});
+		if isfield(plotSpec,'filter') && ~isempty(plotSpec.filter)
+			for kG=1:size(valueGrid,1)
+				valueGrid(kG,2:end)	= plotSpec.filter(obj.uopt,valueGrid(kG,2:end));
+			end
+		end
+
 		cValue		= num2cell(valueGrid,2);
 		nSim		= numel(cValue);
 
@@ -797,7 +807,7 @@ methods
 	end
 
 	function note = noteVaryingOpts(obj,capsule)
-		u			= obj.uopt;
+		u			= obj.uopt; %#ok
 		spec		= capsule.plotSpec;
 		opt			= capsule.opt;
 		cNote		= {};
@@ -805,6 +815,7 @@ methods
 		if ~strcmp(spec.varName,'nSubject')
 			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
 		end
+		%{
 		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
 			cNote{end+1}	= 'recur=0';
 		elseif opt.CRecurX == u.CRecurX && opt.CRecurY ~= u.CRecurY && opt.CRecurZ == u.CRecurZ
@@ -812,6 +823,7 @@ methods
 		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
 			cNote{end+1}	= 'recur=?';
 		end
+		%}
 		if isfield(opt,'WSquash') && opt.WSquash
 			cNote{end+1}	= 'wsqsh';
 		end
@@ -827,7 +839,7 @@ methods
 		note		= strjoin(cNote,',');
 	end
 
-	function plotSpec = regularizePlotSpec(~,plotSpec)
+	function plotSpec = regularizePlotSpec(obj,plotSpec)
 		if ~isstruct(plotSpec)
 			error('Plot spec must be struct.');
 		end
@@ -845,9 +857,14 @@ methods
 			plotSpec.varName	= {plotSpec.varName};
 			plotSpec.varValues	= {plotSpec.varValues};
 		else
-			if ~iscell(plotSpec.varValues) || ...
-					numel(plotSpec.varName) ~= numel(plotSpec.varValues)
-				error('Plot-spec varValues inconsistent with varName cell.');
+			if ~iscell(plotSpec.varValues)
+				error('Plot-spec varValues must be cell when varName is cell.');
+			end
+			if ~isvector(plotSpec.varName) || ~isvector(plotSpec.varValues)
+				error('Plot-spec varName and varValues cells must be non-empty vectors.');
+			end
+			if numel(plotSpec.varName) ~= numel(plotSpec.varValues)
+				error('Plot-spec varName and varValues cells must have same length.');
 			end
 			plotSpec.varName	= plotSpec.varName(:);
 			plotSpec.varValues	= plotSpec.varValues(:);
@@ -858,6 +875,11 @@ methods
 				plotSpec.varValues{kVV}	= num2cell(plotSpec.varValues{kVV});
 			end
 			plotSpec.varValues{kVV}		= plotSpec.varValues{kVV}(:).';
+		end
+
+		invalidVars	= ~ismember(plotSpec.varName,obj.implicitOptionNames);
+		if any(invalidVars)
+			error('Invalid plot-spec variable(s):%s',sprintf(' ''%s''',plotSpec.varName{invalidVars}));
 		end
 	end
 
@@ -881,7 +903,6 @@ methods
 			error('Multiple variables per capsule not supported this version.');
 		end
 		varName1_1	= spec1.varName{1};
-		varVals1_1	= spec1.varValues{1};
 		szResult	= size(result1);
 		if any(cellfun(@(c) any(size(c.result) ~= szResult),cCapsule))
 			error('Non-uniform capsule result sizes.');
@@ -889,24 +910,19 @@ methods
 		if any(cellfun(@(c) ~strcmp(c.plotSpec.varName{1},varName1_1),cCapsule))
 			error('Inconsistent capsule variable names.');
 		end
-		% Verify consistent variable values across subcapsules.
-		% TODO: Support *different* variable values across subcapsules.
-		if any(cellfun(@(c) any(size(c.plotSpec.varValues{1}) ~= size(varVals1_1)) || ...
-				any(cat(1,c.plotSpec.varValues{1}{:}) ~= cat(1,varVals1_1{:})),cCapsule))
-			error('Inconsistent capsule variable values.');
-		end
 
 		lineLabels	= arrayfun(@(i) sprintf('%s=%.2f',...
 						capMeta.varName,capMeta.varValues(i)),...
 						capIndices,'uni',false);
-		meanAcc		= zeros([szResult numel(capIndices)]);
+		xArray		= zeros([szResult(2) numel(capIndices)]);
+		meanAcc		= zeros([szResult(1) size(xArray)]);
 		stderrAcc	= zeros(size(meanAcc));
 
 		for kI=1:size(meanAcc,3)
-			meanAcc(:,:,kI)		= cellfun(@(r) r.summary.alex.meanAccAllSubj,...
-									cCapsule{capIndices(kI)}.result);
-			stderrAcc(:,:,kI)	= cellfun(@(r) r.summary.alex.stderrAccAllSu,...
-									cCapsule{capIndices(kI)}.result);
+			result				= cCapsule{capIndices(kI)}.result;
+			xArray(:,kI)		= cellfun(@(r) r.valueTuple{2},squeeze(result(1,:)));
+			meanAcc(:,:,kI)		= cellfun(@(r) r.summary.alex.meanAccAllSubj,result);
+			stderrAcc(:,:,kI)	= cellfun(@(r) r.summary.alex.stderrAccAllSu,result);
 		end
 
 		meanMean	= mean(meanAcc);
@@ -921,9 +937,17 @@ methods
 						varName1_1,parennote);
 		xlabel		= getOptLabel(obj,varName1_1);
 		ylabel		= 'Accuracy (%)';
-		xvals		= cellfun(@(r) r.valueTuple{2}, result1(1,:));
-		yvals		= num2cell(100*meanMean,[1 2]);
-		errorvals	= num2cell(100*meanStderr,[1 2]);
+		xvals		= num2cell(squeeze(xArray),1);
+		yvals		= num2cell(squeeze(100*meanMean),1);
+		errorvals	= num2cell(squeeze(100*meanStderr),1);
+		%{
+		fprintf('xvals has size%s\n',sprintf(' %d',size(xvals)));
+		fprintf('yvals has size%s\n',sprintf(' %d',size(yvals)));
+		for i=1:numel(xvals)
+			disp(xvals{i}');
+			disp(yvals{i}');
+		end
+		%}
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals		, ...
 						'title'		, title			, ...
@@ -1152,39 +1176,6 @@ methods
 end
 
 methods (Static)
-	function plot_data = constructQuickFudgedPlotData(varargin)
-	%   pd=Pipeline.constructTestPlotData('saveplot',false,'fudge',{'fakecause'},'nSubject',1,'nRun',2)
-		pipeline	= Pipeline(varargin{:});
-		pipeline	= pipeline.changeDefaultsForBatchProcessing;
-		pipeline	= pipeline.changeOptionDefault('fudge',{'fakecause'});
-		pipeline	= pipeline.changeOptionDefault('nSubject',1);
-		pipeline	= pipeline.changeOptionDefault('nRun',2);
-		pipeline	= pipeline.changeOptionDefault('seed',0);
-		pipeline	= pipeline.changeOptionDefault('analysis','alex');
-		pipeline	= pipeline.changeOptionDefault('saveplot',false);
-
-		spec.varName	= 'WFullness';
-		spec.varValues	= 0.05:0.05:0.25;
-		spec.nIteration	= 5;
-		capsule{1}		= pipeline.makePlotCapsule(spec);
-
-		spec.varName	= 'WSum';
-		spec.varValues	= [0.05 0.1 0.2 0.3 0.4];
-		spec.nIteration	= 5;
-		capsule{2}		= pipeline.makePlotCapsule(spec);
-
-		spec.varName	= 'nTBlock';
-		spec.varValues	= 1:5;
-		spec.nIteration	= 5;
-		capsule{3}		= pipeline.makePlotCapsule(spec);
-
-		pause(1);
-		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
-		plot_data.label			= sprintf('Three fudged capsules w/ fakecause, etc.');
-		plot_data.cCapsule		= capsule;
-		%save([filename_prefix '_iflow_fudged_plot_data.mat'],'plot_data');
-	end
-
 	% constructTestPlotData
 	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
@@ -1195,23 +1186,23 @@ methods (Static)
 
 		spec				= repmat(struct,4,1);
 
-		spec(1).varName		= 'nSubject';
-		spec(1).varValues	= [1 2 5 10 20];
+		spec(1).varName		= 'WSum';
+		spec(1).varValues	= 0:0.05:0.3;
 
-		spec(2).varName		= 'nRun';
-		spec(2).varValues	= 2:2:10;
+		spec(2).varName		= 'WSum';
+		spec(2).varValues	= 0:0.05:0.3;
+		spec(2).filter		= @(u,v) {v{1} * (1-u.CRecurY)/0.3};
 
 		spec(3).varName		= 'WFullness';
-		spec(3).varValues	= 0.05:0.05:0.25;
+		spec(3).varValues	= 0.1:0.2:0.9;
 
 		spec(4).varName		= 'nTBlock';
 		spec(4).varValues	= 1:5;
 
 		[spec(:).nIteration]	= deal(10);
 
-		capMeta.label		= 'W column sum';
-		capMeta.varName		= 'WSum';
-		capMeta.varValues	= 0.1*(1:5);
+		capMeta.varName		= 'CRecurY';
+		capMeta.varValues	= [0 0.35 0.7];
 
 		nSpec				= numel(spec);
 		nCapvar				= numel(capMeta.varValues);
@@ -1233,7 +1224,18 @@ methods (Static)
 									nCapvar,nSpec,pipeline.uopt.nSubject);
 		plot_data.capMeta		= capMeta;
 		plot_data.cCapsule		= capsule;
-		%save([filename_prefix '_iflow_plot_data.mat'],'plot_data');
+		save([filename_prefix '_recurY_plot_data.mat'],'plot_data');
+	end
+
+	function cH = constructTestPlotsFromData(plot_data)
+		pipeline	= Pipeline;
+		meta		= plot_data.capMeta;
+		cap			= plot_data.cCapsule;
+		nFig		= size(cap,2);
+		cH			= cell(1,nFig);
+		for kF=1:nFig
+			cH{kF}	= pipeline.renderMultiLinePlot(cap(:,kF),meta);
+		end
 	end
 
 	% createDebugPipeline - static method for creating debug-pipeline

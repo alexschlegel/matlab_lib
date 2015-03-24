@@ -17,7 +17,7 @@ function res = MVPAROICrossClassify(varargin)
 %		<+ options for MVPAClassify>
 %		melodic:	(true) true to perform MELODIC on the extracted ROIs before
 %					classification
-%		pcaonly:	(true) (see FSLMELODIC)
+%		comptype:	('pca') (see FSLMELODIC)
 %		dim:		(50) (see FSLMELODIC)
 %		targets:	(<required>) a cell specifying the target for each sample,
 %					or a cell of cells (one for each dataset)
@@ -47,7 +47,7 @@ function res = MVPAROICrossClassify(varargin)
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-23
+% Updated: 2015-03-24
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -74,7 +74,7 @@ function res = MVPAROICrossClassify(varargin)
 %extract the ROI data
 	if opt.melodic
 		opt_melodic	= optadd(sPath.opt_extra,...
-						'pcaonly'	, true	, ...
+						'comptype'	, 'pca'	  ...
 						'dim'		, 50	  ...
 						);
 		opt_melodic	= optreplace(opt_melodic,...

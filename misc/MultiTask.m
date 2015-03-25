@@ -343,7 +343,7 @@ end
 %------------------------------------------------------------------------------%
 function kTask = RequestTask(kWorker,client)
 %request a task from the manager
-	WorkerStatus(kWorker,'requesting a task','info');
+	WorkerStatus(kWorker,'requesting a task','most');
 	
 	reply	= WorkerMessage(kWorker,client,'task','get');
 	
@@ -352,7 +352,7 @@ end
 %------------------------------------------------------------------------------%
 function kTask = FinishedTask(kWorker, client)
 %let the manager know we finished a task and request another one
-	WorkerStatus(kWorker,'requesting the next task','info');
+	WorkerStatus(kWorker,'requesting the next task','most');
 	
 	reply	= WorkerMessage(kWorker,client,'task','done');
 	
@@ -367,7 +367,7 @@ function kTask = ParseTask(kWorker,client,msg)
 		case 'char'
 			switch kTask
 				case 'finish'
-					WorkerStatus(kWorker,'was told to finish','info');
+					WorkerStatus(kWorker,'was told to finish','most');
 				case 'error'
 					WorkerStatus(kWorker,'manager died','warn');
 				otherwise
@@ -377,7 +377,7 @@ function kTask = ParseTask(kWorker,client,msg)
 			end
 		otherwise
 			if isscalar(kTask)
-				WorkerStatus(kWorker,sprintf('got task %d',kTask),'info');
+				WorkerStatus(kWorker,sprintf('got task %d',kTask),'most');
 			elseif isempty(kTask)
 				WorkerStatus(kWorker,'failed to get task','warn');
 			else
@@ -487,12 +487,12 @@ function kTask = FindNextTask(kWorker)
 	%finished!
 		kTask	= 'finish';
 		
-		ManagerStatus(sprintf('telling worker %d to finish',kWorker),'info');
+		ManagerStatus(sprintf('telling worker %d to finish',kWorker),'most');
 	else
 		%assign the task to the worker
 			taskState(kTask)	= kWorker;
 		
-		ManagerStatus(sprintf('sending task %d to worker %d',kTask,kWorker),'info');
+		ManagerStatus(sprintf('sending task %d to worker %d',kTask,kWorker),'most');
 	end
 end
 %------------------------------------------------------------------------------%

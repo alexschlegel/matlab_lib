@@ -381,7 +381,12 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 			if param.run
 				%do some final error checking
 				try
-					assert(FileExists(param.path_data),'%s does not exist',param.path_data);
+					cPathData	= ForceCell(param.path_data);
+					nData		= numel(cPathData);
+					for kD=1:nData
+						assert(FileExists(cPathData{kD}),'%s does not exist',cPathData{kD});
+					end
+					
 					assert(FileExists(param.path_attribute),'%s does not exist',param.path_attribute);
 					assert(FileExists(param.path_param),'%s does not exist',param.path_param);
 					

@@ -264,6 +264,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		for kA=1:nAnalysis
 			%make sure all targets are strings
 				if ~iscellstr(cTarget{kA})
+					if ~iscell(cTarget{kA})
+						cTarget{kA}	= num2cell(cTarget{kA});
+					end
 					cTarget{kA}	= cellfun(@tostring,cTarget{kA},'uni',false);
 				end
 			%fill default target_subsets
@@ -321,7 +324,21 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 
 if opt.combine
 	try
+		%construct dummy structs for failed classifications
+			bFailed	= cellfun(@isempty,res);
+			if any(bFailed)
+				kGood	= find(~bFailed,1);
+				if isempty(kGood)
+					error('none of the classifications completed. results cannot be combined.');
+				end
+				
+				resDummy		= dummy(res{kGood});
+				res(bFailed)	= {resDummy};
+			end
+		
 		res	= structtreefun(@CombineResult,res{:});
+		
+		res.type	= 'mvpaclassify';
 	catch me
 		status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
 	end
@@ -344,6 +361,11 @@ end
 %------------------------------------------------------------------------------%
 function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 	res	= [];
+	
+	%do some error checking
+		if ~FileExists(strPathData) || isempty(kTarget) || isempty(kChunk)
+			return;
+		end
 	
 	tNow	= nowms;
 	L		= Log('level',param.debug,'silent',param.silent);

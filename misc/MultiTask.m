@@ -598,6 +598,6 @@ end
 
 %------------------------------------------------------------------------------%
 function bytes = JobSize(f,cIn)
-	bytes	= varsize(f) + varsize(GetFieldPath(functions(f),'workspace'));
+	bytes	= varsize(cIn) + varsize(GetFieldPath(functions(f),'workspace'));
 end
 %------------------------------------------------------------------------------%

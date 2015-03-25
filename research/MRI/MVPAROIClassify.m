@@ -69,7 +69,7 @@ function [cPathDataROI,cNameROI,sMaskInfo] = ParseROIs(sPath)
 	cSession					= sPath.functional_session;
 	[cPathDataROI,cNameMask]	= varfun(@(x) ForceCell(x,'level',2),sPath.functional_roi,sPath.mask_name);
 	
-	cNameROI	= cellfun(@(s,cm) cellfun(@(m) sprintf('%s-%s',s,m),cm,'uni',false),cSession,cMaskName,'uni',false);
+	cNameROI	= cellfun(@(s,cm) cellfun(@(m) sprintf('%s-%s',s,m),cm,'uni',false),cSession,cNameMask,'uni',false);
 	
 	sMaskInfo	= struct(...
 					'name'	, {cNameMask{1}}	  ...

@@ -57,7 +57,7 @@ function res = FSLMELODIC(varargin)
 %					comp_dataset:	comp transformed to a NIfTI dataset
 %					weight:			the weight NIfTI file
 % 
-% Updated: 2015-03-24
+% Updated: 2015-03-25
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -352,6 +352,18 @@ end
 %------------------------------------------------------------------------------%
 function res = DoMELODIC(res,opt,varargin)
 	mnDim	= ParseArgs(varargin,[]);
+	bMask	= ~isempty(res.path.mask);
+	
+	%check for required files
+		if ~FileExists(res.path.input)
+			res	= ProcessError(res,sprintf('%s does not exist.',res.path.input));
+			return;
+		end
+		
+		if bMask && ~FileExists(res.path.mask)
+			res	= ProcessError(res,sprintf('%s does not exist.',res.path.mask));
+			return;
+		end
 	
 	%remove any existing files
 		if isdir(res.path.output)
@@ -359,21 +371,19 @@ function res = DoMELODIC(res,opt,varargin)
 		end
 		
 	%construct the MELODIC options
-		bMask	= ~isempty(res.path.mask);
-	
 		cInput	= {'-i' res.path.input};
 		cOutput	= {'-o' res.path.output};
 		cMask	= conditional(bMask,{'-m', res.path.mask},{});
 		
-		if ~bMask
+		if bMask
+			cBET	= {};
+		else
 			switch class(opt.bet)
 				case 'logical'
 					cBET	= conditional(opt.bet,{},{'--nomask'});
 				otherwise
 					cBET	= {sprintf('--bgthreshold=%d',opt.bet)};
 			end
-		else
-			cBET	= {};
 		end
 		
 		if ~isempty(mnDim)

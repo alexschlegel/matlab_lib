@@ -356,12 +356,12 @@ function res = DoMELODIC(res,opt,varargin)
 	
 	%check for required files
 		if ~FileExists(res.path.input)
-			res	= ProcessError(res,sprintf('%s does not exist.',res.path.input));
+			res	= ProcessError(res,sprintf('%s does not exist.',res.path.input),opt);
 			return;
 		end
 		
 		if bMask && ~FileExists(res.path.mask)
-			res	= ProcessError(res,sprintf('%s does not exist.',res.path.mask));
+			res	= ProcessError(res,sprintf('%s does not exist.',res.path.mask),opt);
 			return;
 		end
 	

@@ -21,6 +21,8 @@ function varargout = MultiTask(f,cIn,varargin)
 %		njobmax:			(500) the maximum number of jobs to run in any
 %							single batch (large numbers of jobs may cripple
 %							worker initialization)
+%		bytesmax:			(100000000) the maximum number of bytes of data to
+%							include in each batch
 %		distributed:		(<auto>) true to use the distributed computing
 %							engine
 %		hosts:				(<auto>) the hosts to use (see MATLABPoolOpen)
@@ -32,8 +34,6 @@ function varargout = MultiTask(f,cIn,varargin)
 %							communication (see getip)
 %		base_port:			(30000) the base port to use for the manager/worker
 %							communicators
-%		workspace_warn:		(50000000) the worker workspace size threshold, in
-%							bytes, above which a warning will be issued
 %		debug:				('warn') the debug level (either 'error', 'warn',
 %							'info', 'most', or 'all')
 %		debug_communicator:	('warn') the debug level for the Communicators
@@ -51,13 +51,13 @@ function varargout = MultiTask(f,cIn,varargin)
 			'uniformoutput'			, false				, ...
 			'nthread'				, []				, ...
 			'njobmax'				, 500				, ...
+			'bytesmax'				, 50000000			, ...
 			'distributed'			, []				, ...
 			'hosts'					, []				, ...
 			'workers'				, []				, ...
 			'catch'					, false				, ...
 			'interface'				, 'inbound'			, ...
 			'base_port'				, 30000				, ...
-			'workspace_warn'		, 50000000			, ...
 			'debug'					, 'warn'			, ...
 			'debug_communicator'	, 'warn'			, ...
 			'silent'				, false				  ...
@@ -103,18 +103,34 @@ function varargout = MultiTask(f,cIn,varargin)
 	
 	if bMulti
 	%use the distributed computing toolbox
-		%execute each set of jobs
+		%get the total workspace size for each task
+			taskBytes	= cellfun(@JobSize,f,cIn);
+		
+		%execute each batch of jobs
 			cOut	= cell(sTask);
-			for kT=1:opt.njobmax:nTask
-				kTaskStart	= kT;
-				kTaskEnd	= min(nTask,kT+opt.njobmax-1);
-				kTaskCur	= kTaskStart:kTaskEnd;
+			
+			kTStart	= 1;
+			while kTStart<=nTask
+				%get the last job in the batch based on the batch count limit
+					kTEndCount	= min(nTask,kTStart+opt.njobmax-1);
+				%get the last job in the batch based on variable size
+					taskCumBytes	= cumsum(taskBytes(kTStart:end));
+					kSmallEnough	= unless(find(taskCumBytes<=opt.bytesmax,1,'last'),1);
+					kTEndBytes		= kTStart+kSmallEnough-1;
+				%the actual last job in the batch is the minimum of these two
+					kTEnd	= min(kTEndCount,kTEndBytes);
 				
-				L.Print(sprintf('running jobs %d-%d',kTaskStart,kTaskEnd),'info');
+				%execute the current batch of jobs
+					kTaskCur	= kTStart:kTEnd;
+					batchBytes	= sum(taskBytes(kTaskCur));
+					
+					L.Print(sprintf('running jobs %d-%d (%d byte%s)',kTStart,kTEnd,batchBytes,plural(batchBytes)),'info');
 				
-				cOut(kTaskCur)	= MultiTaskParallel(f(kTaskCur),cIn(kTaskCur),opt);
+					cOut(kTaskCur)	= MultiTaskParallel(f(kTaskCur),cIn(kTaskCur),opt);
 				
 				opt.ntaskfinished	= opt.ntaskfinished + numel(kTaskCur);
+				
+				kTStart	= kTEnd + 1;
 			end
 		
 		%close the progress bar
@@ -196,15 +212,6 @@ function cOut = MultiTaskParallel(f,cIn,param)
 		f_WorkerStatus	= @WorkerStatus;
 		f_WorkerError	= @WorkerError;
 	
-	%get the total workspace size for the tasks
-		bytesIn		= varsize(cIn);
-		bytesF		= sum(cellfun(@(f) varsize(GetFieldPath(functions(f),'workspace')),reshape(f,[],1)));
-		bytesTotal	= bytesIn + bytesF;
-		
-		if bytesTotal>param.workspace_warn
-			ManagerStatus(sprintf('total workspace size of tasks is %d byte%s.',bytesTotal,plural(bytesTotal)),'warn');
-		end
-         
 	%fork a process to manage the workers
 		ipManager	= getip('interface', param.interface);
 		hManager	= fork(@ManageWorkers,{nPool},'delay',1);
@@ -588,3 +595,9 @@ function TaskError(kTask,me)
 end
 %------------------------------------------------------------------------------%
 end
+
+%------------------------------------------------------------------------------%
+function bytes = JobSize(f,cIn)
+	bytes	= varsize(f) + varsize(GetFieldPath(functions(f),'workspace'));
+end
+%------------------------------------------------------------------------------%

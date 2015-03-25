@@ -363,7 +363,7 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 	res	= [];
 	
 	%do some error checking
-		if ~FileExists(strPathData) || isempty(kTarget) || isempty(kChunk)
+		if ~all(FileExists(ForceCell(strPathData))) || isempty(kTarget) || isempty(kChunk)
 			return;
 		end
 	

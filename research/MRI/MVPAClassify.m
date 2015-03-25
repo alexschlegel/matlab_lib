@@ -76,7 +76,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								datasets.
 %		match_include_blank:	(true) only applies to matched dataset
 %								cross-classifications. true to include blank
-%								samples in the feature matching step
+%								samples in the feature matching step.
 %		dcclassify:				(false) true to perform a directed connectivity
 %								classification, but only if the data are
 %								formatted as described above. in this analysis,
@@ -97,9 +97,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								classification showing the fraction of folds in
 %								which each voxel was selected
 %		target_subset:			(<all except blank>) a cell specifying the
-%								subset of targets to include in the analysis, or
-%								a cell of cells of target subsets (one for each
-%								dataset)
+%								subset of targets to include in the analysis
 %		target_blank:			(<none>) a string specifying the 'blank' target
 %								that should be eliminated before classifying
 %		zscore:					('chunks') the sample attribute to use as the
@@ -113,9 +111,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								connectivity classifications.
 %		mean_control:			(false) true to perform a control classification
 %								on the mean pattern values
-%		sample_attr:			(<none>) a struct of nSample x 1 arrays (or
-%								cells of arrays) specifying custom sample
-%								attributes
 %		nan_remove:				('none') specify how to remove NaNs from the
 %								data. one of the following:
 %									'none':	don't remove NaNs. scripts will die!
@@ -145,8 +140,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %		confusion_model:		(<none>) the confusion models for the extra
 %								stats (see MVPAClassifyExtraStats)
 %		nthread:				(1) the number of threads to use
-%		closepool:				(true) true to close the matlab pool before
-%								and after the MultiTask call
 %		force:					(true) true to force the analysis to run even if
 %								the output results file already exists
 %		force_each:				(<force>) true to force each mask analysis to
@@ -167,7 +160,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % 	res	- if <combine> is selected, then a struct array of analysis results.
 %		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-03-23
+% Updated: 2015-03-25
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -198,7 +191,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'zscore'				, 'chunks'		, ...
 			'target_balancer'		, 10			, ...
 			'mean_control'			, false			, ...
-			'sample_attr'			, struct		, ...
 			'nan_remove'			, 'none'		, ...
 			'output_dir'			, []			, ...
 			'output_prefix'			, []			, ...
@@ -208,7 +200,6 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'extra_stats'			, []			, ...
 			'confusion_model'		, []			, ...
 			'nthread'				, 1				, ...
-			'closepool'				, true			, ...
 			'force'					, true			, ...
 			'force_each'			, []			, ...
 			'run'					, true			, ...
@@ -222,17 +213,15 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 	opt.extra_stats	= unless(opt.extra_stats,opt.group_stats);
 	opt.force_each	= unless(opt.force_each,opt.force);
 	
-	%make sure we have a scalar cell of a cell of classifiers so everything gets
+	%make sure we have a cell of a cell of some parameters so everything gets
 	%packaged properly down below
-		opt.classifier	= ForceCell(opt.classifier,'level',2);
+		[opt.classifier,opt.target_subset]	= ForceCell(opt.classifier,opt.target_subset,'level',2);
 	
 	%make sure we got proper option values
 		opt.mask_balancer	= CheckInput(opt.mask_balancer,'mask_balancer',{'none','bootstrap','erode'});
 		opt.nan_remove		= CheckInput(opt.nan_remove,'nan_remove',{'none','sample','feature'});
-	
-		if opt.selection<0 || (opt.selection>1 && ~isint(opt.selection))
-			error('uninterpretable selection parameter.');
-		end
+		
+		assert(opt.selection>=0 && (opt.selection<1 || isint(opt.selection)),'uninterpretable selection parameter.');
 	
 	%are we doing matched dataset cross-classification or information flow
 	%classification?
@@ -252,10 +241,10 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		end
 	
 	%construct one set of everything for each dataset
-		[cPathData,kChunk,opt.zscore,opt.output_prefix]			= ForceCell(cPathData,kChunk,opt.zscore,opt.output_prefix);
-		[cTarget,opt.path_mask,opt.mask_name,opt.target_subset]	= ForceCell(cTarget,opt.path_mask,opt.mask_name,opt.target_subset,'level',2);
+		[cPathData,kChunk,opt.zscore,opt.output_prefix]	= ForceCell(cPathData,kChunk,opt.zscore,opt.output_prefix);
+		[cTarget,opt.path_mask,opt.mask_name]			= ForceCell(cTarget,opt.path_mask,opt.mask_name,'level',2);
 		
-		[cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name,opt.target_subset]	= FillSingletonArrays(cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name,opt.target_subset);
+		[cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name]	= FillSingletonArrays(cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name);
 		
 		szData		= size(cPathData);
 		nAnalysis	= numel(cPathData);
@@ -269,36 +258,17 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 					end
 					cTarget{kA}	= cellfun(@tostring,cTarget{kA},'uni',false);
 				end
-			%fill default target_subsets
-				if isempty(opt.target_subset{kA})
-					opt.target_subset{kA}	= setdiff(unique(cTarget{kA}),unless(opt.target_blank,[],NaN));
-				end
 		end
 	%compress the targets array so we don't have to send so much info to the
 	%MultiTask workers
-		opt.unique_target	= cellfun(@unique,cTarget,'uni',false);
+		opt.unique_target	= cellfun(@(t) reshape(unique(t),[],1),cTarget,'uni',false);
 		[b,kTarget]			= cellfun(@ismember,cTarget,opt.unique_target,'uni',false);
-	
-	%reformat sample_attr as a szData cell of struct arrays
-		if ~isequal(opt.sample_attr,struct)
-			if ~isa(opt.sample_attr,'struct')
-				error('The ''sample_attr'' option must be a struct.');
-			end
-			
-			%make sure each attribute has an entry for each subject
-				opt.sample_attr	= structfun2(@ForceCell,opt.sample_attr);
-				
-				cField			= fieldnames(opt.sample_attr);
-				cAttr			= struct2cell(opt.sample_attr);
-				[x,cAttr{:}]	= FillSingletonArrays(cPathData,cAttr{:});
-				opt.sample_attr	= cell2struct(cAttr,cField);
-			
-			%make sure each attribute has an entry for each sample
-				opt.sample_attr	= structfun2(@(ca) cellfun(@(a,t) reshape(FillSingletonArrays(a,t),1,[]),ca,cTarget,'uni',false),opt.sample_attr);
-			
-			opt.sample_attr	= num2cell(opt.sample_attr);
+	%set the default target_subset
+		if isempty(opt.target_subset{1})
+			cTargetUnique		= unique(cat(1,opt.unique_target{:}));
+			opt.target_subset	= {setdiff(cTargetUnique,unless(opt.target_blank,[],NaN))};
 		end
-		
+	
 	%default output prefixes
 		opt.output_prefix	= cellfun(@ParseOutputPrefix,opt.output_prefix,cPathData,'uni',false);
 	
@@ -312,12 +282,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 	param	= num2cell(struct(cOpt{:}));
 
 %run each classification analysis
-	cKAnalysis	= num2cell(reshape(1:nAnalysis,size(cPathData)));
-	
-	res	= MultiTask(@ClassifyOne,{param cKAnalysis cPathData kTarget kChunk},...
+	res	= MultiTask(@ClassifyOne,{param cPathData kTarget kChunk},...
 			'description'	, 'performing MVPA classifications'	, ...
 			'nthread'		, opt.nthread						, ...
-			'closepool'		, opt.closepool						, ...
 			'debug'			, opt.debug_multitask				, ...
 			'silent'		, opt.silent						  ...
 			);
@@ -359,7 +326,7 @@ if isempty(res) && opt.run
 end
 
 %------------------------------------------------------------------------------%
-function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
+function res = ClassifyOne(param,strPathData,kTarget,kChunk)
 	res	= [];
 	
 	%do some error checking
@@ -369,6 +336,9 @@ function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
 	
 	tNow	= nowms;
 	L		= Log('level',param.debug,'silent',param.silent);
+	
+	%initialize the custom sample attributes struct
+		param.sample_attr	= struct;
 	
 	%save a custom sample attribute for zscoring if necessary
 		if ~isequal(param.zscore,false) && ~ischar(param.zscore)

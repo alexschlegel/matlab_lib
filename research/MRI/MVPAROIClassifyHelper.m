@@ -30,16 +30,16 @@ function res = MVPAROIClassifyHelper(s,varargin)
 % Out:
 % 	res	- a struct of results (see MVPAClassify)
 %
-% Updated: 2015-03-25
+% Updated: 2015-03-26
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 %analysis-specific parameters
-	s.default	= ParseArgs({unless(GetFieldPath(s,'default'),struct)},...
+	s.default	= ParseArgs(opt2cell(GetFieldPath(s,'default')),...
 					'dim'	, []	  ...
 					);
-	s.opt		= ParseArgs({unless(GetFieldPath(s,'opt'),struct)},...
+	s.opt		= ParseArgs(opt2cell(GetFieldPath(s,'opt')),...
 					'mvpa'	, struct	  ...
 					);
 %parse the inputs

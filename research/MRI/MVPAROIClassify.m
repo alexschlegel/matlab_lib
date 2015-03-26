@@ -77,5 +77,5 @@ function [cPathDataROI,cNameROI,sMaskInfo] = ParseROIs(sPath)
 					);
 %------------------------------------------------------------------------------%
 function cMask = ParseMaskLabel(sMaskInfo)
-	cMask	= reshape(cMaskInfo.name,[],1);
+	cMask	= reshape(sMaskInfo.name,[],1);
 %------------------------------------------------------------------------------%

@@ -1317,7 +1317,16 @@ def preprocess_data_one(param, ds, show_status=True):
 	#if we are going to do matched dataset cross-classification with feature
 	#matching, keep a copy of the data before we start to preprocess
 	if param['matchedcrossclassify'] and param['match_features']:
-		ds.a['feature_match_data'] = ds.copy(deep=1)
+		dsfm = ds.copy(deep=1)
+		
+		#keep only the targets we are interested in (and blanks, in case we
+		#later want to include them in matching)
+		targets = param['target_subset']
+		if param['target_blank']:
+			targets = targets + [param['target_blank']]
+		dsfm = dsfm[array([ trg in targets for trg in dsfm.sa.targets ])]
+		
+		ds.a['feature_match_data'] = dsfm
 	
 	#remove NaNs
 	if param['nan_remove'].startswith('sample'):

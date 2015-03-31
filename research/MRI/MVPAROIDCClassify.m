@@ -42,11 +42,11 @@ function res = MVPAROIDCClassify(varargin)
 %			'targets'			, cTarget		, ...
 %			'chunks'			, kChunk		, ...
 %			'target_blank'		, 'Blank'		, ...
-%			'output_dir'		, strDirOut		, ...
+%			'dir_out'			, strDirOut		, ...
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-25
+% Updated: 2015-03-27
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -73,17 +73,21 @@ res	= MVPAROIClassifyHelper(s,vargin{:});
 
 %------------------------------------------------------------------------------%
 function [cPathDataROI,cNameROI,sMaskInfo] = ParseROIs(sPath)
-%construct every unidirectional pair of ROIs
-	cSession					= sPath.functional_session;
-	[cPathDataROI,cNameMask]	= varfun(@(x) ForceCell(x,'level',2),sPath.functional_roi,sPath.mask_name);
-	
-	[cPathDataROI,kShake]	= cellfun(@(cf) handshakes(cf,'ordered',true),cPathDataROI,'uni',false);
-	cNameROI				= cellfun(@(s,cm,ks) arrayfun(@(k) sprintf('%s-%s-%s',s,cm{ks(k,:)}),(1:size(ks,1))','uni',false),cSession,cNameMask,kShake,'uni',false);
+%construct every directed pair of ROIs
+	[cPathDataROI,kShake]	= cellfun(@(cf) handshakes(cf,'ordered',true),sPath.functional_roi,'uni',false);
+	cNameROI				= cellfun(@GetROINames,sPath.functional_session,sPath.mask_name,kShake,'uni',false);
 	
 	sMaskInfo	= struct(...
-					'name'	, {cNameMask{1}}	, ...
-					'shake'	, {kShake{1}}		  ...
+					'name'	, {sPath.mask_name{1}}	, ...
+					'shake'	, {kShake{1}}			  ...
 					);
+%------------------------------------------------------------------------------%
+function cNameROI = GetROINames(strSession,cNameMask,kShake)
+	kPair		= reshape(1:size(kShake,1),[],1);
+	cNameROI	= arrayfun(@(k) GetROIName(strSession,cNameMask,kShake(k,:)),kPair,'uni',false);
+%------------------------------------------------------------------------------%
+function strNameROI = GetROIName(strSession,cNameMask,kPair) 
+	strNameROI	= sprintf('%s-%s-%s',strSession,cNameMask{kPair});
 %------------------------------------------------------------------------------%
 function cMask = ParseMaskLabel(sMaskInfo)
 	cMask	= reshape(sMaskInfo.name,1,[]);

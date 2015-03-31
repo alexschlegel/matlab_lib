@@ -11,22 +11,25 @@ classdef Log < handle
 %							current level
 % 
 % 			properties:
+%				name:	a name to prepend to messages
 % 				level:	the debug level, determines which log messages actually
 %						get logged
 % 
 % In:
 % 	<options>:
+%		name:		([]) the initial value of the name property
 %		level:		('error') the level of log messages (can be 'error', 'warn',
 %					'info', 'most', or 'all')
 %		silent:		(false) true to suppress all status messages
 % 
-% Updated: 2014-01-30
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-27
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 	%PUBLIC PROPERTIES---------------------------------------------------------%
 	properties
+		name	= [];
 		level	= [];
 		silent	= [];
 	end
@@ -62,10 +65,12 @@ classdef Log < handle
 		%----------------------------------------------------------------------%
 		function L = Log(varargin)
 			opt	= ParseArgs(varargin,...
+					'name'		, []		, ...
 					'level'		, 'error'	, ...
 					'silent'	, false		  ...
 					);
 			
+			L.name		= opt.name;
 			L.level		= opt.level;
 			L.silent	= opt.silent;
 		end
@@ -85,7 +90,14 @@ classdef Log < handle
 					str	= sprintf('%s (%s):',str,opt.exception.identifier);
 				end
 				
-				status(str,0,'warning',bWarn,'silent',L.silent);
+				if ~isempty(L.name)
+					str	= sprintf('%s: %s',L.name,str);
+				end
+				
+				status(str,0,...
+					'warning'	, bWarn		, ...
+					'silent'	, L.silent	  ...
+					);
 				
 				if bException
 					fprintf(2,opt.exception.getReport);

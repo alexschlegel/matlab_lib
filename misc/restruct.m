@@ -78,15 +78,24 @@ function s2 = Array2Scalar(s,szArray)
 		strField	= cField{kF};
 		
 		x	= reshape({s.(strField)},szArray);
-		if all(cellfun(@isstruct,x))
+		if all(reshape(cellfun(@isstruct,x),[],1))
 			x	= restruct(cell2mat(x),szArray);
-		elseif all(cellfun(@(y) isscalar(y) && ~ischar(y),x))
-			x	= cell2mat(x);
+		elseif all(reshape(cellfun(@(y) isscalar(y) && ~ischar(y),x),[],1))
+			if any(reshape(cellfun(@iscell,x),[],1))
+				x	= cellfun(@UnwrapScalarCell,x,'uni',false);
+			else
+				x	= cell2mat(x);
+			end
 		%elseif all(cellfun(@iscell,x))
 		%	x	= cell2mat2(x);
 		end
 		
 		s2.(strField)	= x;
+	end
+%------------------------------------------------------------------------------%
+function x = UnwrapScalarCell(x) 
+	if iscell(x)
+		x	= x{1};
 	end
 %------------------------------------------------------------------------------%
 function sz = GetArraySize(s) 

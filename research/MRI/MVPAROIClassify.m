@@ -38,11 +38,11 @@ function res = MVPAROIClassify(varargin)
 %			'chunks'			, kChunk		, ...
 %			'spatiotemporal'	, true			, ...
 %			'target_blank'		, 'Blank'		, ...
-%			'output_dir'		, strDirOut		, ...
+%			'dir_out'			, strDirOut		, ...
 %			'nthread'			, 11			  ...
 %			);
 % 
-% Updated: 2015-03-25
+% Updated: 2015-03-27
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -67,14 +67,20 @@ res	= MVPAROIClassifyHelper(s,vargin{:});
 
 %------------------------------------------------------------------------------%
 function [cPathDataROI,cNameROI,sMaskInfo] = ParseROIs(sPath)
-	cSession					= sPath.functional_session;
-	[cPathDataROI,cNameMask]	= varfun(@(x) ForceCell(x,'level',2),sPath.functional_roi,sPath.mask_name);
+	cPathDataROI	= sPath.functional_roi;
 	
-	cNameROI	= cellfun(@(s,cm) cellfun(@(m) sprintf('%s-%s',s,m),cm,'uni',false),cSession,cNameMask,'uni',false);
+	cSession	= sPath.functional_session;
+	cNameROI	= cellfun(@GetROINames,sPath.functional_session,sPath.mask_name,'uni',false);
 	
 	sMaskInfo	= struct(...
-					'name'	, {cNameMask{1}}	  ...
+					'name'	, {sPath.mask_name{1}}	  ...
 					);
+%------------------------------------------------------------------------------%
+function cNameROI = GetROINames(strSession,cNameMask)
+	cNameROI	= cellfun(@(m) GetROIName(strSession,m),cNameMask,'uni',false);
+%------------------------------------------------------------------------------%
+function strNameROI = GetROIName(strSession,strNameMask) 
+	strNameROI	= sprintf('%s-%s',strSession,strNameMask);
 %------------------------------------------------------------------------------%
 function cMask = ParseMaskLabel(sMaskInfo)
 	cMask	= reshape(sMaskInfo.name,[],1);

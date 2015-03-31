@@ -127,3 +127,97 @@ function res = MVPAROIClassifyHelper(s,varargin)
 	
 	res			= MVPAClassify(cPathDataROI,cTarget,kChunk,opt_mvpa);
 	res.mask	= s.f.ParseMaskLabel(sMaskInfo);
+	return;
+
+%combine the results
+	cMask	= s.f.ParseMaskLabel(sMaskInfo);
+	nMask	= numel(cMask);
+	
+	if opt.combine
+		try
+			%construct dummy structs for failed classifications
+				bFailed	= cellfun(@isempty,res);
+				if any(bFailed)
+					kGood	= find(~bFailed,1);
+					if isempty(kGood)
+						error('none of the classifications completed. results cannot be combined.');
+					end
+					
+					resDummy		= dummy(res{kGood});
+					res(bFailed)	= {resDummy};
+				end
+			
+			nSubject	= numel(res)/nMask;
+			sCombine	= [nMask nSubject];
+			
+			res			= structtreefun(@CombineResult,res{:});
+			res.mask	= cMask;
+			res.type	= opt.type;
+		catch me
+			status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
+			return;
+		end
+		
+		if opt.group_stats && nSubject>1
+			res	= GroupStats(res);
+			
+			if opt.extra_stats
+				opt_extrastats	= optadd(sPath.opt_extra,...
+									'silent'	, opt.silent	  ...
+									);
+				
+				res.stat	= MVPAClassifyExtraStats(res,opt_extrastats);
+			end
+		end
+	end
+
+%------------------------------------------------------------------------------%
+function x = CombineResult(varargin)
+	if nargin==0
+		x	= [];
+	else
+		if isnumeric(varargin{1}) && uniform(cellfun(@size,varargin,'uni',false))
+			if isscalar(varargin{1})
+				x	= reshape(cat(1,varargin{:}),sCombine);
+			else
+				sz	= size(varargin{1});
+				x	= reshape(stack(varargin{:}),[sz sCombine]);
+			end
+		else
+			x	= reshape(varargin,sCombine);
+		end
+	end
+end
+%------------------------------------------------------------------------------%
+function res = GroupStats(res)
+	if isstruct(res)
+		res	= structfun2(@GroupStats,res);
+		
+		if isfield(res,'accuracy')
+			%accuracies
+				acc		= res.accuracy.mean;
+				nd		= ndims(acc);
+				chance	= res.accuracy.chance(1,end);
+				
+				res.stats.accuracy.mean	= nanmean(acc,nd);
+				res.stats.accuracy.se	= nanstderr(acc,[],nd);
+				
+				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
+				
+				res.stats.accuracy.chance	= chance;
+				res.stats.accuracy.df		= stats.df;
+				res.stats.accuracy.t		= stats.tstat;
+				res.stats.accuracy.p		= p;
+			%confusion matrices
+				conf	= res.confusion;
+				
+				if ~iscell(conf)
+					res.stats.confusion.mean	= nanmean(conf,4);
+					res.stats.confusion.se		= nanstderr(conf,[],4);
+				end
+		end
+	end
+end
+%------------------------------------------------------------------------------%
+
+end

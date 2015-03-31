@@ -43,7 +43,7 @@ function res = MVPAROICrossClassify(varargin)
 %			'chunks'			, kChunk		, ...
 %			'spatiotemporal'	, true			, ...
 %			'target_blank'		, 'Blank'		, ...
-%			'output_dir'		, strDirOut		, ...
+%			'dir_out'			, strDirOut		, ...
 %			'nthread'			, 11			  ...
 %			);
 % 
@@ -76,16 +76,20 @@ res	= MVPAROIClassifyHelper(s,vargin{:});
 %------------------------------------------------------------------------------%
 function [cPathDataROI,cNameROI,sMaskInfo] = ParseROIs(sPath)
 %construct every pair of ROIs
-	cSession					= sPath.functional_session;
-	[cPathDataROI,cNameMask]	= varfun(@(x) ForceCell(x,'level',2),sPath.functional_roi,sPath.mask_name);
-	
-	[cPathDataROI,kShake]	= cellfun(@handshakes,cPathDataROI,'uni',false);
-	cNameROI				= cellfun(@(s,cm,ks) arrayfun(@(k) sprintf('%s-%s-%s',s,cm{ks(k,:)}),(1:size(ks,1))','uni',false),cSession,cNameMask,kShake,'uni',false);
+	[cPathDataROI,kShake]	= cellfun(@handshakes),sPath.functional_roi,'uni',false);
+	cNameROI				= cellfun(@GetROINames,sPath.functional_session,sPath.mask_name,kShake,'uni',false);
 	
 	sMaskInfo	= struct(...
-					'name'	, {cNameMask{1}}	, ...
-					'shake'	, {kShake{1}}		  ...
+					'name'	, {sPath.mask_name{1}}	, ...
+					'shake'	, {kShake{1}}			  ...
 					);
+%------------------------------------------------------------------------------%
+function cNameROI = GetROINames(strSession,cNameMask,kShake)
+	kPair		= reshape(1:size(kShake,1),[],1);
+	cNameROI	= arrayfun(@(k) GetROIName(strSession,cNameMask,kShake(k,:)),kPair,'uni',false);
+%------------------------------------------------------------------------------%
+function strNameROI = GetROIName(strSession,cNameMask,kPair) 
+	strNameROI	= sprintf('%s-%s-%s',strSession,cNameMask{kPair});
 %------------------------------------------------------------------------------%
 function cMask = ParseMaskLabel(sMaskInfo)
 	cMask	= reshape(sMaskInfo.name,1,[]);

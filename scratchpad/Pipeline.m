@@ -28,8 +28,8 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150324,...
-							'capsuleFormat',20150324)
+	version				= struct('pipeline',20150331,...
+							'capsuleFormat',20150331)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
@@ -54,6 +54,7 @@ methods
 	%		seed:		(randseed2) Seed to use for randomizing
 	%		subSilent:	(true) Suppress status messages from TE, etc.
 	%		szIm:		(200) Pixel height of debug images
+	%		verbosData:	(false) Preserve extra data in simulation summary
 	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
 	%					-- Subjects
@@ -116,6 +117,7 @@ methods
 			'seed'			, randseed2	, ...
 			'subSilent'		, true		, ...
 			'szIm'			, 200		, ...
+			'verbosData'	, false		, ...
 			'verbosity'		, 1			, ...
 			'nSubject'		, 20		, ...
 			'nSig'			, 10		, ...
@@ -146,21 +148,19 @@ methods
 			'max_cores'		, 1			, ...
 			'saveplot'		, false		  ...
 			};
+		opt						= ParseArgs(varargin,obj.defaultOptions{:});
 		obj.implicitOptionNames	= obj.defaultOptions(1:2:end);
 		obj.explicitOptionNames	= varargin(1:2:end);
-		opt						= ParseArgs(varargin,obj.defaultOptions{:});
-		if isfield(opt,'opt_extra') && isstruct(opt.opt_extra)
-			extraOpts			= opt2cell(opt.opt_extra);
-			if numel(extraOpts) > 0
-				error('Unrecognized option ''%s''',extraOpts{1});
-			end
+		unknownOptInd			= ~ismember(obj.explicitOptionNames,obj.implicitOptionNames);
+		if any(unknownOptInd)
+			error('Unrecognized option(s):%s',sprintf(' ''%s''',obj.explicitOptionNames{unknownOptInd}));
 		end
 		if ~iscell(opt.fudge)
 			error('Invalid fudge: must be a cell.');
 		end
-		invalidFudges			= ~ismember(opt.fudge,{'fakecause','stubsim'});
-		if any(invalidFudges)
-			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudges}));
+		invalidFudgeInd			= ~ismember(opt.fudge,{'fakecause','stubsim'});
+		if any(invalidFudgeInd)
+			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudgeInd}));
 		end
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
@@ -350,7 +350,7 @@ methods
 	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug) %#ok
 		u				= obj.uopt;
 		if u.WSumTweak || u.normVar ~= 0 || u.preSource
-			error('WSumTweak, normVar, and preSource not supported for non-empty xCausAlpha.');
+			error('WSumTweak, normVar, and preSource not supported for nonempty xCausAlpha.');
 		end
 		sourceOut		= sW.WXX.' * sourceIn + (1-sum(sW.WXX,1).').*randn(u.nSig,1);
 		destOut			= sW.W.' * sourceIn + sW.WYY.' * destIn + (1-sum(sW.W).'-sum(sW.WYY).').*randn(u.nSig,1);
@@ -421,7 +421,7 @@ methods
 		obj	= obj.changeOptionDefault('nofigures',true);
 		obj	= obj.changeOptionDefault('nowarnings',true);
 		obj	= obj.changeOptionDefault('progress',false);
-		obj	= obj.changeOptionDefault('verbosity',0);
+		%obj	= obj.changeOptionDefault('verbosity',0);
 	end
 
 	function obj = changeDefaultsToDebug(obj)
@@ -645,14 +645,14 @@ methods
 
 		%the two causality matrices (and other control causality matrices)
 		%(four causality matrices altogether in the standard case;
-		% possibly two more below if xCausAlpha is non-empty)
+		% possibly two more below if xCausAlpha is nonempty)
 		nW										= 4;
 		[cW,cWCause]							= deal(cell(nW,1));
 		for kW=1:nW
 			[cW{kW},cWCause{kW}]				= generateW(obj,u.xCausAlpha);
 		end
 		[sW.WA,sW.WB,sW.WBlank,sW.WZ]			= deal(cW{:});
-		%two "internal" causality matrices for non-empty xCausAlpha:
+		%two "internal" causality matrices for nonempty xCausAlpha:
 		if ~isempty(u.xCausAlpha)
 			[sW.WXX,WXXCause]					= generateW(obj,1);
 			[sW.WYY,WYYCause]					= generateW(obj,1-u.xCausAlpha);
@@ -748,54 +748,60 @@ methods
 
 		pause(1);
 		start_ms	= nowms;
-		varName		= ['kIteration'; plotSpec.varName];
-		varValues	= [{num2cell(1:plotSpec.nIteration)}; plotSpec.varValues];
+		varName		= ['kIteration' plotSpec.varName];
+		varValues	= [{num2cell(1:plotSpec.nIteration)} plotSpec.varValues];
 		valueGrid	= obj.computeLittleEndianCartesianProduct(varValues{:});
 		if isfield(plotSpec,'filter') && ~isempty(plotSpec.filter)
 			for kG=1:size(valueGrid,1)
-				valueGrid(kG,2:end)	= plotSpec.filter(obj.uopt,valueGrid(kG,2:end));
+				[valueGrid{kG,2:end}]	= plotSpec.filter(obj.uopt,valueGrid{kG,2:end});
 			end
 		end
 
 		cValue		= num2cell(valueGrid,2);
 		nSim		= numel(cValue);
 
+		if obj.uopt.verbosity > 0
+			fprintf('Number of plot-variable combinations = %d\n',nSim);
+		end
+
 		rng(obj.uopt.seed,'twister');
 
-		cSeed				= num2cell(randi(intmax,1,nSim));
+		cSeed				= num2cell(randi(intmax,nSim,1));
 
-		vopt				= repmat(obj.uopt,1,nSim);
+		vopt				= repmat(obj.uopt,nSim,1);
 		[vopt.seed]			= deal(cSeed{:});
 		[vopt.progress]		= deal(false);
-		for kV=2:numel(varName)
+		for kV=1:numel(varName)
 			name			= varName{kV};
-			%vals			= cellfun(@(tuple) tuple{kV},cValue,'uni',false);
+			if ~isfield(obj.uopt,name)
+				continue;
+			end
 			vals			= valueGrid(:,kV);
 			[vopt.(name)]	= deal(vals{:});
 		end
 
 		cVopt				= num2cell(vopt);
-		parObj				= repmat(obj,1,nSim);
+		parObj				= repmat(obj,nSim,1);
 		[parObj.uopt]		= deal(cVopt{:});
 		summary				= MultiTask(@simulateAllSubjects,...
 								{num2cell(parObj)},...
 								'nthread',obj.uopt.max_cores,...
-								'silent',true);
+								'silent',(obj.uopt.max_cores<2));
 
-		result				= repmat(struct,1,nSim);
-		[result.keyTuple]	= deal(varName.');
+		result				= repmat(struct,nSim,1);
+		[result.keyTuple]	= deal(varName);
 		[result.valueTuple]	= deal(cValue{:});
 		[result.seed]		= deal(cSeed{:});
 		[result.summary]	= deal(summary{:});
 		cResult				= num2cell(reshape(result,...
-								cellfun(@(vv)numel(vv),varValues).'));
+								cellfun(@numel,varValues)));
 
 		end_ms				= nowms;
 		capsule.begun		= FormatTime(start_ms);
 		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
 		capsule.version		= obj.version;
 		capsule.plotSpec	= plotSpec;
-		capsule.opt			= obj.uopt;
+		capsule.uopt		= obj.uopt;
 		capsule.result		= cResult;
 		capsule.elapsed_ms	= end_ms - start_ms;
 		capsule.done		= FormatTime(end_ms);
@@ -809,7 +815,7 @@ methods
 	function note = noteVaryingOpts(obj,capsule)
 		u			= obj.uopt; %#ok
 		spec		= capsule.plotSpec;
-		opt			= capsule.opt;
+		opt			= capsule.uopt;
 		cNote		= {};
 
 		if ~strcmp(spec.varName,'nSubject')
@@ -861,13 +867,13 @@ methods
 				error('Plot-spec varValues must be cell when varName is cell.');
 			end
 			if ~isvector(plotSpec.varName) || ~isvector(plotSpec.varValues)
-				error('Plot-spec varName and varValues cells must be non-empty vectors.');
+				error('Plot-spec varName and varValues cells must be nonempty vectors.');
 			end
 			if numel(plotSpec.varName) ~= numel(plotSpec.varValues)
 				error('Plot-spec varName and varValues cells must have same length.');
 			end
-			plotSpec.varName	= plotSpec.varName(:);
-			plotSpec.varValues	= plotSpec.varValues(:);
+			plotSpec.varName	= plotSpec.varName(:).';
+			plotSpec.varValues	= plotSpec.varValues(:).';
 		end
 
 		for kVV=1:numel(plotSpec.varValues)
@@ -877,9 +883,32 @@ methods
 			plotSpec.varValues{kVV}		= plotSpec.varValues{kVV}(:).';
 		end
 
-		invalidVars	= ~ismember(plotSpec.varName,obj.implicitOptionNames);
-		if any(invalidVars)
-			error('Invalid plot-spec variable(s):%s',sprintf(' ''%s''',plotSpec.varName{invalidVars}));
+		if ~isfield(plotSpec,'pseudoVar') || isempty(plotSpec.pseudoVar)
+			plotSpec.pseudoVar	= {};
+		elseif ~iscell(plotSpec.pseudoVar)
+			plotSpec.pseudoVar	= {plotSpec.pseudoVar};
+		else
+			if ~isvector(plotSpec.pseudoVar)
+				error('Plot-spec pseudoVar must be cell vector.');
+			end
+			plotSpec.pseudoVar	= plotSpec.pseudoVar(:).';
+		end
+		bogusPseudoInd	= ismember(plotSpec.pseudoVar,obj.implicitOptionNames) | ...
+								~ismember(plotSpec.pseudoVar,plotSpec.varName);
+		if any(bogusPseudoInd)
+			error('Invalid plot-spec pseudo-variable(s):%s', ...
+				sprintf(' ''%s''',plotSpec.pseudoVar{bogusPseudoInd}));
+		end
+
+		invalidInd	= ~ismember(plotSpec.varName,obj.implicitOptionNames) & ...
+						~ismember(plotSpec.varName,plotSpec.pseudoVar);
+		if any(invalidInd)
+			error('Invalid plot-spec variable(s):%s',sprintf(' ''%s''',plotSpec.varName{invalidInd}));
+		end
+		sortedVars	= sort(plotSpec.varName);
+		dupInd		= strcmp(sortedVars(1:end-1),sortedVars(2:end));
+		if any(dupInd)
+			error('Duplicate plot-spec variable(s):%s',sprintf(' ''%s''',sortedVars{dupInd}));
 		end
 	end
 
@@ -925,9 +954,9 @@ methods
 			stderrAcc(:,:,kI)	= cellfun(@(r) r.summary.alex.stderrAccAllSu,result);
 		end
 
-		meanMean	= mean(meanAcc);
-		meanStderr	= mean(stderrAcc);	%Desired stat, but is it kosher?
-		%stderrMean	= stderr(meanAcc);  %Conventional stat, but not desired.
+		meanMean	= mean(meanAcc,1); % explicit dim (in case nIteration == 1)
+		meanStderr	= mean(stderrAcc,1);
+		%stderrMean	= stderr(meanAcc,0,1);  %Conventional stat, but not desired.
 
 		parennote	= noteVaryingOpts(obj,cap1);
 		if ~isempty(parennote)
@@ -1054,33 +1083,45 @@ methods
 		if u.nowarnings
 			warningState	= warning('off','all');
 			try
-				summary		= simulateAllSubjectsCheckStub(obj);
+				summary		= simulateAllSubjectsCheckNaNOrStub(obj);
 			catch ME
 				warning(warningState);
 				rethrow(ME);
 			end
 			warning(warningState);
 		else
-			summary			= simulateAllSubjectsCheckStub(obj);
+			summary			= simulateAllSubjectsCheckNaNOrStub(obj);
 		end
 	end
 
-	function summary = simulateAllSubjectsCheckStub(obj)
+	function summary = simulateAllSubjectsCheckNaNOrStub(obj)
 		summary.start_ms				= nowms;
 		u								= obj.uopt;
 
 		%initialize pseudo-random-number generator
 		rng(u.seed,'twister');
 
-		%perform simulations, or substitute stub if applicable
-		if ~ismember('stubsim',u.fudge)
-			summary		= simulateAllSubjectsInternal(obj,summary);
-		else
+		%perform simulations, or substitute stub if applicable;
+		%in case of NaN params, set answers to NaN
+		if any(cellfun(@(p) isnumeric(p)&&any(isnan(p(:))),struct2cell(u)))
+			%NaN actions; augment as necessary
+			summary.isMissing			= true;
+			summary.alex.meanAccAllSubj	= NaN;
+			summary.alex.stderrAccAllSu	= NaN;
+			summary.alex.p				= NaN;
+		elseif ismember('stubsim',u.fudge)
 			%stub actions; revise as necessary
-			summary.WSum				= u.WSum;
-			summary.nRun				= u.nRun;
-			summary.alex.meanAccAllSubj	= randn;
-			summary.alex.stderrAccAllSu	= randn;
+			summary.isMissing			= false;
+			summary.uopt				= u;
+			summary.alex.meanAccAllSubj	= 1.0*randn;
+			summary.alex.stderrAccAllSu	= 0.2*randn;
+			summary.alex.p				= 0.5*rand;
+			%summary.alex.meanAccAllSubj	= u.WSum;
+			%summary.alex.stderrAccAllSu	= 0.1*u.CRecurY;
+		else
+			summary.isMissing			= false;
+			summary						= simulateAllSubjectsInternal(...
+											obj,summary);
 		end
 		summary.end_ms					= nowms;
 	end
@@ -1157,7 +1198,9 @@ methods
 				fprintf('Seth group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
-		summary.subjectResults			= results;
+		if u.verbosData
+			summary.subjectResults			= results;
+		end
 	end
 
 	function subjectStats = simulateSubject(obj,doDebug)
@@ -1191,7 +1234,7 @@ methods (Static)
 
 		spec(2).varName		= 'WSum';
 		spec(2).varValues	= 0:0.05:0.3;
-		spec(2).filter		= @(u,v) {v{1} * (1-u.CRecurY)/0.3};
+		spec(2).filter		= @(u,WSum) deal(WSum * (1-u.CRecurY)/0.3);
 
 		spec(3).varName		= 'WFullness';
 		spec(3).varValues	= 0.1:0.2:0.9;
@@ -1203,6 +1246,8 @@ methods (Static)
 
 		capMeta.varName		= 'CRecurY';
 		capMeta.varValues	= [0 0.35 0.7];
+
+		rng(pipeline.uopt.seed,'twister');
 
 		nSpec				= numel(spec);
 		nCapvar				= numel(capMeta.varValues);
@@ -1219,12 +1264,12 @@ methods (Static)
 		end
 
 		pause(1);
-		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS');
+		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS'); %#ok
 		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
 									nCapvar,nSpec,pipeline.uopt.nSubject);
 		plot_data.capMeta		= capMeta;
 		plot_data.cCapsule		= capsule;
-		save([filename_prefix '_recurY_plot_data.mat'],'plot_data');
+		%save([filename_prefix '_recurY_plot_data.mat'],'plot_data');
 	end
 
 	function cH = constructTestPlotsFromData(plot_data)

@@ -557,7 +557,7 @@ def granger_causality(src, dst, lags=1, idx_sample=None):
 	res_full = regr_residual(hstack((dst_past, src_past)), dst_next)
 	
 	#granger causality is the log of the ratios of the residuals
-	return np.log(res_reduced / res_full)
+	return np.log(res_reduced / res_full) if res_reduced>0 and res_full>0 else 0
 
 
 def compute_directed_connectivity_patterns(ds1, ds2, method='granger', lags=1,
@@ -1090,6 +1090,10 @@ class MatchedDatasetCrossClassifier(ProxyClassifier):
 		  that don't share that value. this is done to avoid artificially
 		  inflating the similarity between datasets.
 		"""
+		#untrain the existing classifier (i get deepcopy errors if the
+		#classifier has been used already)
+		clf.untrain()
+				
 		#make a copy of the classifier to use for ds2->ds1 classification
 		self.__clf2 = copy.deepcopy(clf)
 		

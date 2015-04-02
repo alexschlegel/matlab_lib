@@ -1,12 +1,12 @@
-function res = MVPAROIClassifyHelper(s,varargin)
+function res = MVPAROIClassifyHelper(param,varargin)
 % MVPAROIClassifyHelper
 % 
 % Description:	a helper function for MVPAROI*Classify-style functions
 % 
-% Syntax:	res = MVPAROIClassifyHelper(s,<options>)
+% Syntax:	res = MVPAROIClassifyHelper(param,<options>)
 % 
 % In:
-%	s	- a struct of analysis-specific parameters and functions
+%	param	- a struct of analysis-specific parameters and functions
 % 	<options>:
 %		<+ options for MRIParseDataPaths>
 %		<+ options for FSLMELODIC/fMRIROI>
@@ -14,7 +14,7 @@ function res = MVPAROIClassifyHelper(s,varargin)
 %		melodic:	(true) true to perform MELODIC on the extracted ROIs before
 %					classification
 %		comptype:	('pca') (see FSLMELODIC)
-%		dim:		(s.default.dim) (see FSLMELODIC)
+%		dim:		(param.default.dim) (see FSLMELODIC)
 %		targets:	(<required>) a cell specifying the target for each sample,
 %					or a cell of cells (one for each dataset)
 %		chunks:		(<required>) an array specifying the chunks for each sample,
@@ -29,18 +29,11 @@ function res = MVPAROIClassifyHelper(s,varargin)
 % Out:
 % 	res	- a struct of results (see MVPAClassify)
 %
-% Updated: 2015-03-27
+% Updated: 2015-04-02
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-%analysis-specific parameters
-	s.default	= ParseArgs(opt2cell(GetFieldPath(s,'default')),...
-					'dim'	, []	  ...
-					);
-	s.opt		= ParseArgs(opt2cell(GetFieldPath(s,'opt')),...
-					'mvpa'	, struct	  ...
-					);
 %parse the inputs
 	opt		= ParseArgs(varargin,...
 				'melodic'		, true			, ...
@@ -61,11 +54,26 @@ function res = MVPAROIClassifyHelper(s,varargin)
 					);
 	sPath		= ParseMRIDataPaths(opt_path);
 
+%analysis-specific parameters
+	param	= ParseArgs(optstruct(param),...
+				'default'		, struct				, ...
+				'opt'			, struct				, ...
+				'parseInput'	, @ParseInputDefault	  ...
+				);
+	
+	param.default	= ParseArgs(optstruct(param.default),...
+						'dim'	, []	  ...
+						);
+	
+	param.opt	= ParseArgs(optstruct(param.opt),...
+					'mvpa'	, optstruct	  ...
+					);
+
 %extract the ROI data
 	if opt.melodic
 		opt_melodic	= optadd(sPath.opt_extra,...
-						'comptype'	, 'pca'			, ...
-						'dim'		, s.default.dim	  ...
+						'comptype'	, 'pca'				, ...
+						'dim'		, param.default.dim	  ...
 						);
 		opt_melodic	= optreplace(opt_melodic,...
 						'dir_out'			, []				, ...
@@ -89,41 +97,54 @@ function res = MVPAROIClassifyHelper(s,varargin)
 		sPath.functional_roi	= fMRIROI(opt_roi);
 	end
 
-%get the input data and ROI names
-	[cPathDataROI,cNameROI,sMaskInfo]	= s.f.ParseROIs(sPath);
+%parse the input data
+	sData	= param.parseInput(sPath);
 
 %make sure we have the same number of masks for each dataset
-	if ~uniform(cellfun(@numel,cPathDataROI))
+	if ~uniform(cellfun(@numel,sData.cPathDataROI))
 		error('specify the same number of masks per dataset.');
 	end
-	nMask	= numel(cPathDataROI{1});
+	nMask	= numel(sData.cPathDataROI{1});
 
 %get a target/chunk/zscore set for each classification
 	cTarget				= ForceCell(opt.targets,'level',2);
 	[kChunk,kZScore]	= ForceCell(opt.chunks,opt.zscore);
 	
-	[cPathDataROI,cNameROI,cTarget,kChunk,kZScore]	= FillSingletonArrays(cPathDataROI,cNameROI,cTarget,kChunk,kZScore);
+	[sData.cPathDataROI,sData.cNameROI,cTarget,kChunk,kZScore]	= FillSingletonArrays(sData.cPathDataROI,sData.cNameROI,cTarget,kChunk,kZScore);
 	
 	%make sure each parameter is nMask x 1 on the inside
 		[cTarget,kChunk,kZScore]	= varfun(@(c) cellfun(@(x) repmat({x},[nMask 1]),c,'uni',false),cTarget,kChunk,kZScore);
 	
 	%reshape to nMask x nSubject
-		[cPathDataROI,cNameROI,cTarget,kChunk,kZScore]	= varfun(@(c) cat(2,c{:}),cPathDataROI,cNameROI,cTarget,kChunk,kZScore);
+		[sData.cPathDataROI,sData.cNameROI,cTarget,kChunk,kZScore]	= varfun(@(c) cat(2,c{:}),sData.cPathDataROI,sData.cNameROI,cTarget,kChunk,kZScore);
 
 %classify!
-	cOptMVPA	= opt2cell(s.opt.mvpa);
+	cOptMVPA	= opt2cell(param.opt.mvpa);
 	opt_mvpa	= optadd(sPath.opt_extra,...
 					'type'	, 'roiclassify'	  ...
 					);
 	opt_mvpa	= optreplace(opt_mvpa,cOptMVPA{:},...
-					'name'		, cNameROI		, ...
-					'path_mask'	, []			, ...
-					'mask_name'	, []			, ...
-					'zscore'	, kZScore		, ...
-					'nthread'	, opt.nthread	, ...
-					'force'		, opt.force		, ...
-					'silent'	, opt.silent	  ...
+					'name'		, sData.cNameROI	, ...
+					'path_mask'	, []				, ...
+					'mask_name'	, []				, ...
+					'zscore'	, kZScore			, ...
+					'nthread'	, opt.nthread		, ...
+					'force'		, opt.force			, ...
+					'silent'	, opt.silent		  ...
 					);
 	
-	res			= MVPAClassify(cPathDataROI,cTarget,kChunk,opt_mvpa);
-	res.mask	= s.f.ParseMaskLabel(sMaskInfo);
+	res			= MVPAClassify(sData.cPathDataROI,cTarget,kChunk,opt_mvpa);
+	res.mask	= sData.cMask;
+
+%------------------------------------------------------------------------------%
+function sData = ParseInputDefault(sPath) 
+	sData.cPathDataROI	= sPath.functional_roi;
+	sData.cNameROI		= cellfun(@GetROINames,sPath.functional_session,sPath.mask_name,'uni',false);
+	sData.cMask			= reshape(sPath.mask_name{1},[],1);
+%------------------------------------------------------------------------------%
+function cNameROI = GetROINames(strSession,cNameMask)
+	cNameROI	= cellfun(@(m) GetROIName(strSession,m),cNameMask,'uni',false);
+%------------------------------------------------------------------------------%
+function strNameROI = GetROIName(strSession,strNameMask) 
+	strNameROI	= sprintf('%s-%s',strSession,strNameMask);
+%------------------------------------------------------------------------------%

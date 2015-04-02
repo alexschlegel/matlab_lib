@@ -55,6 +55,8 @@ switch class(opt)
 				opt.(strKey)	= cVal{kK};
 			end
 		end
+		
+		opt	= optstruct(opt);
 	otherwise
 		error('Invalid opt argument');
 end

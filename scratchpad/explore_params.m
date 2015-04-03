@@ -27,7 +27,7 @@ function cCapsule = explore_params(varargin)
 	spec.filter		= @filterNoiseYParams;
 	cCapsule{end+1}	= pipeline.makePlotCapsule(spec);
 
-	save('20150402_explore_params.mat','cCapsule');
+	save('20150403_explore_params.mat','cCapsule');
 
 end
 

@@ -6,21 +6,27 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % Syntax:	res = MVPAClassify(cPathData,cTarget,kChunk,<options>)
 % 
 % In:
-% 	cPathData	- the path to the nX x nY x nZ x nSample NIfTI file to analyze,
-%				  or a cell of paths. for classifications that require paired
-%				  datasets (matched dataset cross-classification and directed
-%				  connectivity classification), then this must be a cell whose
-%				  last dimension has size 2. in this case, both datasets must
-%				  have the same target/chunk structure.
+% 	cPathData	- the path to an nX x nY x nZ x nSample NIfTI file to analyze,
+%				  or a cell of paths to perform multiple classifications. for
+%				  classifications that require paired datasets (matched dataset
+%				  cross-classification and directed connectivity
+%				  classification), then this must be a cell and each element
+%				  must be a two element cell of the two datapaths required for
+%				  each classification. in this case, both datasets must have the
+%				  same target/chunk structure.
 %	cTarget		- an nSample x 1 cell specifying the target of each sample, or a
-%				  cell of sample cell arrays (one for each dataset)
+%				  cell of sample cell arrays (one for each classification)
 %	kChunk		- an nSample x 1 array specifying the chunk of each sample, or a
-%				  cell of chunk arrays (one for each dataset)
+%				  cell of chunk arrays (one for each classification)
 %	<options>:
+%		dir_out:				(<none>) the directory to which to save the
+%								results of the classification analyses
+%		name:					(<auto>) a name for each analysis. used for
+%								constructing output file paths.
 %		path_mask:				(<none>) the path to a mask NIfTI file to apply
 %								to the data, or a cell of mask paths (or a cell
 %								of cells of mask paths, one cell for each
-%								dataset)
+%								classification)
 %		mask_name:				(<auto>) the name of each mask
 %		mask_balancer:			('none') the strategy to use if non-uniformly
 %								sized masks are specified. one of the following:
@@ -38,8 +44,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								following:
 %									n:	use NFoldPartitioner, leaving n folds
 %										out in each cross validation fold
-%									str:	a string to be eval'ed, the result
-%											of which is the partitioner
+%									str:	a string to be eval'ed in python,
+%											the result of which is the
+%											partitioner
 %		classifier:				('LinearCSVMC') a string specifying the
 %								classifier to use, or a cell of classifiers to
 %								do nested classifier selection. suggestions:
@@ -54,8 +61,8 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								permutation testing.
 %		sensitivities:			(false) true to save the L1-normed
 %								classification sensitivities. note that
-%								sensivities cannot be saved if more than one
-%								classifier is specified.
+%								sensivities cannot be saved if nested classifier
+%								selection is selected.
 %		average:				(false) true to average samples from the same
 %								target and chunk (ignored for directed
 %								connectivity classifications)
@@ -63,329 +70,343 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								(ignored for directed connectivity
 %								classifications)
 %		matchedcrossclassify:	(false) true to perform matched dataset
-%								cross-classification, but only if the data are
-%								formatted as described above. in this case, two
-%								datasets share the same targets and chunks and
-%								have the same number of features, and the
-%								classifier is trained on one dataset and tested
-%								on the other. currently both datasets are
-%								included in training and testing.
-%		match_features:			(false) only applies to matched dataset
-%								cross-classifications. true to perform feature
-%								matching between the training and testing
-%								datasets.
-%		match_include_blank:	(true) only applies to matched dataset
-%								cross-classifications. true to include blank
-%								samples in the feature matching step
+%								cross-classification, in which the classifier is
+%								trained on one dataset and tested on the other.
+%								both datasets are included in training and
+%								testing.
+%		match_features:			(false) true to perform feature matching between
+%								the training and testing datasets in matched
+%								dataset cross-classifications
+%		match_include_blank:	(true) true to include blank samples in the
+%								feature matching step of matched dataset
+%								cross-classifications
 %		dcclassify:				(false) true to perform a directed connectivity
-%								classification, but only if the data are
-%								formatted as described above. in this analysis,
-%								directed connectivity patterns for each target
-%								and chunk are constructed by calculating the
-%								Granger Causality from each feature of dataset 1
-%								to each feature of dataset 2. the classification
-%								is performed on these patterns.
-%		dcclassify_lags:		(1) the number of lags to use in a directed
-%								connectivity classification
-%		selection:				(1) the number/fraction of features to select
+%								classification, in which directed connectivity
+%								patterns are constructed for each target and
+%								chunk by calculating the Granger Causality from
+%								each feature of dataset 1 to each feature of
+%								dataset 2. the classification is performed on
+%								these patterns.
+%		dcclassify_lags:		(1) the number of lags to use in directed
+%								connectivity classifications
+%		selection:				(1) the number or fraction of features to select
 %								for classification, based on a one-way ANOVA. if
 %								a number less than one is passed, it is
 %								interpreted as a fraction. if an integer greater
-%								than one is passed, it is interpreted as an
-%								absolute number of features to keep.
+%								than one is passed, it is interpreted as the
+%								number of features to keep.
 %		save_selected:			(false) true to save a map for each
 %								classification showing the fraction of folds in
 %								which each voxel was selected
 %		target_subset:			(<all except blank>) a cell specifying the
-%								subset of targets to include in the analysis, or
-%								a cell of cells of target subsets (one for each
-%								dataset)
+%								subset of targets to include in the analyses
 %		target_blank:			(<none>) a string specifying the 'blank' target
 %								that should be eliminated before classifying
 %		zscore:					('chunks') the sample attribute to use as the
 %								chunks_attr for z-scoring, or an nSample x 1
 %								array to use as a custom attribute (or a cell of
-%								arrays, one for each dataset). set to false
-%								to skip z-scoring.
-%		target_balancer:		(true) the number of permutations to perform for
+%								arrays, one for each classification). set to
+%								false to skip z-scoring.
+%		target_balancer:		(10) the number of permutations to perform for
 %								unbalanced targets. set to false to skip target
 %								balancing. this is ignored for directed
 %								connectivity classifications.
 %		mean_control:			(false) true to perform a control classification
-%								on the mean pattern values
-%		sample_attr:			(<none>) a struct of nSample x 1 arrays (or
-%								cells of arrays) specifying custom sample
-%								attributes
+%								on the mean pattern value of each target and
+%								chunk
 %		nan_remove:				('none') specify how to remove NaNs from the
 %								data. one of the following:
-%									'none':	don't remove NaNs. scripts will die!
+%									'none':		don't remove NaNs. scripts will
+%												die!
 %									'sample':	remove samples with any NaNs in
 %												them
 %									'feature':	remove feature dimensions in
 %												which any sample has a NaN
-%		output_dir:				(<none>) a directory to which to save the
-%								results of the classification analysis
-%		output_prefix:			('<data_name>-classify') the prefix to use
-%								for constructing output file paths, or a cell of
-%								output prefixes (one for each dataset)
 %		array_to_file:			(false) true to save arrays like sensitivity
 %								maps and selected voxels to file instead of
 %								returning them in the results struct
 %		combine:				(true) true to attempt to combine the results
 %								of all the classification analyses. this
 %								requires that each analysis was performed with
-%								identical sets of mask names, target subsets,
-%								etc.
-%		group_stats:			(true) true to perform group stats on the
-%								accuracies and confusion matrices (<combine>
+%								identical sets of mask names, targets, etc.
+%		stats:					(<combine>) true to perform group stats on
+%								the accuracies and confusion matrices (<combine>
 %								must also be true)
+%		confusion_model:		([]) the confusion model or cell of models to
+%								compare with the actual confusion matrices
+%		confcorr_method:		('subjectjk') the method to use for calculating
+%								confusion correlation stats. one of the
+%								following:
+%									group:		correlate the model with the
+%												group mean confusion matrix
+%									subject:	correlate the model with each
+%												subject's confusion matrix and
+%												perform a t-test
+%									subjectjk:	correlate the model with
+%												jackknifed group mean confusion
+%												matrices and perform a jackknife
+%												t-test
 %		nthread:				(1) the number of threads to use
-%		closepool:				(true) true to close the matlab pool before
-%								and after the MultiTask call
 %		force:					(true) true to force the analysis to run even if
-%								the output results file already exists
+%								the output results files already exist
 %		force_each:				(<force>) true to force each mask analysis to
 %								run even if the mask output exists
 %		run:					(true) true to actually run the analyses
+%		type:					('mvpaclassify') an identifier for the
+%								classification type
 %		debug:					('info') the debug level, to determine which
 %								messages are shown. one of 'all', 'info',
-%								'warn', or 'error'
+%								'warn', or 'error'.
 %		debug_multitask:		('warn') the debug level for the call to
 %								MultiTask
+%		error:					(false) true to raise an error if one related to
+%								script execution occurs (some other errors may
+%								occur regardless). false to just display the
+%								error as a warning and return blank results for
+%								the classification in which the error occurred.
 %		silent:					(false) true to suppress status messages
 % 
 % Out:
-% 	res	- a struct array of analysis results
+% 	res	- if <combine> is selected, then a structtree of analysis results.
+%		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-03-13
+% Updated: 2015-03-27
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 %parse the inputs
 	opt	= ParseArgs(varargin,...
-			'path_mask'				, {}			, ...
-			'mask_name'				, {}			, ...
-			'mask_balancer'			, 'none'		, ...
-			'mask_balancer_count'	, 25			, ...
-			'partitioner'			, 1				, ...
-			'classifier'			, 'LinearCSVMC'	, ...
-			'allway'				, true			, ...
-			'twoway'				, false			, ...
-			'permutations'			, false			, ...
-			'sensitivities'			, false			, ...
-			'average'				, false			, ...
-			'spatiotemporal'		, false			, ...
-			'matchedcrossclassify'	, false			, ...
-			'match_features'		, false			, ...
-			'match_include_blank'	, true			, ...
-			'dcclassify'			, false			, ...
-			'dcclassify_lags'		, 1				, ...
-			'selection'				, 1				, ...
-			'save_selected'			, false			, ...
-			'target_subset'			, {}			, ...
-			'target_blank'			, NaN			, ...
-			'zscore'				, 'chunks'		, ...
-			'target_balancer'		, 10			, ...
-			'mean_control'			, false			, ...
-			'sample_attr'			, struct		, ...
-			'nan_remove'			, 'none'		, ...
-			'output_dir'			, []			, ...
-			'output_prefix'			, []			, ...
-			'array_to_file'			, false			, ...
-			'combine'				, true			, ...
-			'group_stats'			, true			, ...
-			'nthread'				, 1				, ...
-			'closepool'				, true			, ...
-			'force'					, true			, ...
-			'force_each'			, []			, ...
-			'run'					, true			, ...
-			'debug'					, 'info'		, ...
-			'debug_multitask'		, 'warn'		, ...
-			'silent'				, false			  ...
+			'dir_out'				, []				, ...
+			'name'					, []				, ...
+			'path_mask'				, {}				, ...
+			'mask_name'				, {}				, ...
+			'mask_balancer'			, 'none'			, ...
+			'mask_balancer_count'	, 25				, ...
+			'partitioner'			, 1					, ...
+			'classifier'			, 'LinearCSVMC'		, ...
+			'allway'				, true				, ...
+			'twoway'				, false				, ...
+			'permutations'			, false				, ...
+			'sensitivities'			, false				, ...
+			'average'				, false				, ...
+			'spatiotemporal'		, false				, ...
+			'matchedcrossclassify'	, false				, ...
+			'match_features'		, false				, ...
+			'match_include_blank'	, true				, ...
+			'dcclassify'			, false				, ...
+			'dcclassify_lags'		, 1					, ...
+			'selection'				, 1					, ...
+			'save_selected'			, false				, ...
+			'target_subset'			, {}				, ...
+			'target_blank'			, NaN				, ...
+			'zscore'				, 'chunks'			, ...
+			'target_balancer'		, 10				, ...
+			'mean_control'			, false				, ...
+			'nan_remove'			, 'none'			, ...
+			'array_to_file'			, false				, ...
+			'combine'				, true				, ...
+			'stats'					, []				, ...
+			'confusion_model'		, []				, ...
+			'confcorr_method'		, 'subjectjk'		, ...
+			'nthread'				, 1					, ...
+			'force'					, true				, ...
+			'force_each'			, []				, ...
+			'run'					, true				, ...
+			'type'					, 'mvpaclasssify'	, ...
+			'debug'					, 'info'			, ...
+			'debug_multitask'		, 'warn'			, ...
+			'error'					, false				, ...
+			'silent'				, false				  ...
 			);
 	
 	opt.path_script	= PathAddSuffix(mfilename('fullpath'),'','py');
+	opt.stats		= unless(opt.stats,opt.combine);
 	opt.force_each	= unless(opt.force_each,opt.force);
 	
-	%make sure we have a scalar cell of a cell of classifiers so everything gets
-	%packaged properly down below
-		opt.classifier	= ForceCell(opt.classifier,'level',2);
+	opt.confusion_model	= ForceCell(opt.confusion_model);
 	
 	%make sure we got proper option values
 		opt.mask_balancer	= CheckInput(opt.mask_balancer,'mask_balancer',{'none','bootstrap','erode'});
 		opt.nan_remove		= CheckInput(opt.nan_remove,'nan_remove',{'none','sample','feature'});
-	
-		if opt.selection<0 || (opt.selection>1 && ~isint(opt.selection))
-			error('Uninterpretable selection parameter.');
-		end
-	
-	%are we doing matched dataset cross-classification or information flow
-	%classification?
-		szData						= size(cPathData);
-		bPairedDataset				= iscell(cPathData) && szData(end)==2;
-		opt.dcclassify				= opt.dcclassify && bPairedDataset;
-		opt.matchedcrossclassify	= ~opt.dcclassify && opt.matchedcrossclassify && bPairedDataset;
+		opt.confcorr_method	= CheckInput(opt.confcorr_method,'confusion correlation method',{'group','subject','subjectjk'});
 		
-		if opt.matchedcrossclassify || opt.dcclassify
-			strAnalysis	= conditional(opt.dcclassify,'Directed Connectivity Classification','Matched Dataset Cross-classification');
-			status(sprintf('%s will be performed since last dimension of the data has size 2.',strAnalysis),'silent',opt.silent);
-			
-			%reformat data as a cell of 2x1 cells of file paths
-				cSub		= subsall(cPathData);
-				cSub		= cSub(1:end-1);
-				cPathData	= cellfun(@(f1,f2) {f1;f2},cPathData(cSub{:},1),cPathData(cSub{:},2),'uni',false);
-		end
+		assert(opt.selection>=0 && (opt.selection<1 || isint(opt.selection)),'uninterpretable selection parameter.');
 	
-	%construct one set of everything for each dataset
-		[cPathData,kChunk,opt.zscore,opt.output_prefix]			= ForceCell(cPathData,kChunk,opt.zscore,opt.output_prefix);
-		[cTarget,opt.path_mask,opt.mask_name,opt.target_subset]	= ForceCell(cTarget,opt.path_mask,opt.mask_name,opt.target_subset,'level',2);
-		
-		[cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name,opt.target_subset]	= FillSingletonArrays(cPathData,kChunk,opt.zscore,opt.output_prefix,cTarget,opt.path_mask,opt.mask_name,opt.target_subset);
-		
-		szData		= size(cPathData);
-		nAnalysis	= numel(cPathData);
+	%make sure we have a cell of cells of file paths
+		cPathData	= ForceCell(cPathData);
+		cPathData	= cellfun(@ForceCell,cPathData,'uni',false);
 	
-	%format the targets
-		for kA=1:nAnalysis
-			%make sure all targets are strings
-				if ~iscellstr(cTarget{kA})
-					cTarget{kA}	= cellfun(@tostring,cTarget{kA},'uni',false);
-				end
-			%fill default target_subsets
-				if isempty(opt.target_subset{kA})
-					opt.target_subset{kA}	= setdiff(unique(cTarget{kA}),unless(opt.target_blank,[],NaN));
-				end
-		end
+	%make sure we have a classification-specific parameter for each classification
+		[kChunk,opt.zscore,opt.name]			= ForceCell(kChunk,opt.zscore,opt.name);
+		[cTarget,opt.path_mask,opt.mask_name]	= ForceCell(cTarget,opt.path_mask,opt.mask_name,'level',2);
+		
+		[cPathData,kChunk,opt.zscore,opt.name,cTarget,opt.path_mask,opt.mask_name]	= FillSingletonArrays(cPathData,kChunk,opt.zscore,opt.name,cTarget,opt.path_mask,opt.mask_name);
+	
+	%make sure all targets are strings
+		cTarget	= cellfun(@FormatTargets,cTarget,'uni',false);
+	
 	%compress the targets array so we don't have to send so much info to the
 	%MultiTask workers
 		opt.unique_target	= cellfun(@unique,cTarget,'uni',false);
 		[b,kTarget]			= cellfun(@ismember,cTarget,opt.unique_target,'uni',false);
 	
-	%reformat sample_attr as a szData cell of struct arrays
-		if ~isequal(opt.sample_attr,struct)
-			if ~isa(opt.sample_attr,'struct')
-				error('The ''sample_attr'' option must be a struct.');
+	%default target_subset
+		if isempty(opt.target_subset)
+			cTargetUnique		= unique(cat(1,opt.unique_target{:}));
+			
+			if ~isnan(opt.target_blank)
+				opt.target_subset	= setdiff(cTargetUnique,opt.target_blank);
 			end
-			
-			%make sure each attribute has an entry for each subject
-				opt.sample_attr	= structfun2(@ForceCell,opt.sample_attr);
-				
-				cField			= fieldnames(opt.sample_attr);
-				cAttr			= struct2cell(opt.sample_attr);
-				[x,cAttr{:}]	= FillSingletonArrays(cPathData,cAttr{:});
-				opt.sample_attr	= cell2struct(cAttr,cField);
-			
-			%make sure each attribute has an entry for each sample
-				opt.sample_attr	= structfun2(@(ca) cellfun(@(a,t) reshape(FillSingletonArrays(a,t),1,[]),ca,cTarget,'uni',false),opt.sample_attr);
-			
-			opt.sample_attr	= num2cell(opt.sample_attr);
 		end
-		
-	%default output prefixes
-		opt.output_prefix	= cellfun(@ParseOutputPrefix,opt.output_prefix,cPathData,'uni',false);
 	
 	%create the output directory
-		if ~isempty(opt.output_dir)
-			CreateDirPath(opt.output_dir);
+		bSaveOutput	= ~isempty(opt.dir_out);
+		if bSaveOutput
+			CreateDirPath(opt.dir_out);
+		else
+			opt.dir_out	= GetTempDir;
 		end
 
 %construct a cell of parameter structs, one for each analysis
-	cOpt	= opt2cell(opt);
-	param	= num2cell(struct(cOpt{:}));
-
-%run each classification analysis
-	cKAnalysis	= num2cell(reshape(1:nAnalysis,size(cPathData)));
+	%make sure we have a cell of a cell for some parameters so everything gets
+	%packaged properly
+		[opt.classifier,opt.target_subset]	= ForceCell(opt.classifier,opt.target_subset,'level',2);
+	%add the data paths to the opt struct
+		opt.path_data	= cPathData;
 	
-	res	= MultiTask(@ClassifyOne,{param cKAnalysis cPathData kTarget kChunk},...
+	%get rid of options that only apply here
+		param	= rmfield(opt,{'opt_extra','isoptstruct','combine','stats','confusion_model','confcorr_method','nthread','type','debug_multitask'});
+	
+	%switcheroo to one param struct per analysis
+		param	= opt2cell(param);
+		param	= num2cell(struct(param{:}));
+	
+	param	= cellfun(@ParseParam,param,'uni',false);
+
+%which analyses do we need to perform?
+	sz	= size(param);
+	
+	res	= cell(sz);
+	if opt.force
+		bDo	= true(sz);
+	else
+		bDo	= ~cellfun(@OutputExists,param);
+	end
+
+%load the existing results
+	res(~bDo)	= cellfunprogress(@LoadResult,param(~bDo),...
+					'label'		, 'loading existing results'	, ...
+					'uni'		, false							, ...
+					'silent'	, opt.silent					  ...
+					);
+	
+%run each classification analysis
+	if any(bDo(:))
+		res(bDo)	= MultiTask(@ClassifyOne,{param(bDo) kTarget(bDo) kChunk(bDo)},...
 						'description'	, 'performing MVPA classifications'	, ...
 						'nthread'		, opt.nthread						, ...
-						'closepool'		, opt.closepool						, ...
 						'debug'			, opt.debug_multitask				, ...
 						'silent'		, opt.silent						  ...
 						);
+	end
 
-x	= res;
+%delete the output directory if not needed
+	if ~bSaveOutput
+		rmdir(opt.dir_out,'s');
+	end
+
+%construct dummy structs for failed classifications
+	bFailed	= cellfun(@(r) ~r.success,res);
+	if any(bFailed(:))
+		kGood	= find(~bFailed,1);
+		if ~isempty(kGood)
+			resDummy		= dummy(res{kGood});
+			res(bFailed)	= cellfun(@(r) FillFailedResult(r,resDummy),res(bFailed),'uni',false);
+		end
+	end
 
 if opt.combine
-	try
-		res	= structtreefun(@CombineResult,res{:});
-	catch me
-		status('combine option was selected but analysis results are not uniform.','warning',true,'silent',opt.silent);
-	end
+	nClassification	= numel(res);
 	
-	if opt.group_stats && nAnalysis > 1
-		res	= GroupStats(res);
+	res			= restruct(res);
+	res.type	= opt.type;
+	
+	res.result	= structtreefun(@StackCell,res.result);
+	
+	if opt.stats && nClassification>1
+		res	= DoStats(res,opt);
 	end
 end
 
-if isempty(res) && opt.run
-	error('wtf?');
-end
 
 %------------------------------------------------------------------------------%
-function res = ClassifyOne(param,kAnalysis,strPathData,kTarget,kChunk)
+function res = ClassifyOne(param,kTarget,kChunk)
+	res	= struct('success',false,'param',param);
+	
 	tNow	= nowms;
-	L		= Log('level',param.debug,'silent',param.silent);
+	L		= Log(...
+				'name'		, param.name	, ...
+				'level'		, param.debug	, ...
+				'silent'	, param.silent	  ...
+				);
 	
-	%save a custom sample attribute for zscoring if necessary
-		if ~isequal(param.zscore,false) && ~ischar(param.zscore)
-			param.sample_attr.zscore	= param.zscore;
-			param.zscore				= 'zscore';
-		end
-	
-	%reshape the custom sample attributes
-		param.sample_attr	= structfun2(@(attr) reshape(attr,1,[]),param.sample_attr);
-	
-	%file paths
-		bSaveOutput	= ~isempty(param.output_dir);
-		if ~bSaveOutput
-			param.output_dir	= GetTempDir;
-		end
-		
-		param.path_data			= strPathData;
-		param.path_attribute	= PathUnsplit(param.output_dir,param.output_prefix,'attr');
-		param.path_param		= PathUnsplit(param.output_dir,param.output_prefix,'parameters');
-		param.path_result		= PathUnsplit(param.output_dir,param.output_prefix,'mat');
-	
-	%perform the analysis
-	if param.force || ~bSaveOutput || (bSaveOutput && ~FileExists(param.path_result))
-		%potentially do mask balancing
-			param	= MaskBalancer(param);
-		%save the attributes file
-			SaveAttributes(param, kTarget, kChunk);
-		%save the parameters
-			SaveParameters(param,tNow);
-		
-		%run the python script
-			if param.run
-				L.Print('calling python classification script','all');
-				[ec,str]	= CallProcess('python',{param.path_script param.path_param});
-				L.Print('python classification script finished','all');
-				
-				str	= str{1};
-				
-				if ec~=0
-					error(['python script error (' str ')']);
-				end
+	%do some error checking
+		try
+			assert(~isempty(kTarget),'targets are undefined');
+			assert(~isempty(kChunk),'chunks are undefined');
+			
+			nData	= numel(param.path_data);
+			for kD=1:nData
+				assert(FileExists(param.path_data{kD}),'%s does not exist',param.path_data{kD});
 			end
+			
+			nMask	= numel(param.path_mask);
+			for kM=1:nMask
+				assert(FileExists(param.path_mask{kM}),'%s does not exist',param.path_mask{kM});
+			end
+		catch me
+			if param.error
+				rethrow(me);
+			else
+				L.Print(sprintf('%s. classification will not be performed.',me.message),'error',...
+					'exception'	, me	  ...
+					);
+				return;
+			end
+		end
+	
+	%parse the mask balancer
+		param	= ParseMaskBalancer(param);
+	
+	%save the attributes file
+		SaveAttributes(param,kTarget,kChunk);
+	%save the parameters
+		SaveParameters(param,tNow);
+	
+	if ~param.run
+		return;
 	end
+	
+	%run the python script
+		L.Print('calling python classification script','all');
+		[ec,str]	= CallProcess('python',{param.path_script param.path_param});
+		L.Print('python classification script finished','all');
+		
+		if ec~=0
+			strError	= sprintf('python script error: %s',str{1});
+			if param.error
+				error(strError);
+			else
+				L.Print(strError,'error');
+				return;
+			end
+		end
 	
 	%load the results
-		if param.run
-			L.Print('loading classification results','all');
-			res	= getfield(load(param.path_result),'result');
-			L.Print('loaded classification results','all');
-		else
-			res	= [];
-		end
-	
-	%delete the temporary files
-		if ~bSaveOutput
-			rmdir(param.output_dir,'s');
-		end
+		res	= LoadResult(param);
 %------------------------------------------------------------------------------%
-function param = MaskBalancer(param)
+function param = ParseMaskBalancer(param)
 	if isequal(param.mask_balancer,'erode')
 	%erode the masks to equal size
 		%no need to erode if all masks are already the same size
@@ -397,13 +418,13 @@ function param = MaskBalancer(param)
 		
 		%get the output paths
 			[dummy,cFileMask,cExtMask]	= cellfun(@(f) PathSplit(f,'favor','nii.gz'),param.path_mask,'uni',false);
-			cPathOut					= cellfun(@(f,e) PathUnsplit(param.output_dir,[param.output_prefix '-' f '-erode'],e),cFileMask,cExtMask,'uni',false);
+			cPathOut					= cellfun(@(f,e) PathUnsplit(param.dir_out,sprintf('%s-%s-erode',param.name,f),e),cFileMask,cExtMask,'uni',false);
 		
 		%erode
 			param.path_mask	= NIfTIMaskErode(param.path_mask,'output',cPathOut,'silent',true);
 	end
 %------------------------------------------------------------------------------%
-function SaveAttributes(param, kTarget, kChunk)
+function SaveAttributes(param,kTarget,kChunk)
 	cTarget	= param.unique_target(kTarget);
 	
 	attr.target	= cTarget;
@@ -421,44 +442,97 @@ function SaveParameters(param,tNow)
 	
 	param	= orderfields(param,['generated_by'; 'creation_time'; cField]);
 	
-	param	= structfun2(@FixParameter,param);
+	param	= structtreefun(@FixParameter,param);
 	
 	json.dump(param,param.path_param);
 %------------------------------------------------------------------------------%
 function x = FixParameter(x)
+%reshape Nx1 arrays to 1xN to avoid ridiculous json
 	sz	= size(x);
+	nd	= numel(sz);
 	
-	if sz(1) > 1 && sz(2)==1
-		x	= x';
+	if nd==2 && sz(1)>1 && sz(2)==1
+		x	= reshape(x,1,[]);
 	end
 %------------------------------------------------------------------------------%
-function x = CombineResult(varargin)
-	if nargin==0
-		x	= [];
-	else
-		if isnumeric(varargin{1}) && uniform(cellfun(@size,varargin,'uni',false))
-			if isscalar(varargin{1})
-				x	= cat(1,varargin{:});
-			else
-				x	= stack(varargin{:});
-			end
-		else
-			x	= reshape(varargin,[],1);
+
+
+%------------------------------------------------------------------------------%
+function cTarget = FormatTargets(cTarget)
+	if ~iscellstr(cTarget)
+		if ~iscell(cTarget)
+			cTarget	= num2cell(cTarget);
 		end
+		cTarget	= cellfun(@tostring,cTarget,'uni',false);
+	end
+	
+	cTarget	= reshape(cTarget,[],1);
+%------------------------------------------------------------------------------%
+function param = ParseParam(param)
+	%default analysis name
+		if isempty(param.name)
+			cName		= cellfun(@PathGetDataName,param.path_data,'uni',false);
+			param.name	= sprintf('%s-classify',join(cName,'_'));
+		end 
+		
+	%initialize the custom sample attributes struct
+		param.sample_attr	= struct;
+	
+	%save a custom sample attribute for zscoring if necessary
+		if ~isequal(param.zscore,false) && ~ischar(param.zscore)
+			param.sample_attr.zscore	= param.zscore;
+			param.zscore				= 'zscore';
+		end
+	
+	%file paths
+		param.path_attribute	= PathUnsplit(param.dir_out,param.name,'attr');
+		param.path_param		= PathUnsplit(param.dir_out,param.name,'parameters');
+		param.path_result		= PathUnsplit(param.dir_out,param.name,'mat');
+%------------------------------------------------------------------------------%
+function x = StackCell(x)
+	if iscell(x) && ~isempty(x) && uniform(cellfun(@size,x,'uni',false))
+		szIn	= size(x{1});
+		kLast	= find(szIn>1,1,'last');
+		
+		szOut	= size(x);
+		
+		x	= stack(x{:});
+		x	= reshape(x,[szIn(1:kLast) szOut]);
 	end
 %------------------------------------------------------------------------------%
-function res = GroupStats(res)
+
+
+%------------------------------------------------------------------------------%
+function b = OutputExists(param)
+	b	= FileExists(param.path_result);
+%------------------------------------------------------------------------------%
+function res = LoadResult(param)
+	res			= load(param.path_result);
+	res.success	= true;
+	res.param	= param;
+%------------------------------------------------------------------------------%
+function resFill = FillFailedResult(res,resDummy) 
+	resFill			= resDummy;
+	resFill.success	= res.success;
+	resFill.param	= res.param;
+%------------------------------------------------------------------------------%
+function res = DoStats(res,opt)
+	%perform some stats on each group-wide classification analysis
+		res.result	= DoIndividualStats(res.result,opt);
+	%now do some stats involving all classifications
+		res	= MVPAHigherStats(res);
+%------------------------------------------------------------------------------%
+function res = DoIndividualStats(res,opt)
 	if isstruct(res)
-		res	= structfun2(@GroupStats,res);
-		
-		if isfield(res,'accuracy')
+		if IsClassificationResult(res)
 			%accuracies
-				acc		= res.accuracy.mean;
-				nd		= conditional(ndims(acc)==3,3,1);
-				chance	= res.accuracy.chance(1,end);
+				acc	= res.accuracy.mean;
+				nd	= find(size(acc)~=1,1,'last');
 				
-				res.stats.accuracy.mean	= mean(acc,nd);
-				res.stats.accuracy.se	= stderr(acc,[],nd);
+				chance	= res.accuracy.chance(find(~isnan(res.accuracy.chance),1));
+				
+				res.stats.accuracy.mean	= nanmean(acc,nd);
+				res.stats.accuracy.se	= nanstderr(acc,[],nd);
 				
 				[h,p,ci,stats]	= ttest(acc,chance,'tail','right','dim',nd);
 				
@@ -468,17 +542,85 @@ function res = GroupStats(res)
 				res.stats.accuracy.p		= p;
 			%confusion matrices
 				conf	= res.confusion;
+				nd		= find(size(conf)~=1,1,'last');
 				
 				if ~iscell(conf)
-					res.stats.confusion.mean	= mean(conf,3);
-					res.stats.confusion.se		= stderr(conf,[],3);
+					res.stats.confusion.mean	= nanmean(conf,nd);
+					res.stats.confusion.se		= nanstderr(conf,[],nd);
+					
+					if ~isempty(opt.confusion_model)
+						res.stats.confusion.corr	= cellfun(@(cm) ConfusionCorrelation(conf,nd,cm,opt.confcorr_method),opt.confusion_model);
+					end
 				end
+		else
+			res	= structfun2(@(r) DoIndividualStats(r,opt),res);
 		end
 	end
 %------------------------------------------------------------------------------%
-function strPrefix = ParseOutputPrefix(strPrefix,strPathData)
-	if isempty(strPrefix)
-		cPrefix		= cellfun(@PathGetDataName,ForceCell(strPathData),'uni',false);
-		strPrefix	= sprintf('%s-classify',join(cPrefix,'_'));
+function b = IsClassificationResult(res) 
+	b	= isstruct(res) && isfield(res,'accuracy') && isfield(res,'confusion');
+%------------------------------------------------------------------------------%
+function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
+	switch strMethod
+		case 'group'
+			confGroup	= squeeze(nanmean(conf,dimSubject));
+			stat		= ConfCorr(confGroup,confModel);
+		case 'subject'
+			%extract each matrix
+				cK				= num2cell(size(conf));
+				cK{dimSubject}	= ones(size(conf,dimSubject),1);
+				cConf			= squeeze(mat2cell(conf,cK{:}));
+				cConf			= cellfun(@squeeze,cConf,'uni',false);
+			%calculate the correlation for each confusion matrix
+				stat		= cellfun(@(conf) ConfCorr(conf,confModel),cConf);
+				stat		= restruct(stat);
+				stat		= structfun2(@StackCell,stat);
+				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
+			%calculate a t-test across subjects
+				nd			= unless(find(size(stat.r)>1,1,'last'),1);
+				stat.mz		= nanmean(stat.z,nd);
+				stat.sez	= nanstderr(stat.z,[],nd);
+				
+				[h,p,ci,stats]	= ttest(stat.z,0,0.05,'right',nd);
+				
+				stat.p	= p;
+				stat.t	= stats.tstat;
+				stat.df	= stats.df;
+		case 'subjectjk'
+			%extract each matrix
+				cK				= num2cell(size(conf));
+				cK{dimSubject}	= ones(size(conf,dimSubject),1);
+				cConf			= squeeze(mat2cell(conf,cK{:}));
+				cConf			= cellfun(@squeeze,cConf,'uni',false);
+			%compute jackknifed means
+				cConfJK	= jackknife(@(x) {nanmean(cat(dimSubject,x{:}),dimSubject)},cConf);
+			%calculate the correlation for each confusion matrix
+				stat		= cellfun(@(conf) ConfCorr(conf,confModel),cConfJK);
+				stat		= restruct(stat);
+				stat		= structfun2(@StackCell,stat);
+				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
+			%calculate a jackknife t-test across subjects
+				nd			= unless(find(size(stat)>1,1,'last'),1);
+				stat.mz		= nanmean(stat.z,nd);
+				stat.sez	= nanstderrJK(stat.z,[],nd);
+				
+				[h,p,ci,stats]	= ttestJK(stat.z,0,0.05,'right',nd);
+				
+				stat.p	= p;
+				stat.t	= stats.tstat;
+				stat.df	= stats.df;
 	end
+	
+	stat.method	= strMethod;
+%------------------------------------------------------------------------------%
+function stat = ConfCorr(conf,confModel)
+	sz		= size(conf);
+	nd		= numel(sz);
+	
+	conf	= permute(conf,[3:nd 1 2]);
+	conf	= reshape(conf,[unless(sz(3:nd),1) sz(1)*sz(2)]);
+	
+	confModel	= reshape(confModel,[],1);
+	
+	[r,stat]	= corrcoef2(confModel,conf,'twotail',false);
 %------------------------------------------------------------------------------%

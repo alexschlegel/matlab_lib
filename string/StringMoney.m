@@ -21,29 +21,33 @@ function str = StringMoney(x,varargin)
 % Out:
 % 	str	- the money string
 % 
-% Updated: 2013-09-25
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-opt	= ParseArgs(varargin,...
-		'type'		, 'usd'	, ...
-		'round'		, []	, ...
-		'unit'		, []	, ...
-		'plural'	, []	, ...
-		'position'	, []	, ...
-		'sign'		, false	  ...
-		);
-switch opt.type
-	case 'usd'
-		optDefault	= struct('round',2,'unit','$','plural','$','position','pre');
-	case 'cent'
-		optDefault	= struct('round',0,'unit',' cent','plural',' cents','position','post');
-	otherwise
-		error(['"' tostring(opt.type) '" is not a valid currency type.']);
-end
+% Updated: 2015-03-22
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
-opt			= StructMerge(optDefault,opt);
-opt.plural	= unless(opt.plural,opt.unit);
+%parse the inputs
+	opt	= ParseArgs(varargin,...
+			'type'		, 'usd'	, ...
+			'round'		, []	, ...
+			'unit'		, []	, ...
+			'plural'	, []	, ...
+			'position'	, []	, ...
+			'sign'		, false	  ...
+			);
+	
+	opt.type	= CheckInput(opt.type,'currency type',{'usd','cent'});
+	
+	switch opt.type
+		case 'usd'
+			cOptAdd	= {'round',2,'unit','$','plural','$','position','pre'};
+		case 'cent'
+			cOptAdd	= {'round',0,'unit',' cent','plural',' cents','position','post'};
+	end
+	
+	opt	= optadd(opt,cOptAdd{:});
 
-strUnit		= plural(x,opt.unit,opt.plural);
+	strUnit	= plural(x,opt.unit,opt.plural);
 
 sx			= sign(x);
 ax			= abs(x);

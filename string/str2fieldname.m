@@ -3,10 +3,12 @@ function str = str2fieldname(str)
 % 
 % Description:	convert a string to a valid fieldname
 % 
-% Syntax:	fn = str2fieldname(str)
+% Syntax:	str = str2fieldname(str)
 % 
-% Updated:	2012-11-13
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-24
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %replace non-good characters with underscores
 	str	= regexprep(str,'[^A-Za-z0-9]+','_');

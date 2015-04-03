@@ -19,8 +19,10 @@ function [strDir,strFile,strExt] = PathSplit(strPath,varargin)
 %	strFile	- the pre-extension file name
 %	strExt	- the file's extension
 %
-% Updated:	2013-02-04
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-22
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 persistent optDefault cOptDefault;
 
 if isempty(optDefault)
@@ -52,10 +54,14 @@ end
 		strPath	= [strPath strSlash];
 	end
 %position of the last slash
-	kLastSlash	= unless(find(strPath==strSlash,1,'last'),0);
+	kLastSlash	= find(strPath==strSlash,1,'last');
 %directory
-	strDir	= strPath(1:kLastSlash);
-	strPath	= strPath(kLastSlash+1:end);
+	if isempty(kLastSlash)
+		strDir	= '';
+	else
+		strDir	= strPath(1:kLastSlash);
+		strPath	= strPath(kLastSlash+1:end);
+	end
 %file pre and ext
 	if numel(strPath)>0
 		%look for favored extensions
@@ -86,8 +92,10 @@ end
 				kDot	= numel(strPath)+1;
 			end
 		end
+		
+		strFile	= strPath(1:kDot-1);
+		strExt	= strPath(kDot+1:end);
 	else
-		kDot		= 0;
+		[strFile,strExt]	= deal('');
 	end
-	strFile	= strPath(1:kDot-1);
-	strExt	= strPath(kDot+1:end);
+	

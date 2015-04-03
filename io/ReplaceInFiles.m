@@ -1,70 +1,68 @@
-function [cFiles,nReplace] = ReplaceInFiles(varargin)
+function [cPathReplace,nReplace] = ReplaceInFiles(cPathSearch,strSearch,strReplace,varargin)
 % ReplaceInFiles
 % 
 % Description:	replace text in a set of files
 % 
-% Syntax:	cFiles = ReplaceInFiles(strDir,strSearch,strReplace,[bSubDir]=false,[cExt]=<all>,[bPrompt]=true) OR
-%			cFiles = ReplaceInFiles(cFiles,strSearch,strReplace,[bPrompt]=true) 
+% Syntax:	[cPathReplace,nReplace] = ReplaceInFiles(cPathSearch,strSearch,strReplace,<options>) 
 % 
 % In:
-% 	strDir		- the directory containing the files to search, or a cell of
-%				  directories
-%	cFiles		- a cell of paths of the files to search
-%	strSearch	- the string to search for
-%	strReplace	- the string to replace strSearch with
-%	[bSubDir]	- true to search subdirectories
-%	[cExt]		- a cell of file extensions of the files to search
-%	[bPrompt]	- true to prompt user for verification before replacing
+% 	cPathSearch	- a cell of file paths to search in
+%	strSearch	- the search string
+%	strReplace	- the replacement string
+%	<options>:
+%		prompt:	(true) true to prompt before replacing
+%		silent:	(false) true to suppress status messages
 % 
 % Out:
-% 	cFiles		- a cell of paths of files where strSearch was replaced
-%	nReplace	- an array of the number of instances of strSearch that were
-%				  replaced in each file
+% 	cPathReplace	- a cell of the files containing the search string
+%	nReplace		- the number of instances of the search string replaced in
+%					  each file in cPathReplace
 % 
-% Updated:	2009-06-03
-% Copyright 2009 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-
-%parse the arguments
-	if (ischar(varargin{1}) && isdir(varargin{1})) || (iscell(varargin{1}) && isdir(varargin{1}{1}))
-		strDir					= varargin{1};
-		[strSearch,strReplace]	= deal(varargin{2:3});
-		[bSubDir,cExt,bPrompt]	= ParseArgs(varargin(4:end),false,[],true);
-		
-		cFiles	= FindFilesByExtension(strDir,cExt,'subdir',bSubDir);
-	else
-		[cFiles,strSearch,strReplace]	= deal(varargin{1:3});
-		[bPrompt]						= ParseArgs(varargin(4:end),true);
-	end
+% Updated: 2015-03-22
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+opt	= ParseArgs(varargin,...
+		'prompt'	, true	, ...
+		'silent'	, false	  ...
+		);
 
 %get the files that match
-	[cFiles,nFound]	= SearchInFiles(cFiles,strSearch,bPrompt);
-	nFiles			= numel(cFiles);
+	[cPathReplace,nReplace]	= SearchInFiles(cPathSearch,strSearch,...
+								'silent'	, opt.silent	  ...
+								);
 	
-%get some info if we're going to prompt
-	if bPrompt
-		if nFiles==0
-			msgbox('No files found.');
-			cFiles		= {};
-			nReplace	= [];
-			return;
-		end
+	nPath	= numel(cPathReplace);
+
+%return if we didn't find anything
+	if nPath==0
+		status('no files found.','silent',opt.silent);
+	end
+
+%prompt if specified
+	if opt.prompt
+		cResult	= cellfun(@(f,n) sprintf('%s: (%d found)',f,n),cPathReplace,num2cell(nReplace),'uni',false);
 		
-		strPrompt	= ['Replace "' strSearch '" with "' strReplace '" in the following files?' 10 10];
+		strPrompt	= sprintf('replace "%s" with "%s" in the following files?\n%s',strSearch,strReplace,join(cResult,10));
 		
-		for kFile=1:nFiles
-			strPrompt	= [strPrompt cFiles{kFile} ': ' num2str(nFound(kFile)) ' found' 10];
-		end
-		
-		if ~isequal(questdlg(strPrompt),'Yes')
-			cFiles		= {};
-			nReplace	= [];
+		if ~askyesno(strPrompt)
+			status('aborted.','silent',opt.silent);
+			
+			cPathReplace	= {};
+			nReplace		= [];
 			return;
 		end
 	end
 
 %replace!
-	for kFile=1:nFiles
-		str	= fget(cFiles{kFile});
-		str	= strrep(str,strSearch,strReplace);
-		fput(str,cFiles{kFile});
+	progress(nPath,'label','replacing in files','silent',opt.silent);
+	for kP=1:nPath
+		strPathReplace	= cPathReplace{kP};
+		
+		strData	= fget(strPathReplace);
+		strData	= regxprep(str,strSearch,strReplace);
+		
+		fput(strData,strPathReplace);
+		
+		progress;
 	end

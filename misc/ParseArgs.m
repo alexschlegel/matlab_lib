@@ -125,7 +125,7 @@ function out = DoParseOpt
 						[userOptKey,userOptVal,userOptKeyExtra,userOptValExtra]	= deal({});
 					end
 			else
-				opt	= ConstructOpt(cell2struct(defOptVal,defOptKey));
+				opt	= optstruct(cell2struct(defOptVal,defOptKey));
 				out	= [defArgument; opt];
 				
 				return;
@@ -169,18 +169,7 @@ function out = DoParseOpt
 			opt_extra	= struct;
 		end
 		
-		out{end+1}	= ConstructOpt(opt,opt_extra); 
-end
-%------------------------------------------------------------------------------%
-function opt = ConstructOpt(opt,varargin)
-	if numel(varargin)>0
-		opt.opt_extra	= varargin{1};
-	else
-		opt.opt_extra	= struct;
-	end
-	
-	opt.isoptstruct				= true;
-	opt.opt_extra.isoptstruct	= true;
+		out{end+1}	= optstruct(opt,opt_extra); 
 end
 %------------------------------------------------------------------------------%
 

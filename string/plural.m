@@ -22,11 +22,15 @@ function str = plural(n,varargin)
 %	n=randi(3);disp(sprintf('There %s %d bunn%s.',plural(n,'is','are'),n,plural(n,'y','ies')));
 %	n=randi(3);disp(plural(n,sprintf('There {is,are} %d bunn{y,ies}.',n)));
 %  
-% Updated: 2014-02-05
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-03-25
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 switch numel(varargin)
+	case {0,2}
+		[strSingular,strPlural]	= ParseArgs(varargin,'','s');
+		
+		str	= conditional(n==1,strSingular,strPlural);
 	case 1
 		str	= varargin{1};
 		
@@ -34,8 +38,4 @@ switch numel(varargin)
 		reRep	= conditional(n==1,'$1','$2');
 		
 		str	= regexprep(str,reExp,reRep);
-	case 2
-		[strSingular,strPlural]	= ParseArgs(varargin,'','s');
-		
-		str	= conditional(n==1,strSingular,strPlural);
 end

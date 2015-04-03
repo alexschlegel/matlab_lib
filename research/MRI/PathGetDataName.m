@@ -5,7 +5,7 @@ function strName = PathGetDataName(strPathData)
 % 
 % Syntax:	strName = PathGetDataName(strPathData)
 %
-% Updated: 2015-03-06
+% Updated: 2015-03-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -47,4 +47,4 @@ nPrefix	= numel(cPrefix);
 		end
 	end
 
-strName	= sprintf('%s_%s',join(cDir,'_'),strFile);
+strName	= join([cDir; strFile],'_');

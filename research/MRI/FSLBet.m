@@ -1,9 +1,9 @@
-function [bSuccess,cPathOut] = FSLBet(cPathIn,varargin)
+function [b,cPathOut] = FSLBet(cPathIn,varargin)
 % FSLBet
 % 
 % Description:	run FSL's bet tool to extract a brain image
 % 
-% Syntax:	[bSuccess,cPathOut] = FSLBet(cPathIn,<options>)
+% Syntax:	[b,cPathOut] = FSLBet(cPathIn,<options>)
 % 
 % In:
 % 	strPathIn	- the input path, or a cell of input paths.  if the input is a
@@ -25,37 +25,54 @@ function [bSuccess,cPathOut] = FSLBet(cPathIn,varargin)
 %		silent:		(false) true to suppress status messages
 % 
 % Out:
-% 	bSuccess	- true if the bet and fslview ran successfully
+% 	b			- true if the bet and fslview ran successfully
 %	strPathOut	- the path to the output volume
 % 
-% Updated: 2014-10-09
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-23
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 persistent fThresh;
 
-opt	= ParseArgs(varargin,...
-		'output'	, []	, ...
-		'thresh'	, []	, ...
-		'prompt'	, []	, ...
-		'binarize'	, false	, ...
-		'propagate'	, true	, ...
-		'nthread'	, 1		, ...
-		'force'		, true	, ...
-		'silent'	, false	  ...
-		);
-opt.prompt	= unless(opt.prompt,isempty(opt.thresh));
-opt.thresh	= unless(opt.thresh,unless(fThresh,0.5));
+%process the inputs
+	opt	= ParseArgs(varargin,...
+			'output'	, []	, ...
+			'thresh'	, []	, ...
+			'prompt'	, []	, ...
+			'binarize'	, false	, ...
+			'propagate'	, true	, ...
+			'nthread'	, 1		, ...
+			'force'		, true	, ...
+			'silent'	, false	  ...
+			);
+	
+	opt.prompt	= unless(opt.prompt,isempty(opt.thresh));
+	opt.thresh	= unless(opt.thresh,unless(fThresh,0.5));
+	
+	if opt.prompt
+		opt.nthread	= 1;
+	end
+	
+	[cPathIn,opt.output,bNoCell,dummy]	= ForceCell(cPathIn,opt.output);
+	[cPathIn,opt.output]				= FillSingletonArrays(cPathIn,opt.output);
+	
+	strSuffix	= conditional(opt.binarize,'_brain_mask','_brain');
+	cPathOut	= cellfun(@(fi,fo) unless(fo,PathAddSuffix(fi,strSuffix,'favor','nii.gz')),cPathIn,opt.output,'uni',false);
 
-[cPathIn,opt.output,bNoCell,dummy]	= ForceCell(cPathIn,opt.output);
-[cPathIn,opt.output]				= FillSingletonArrays(cPathIn,opt.output);
+%which data do we need to process?
+	sz	= size(cPathIn);
+	
+	if opt.force
+		bDo	= true(sz);
+	else
+		bDo	= ~cellfun(@FileExists,cPathOut);
+	end
 
-strSuffix	= conditional(opt.binarize,'_brain_mask','_brain');
-cPathOut	= cellfun(@(fi,fo) unless(fo,PathAddSuffix(fi,strSuffix,'favor','nii.gz')),cPathIn,opt.output,'uni',false);
-
-if opt.prompt
-	opt.nthread	= 1;
-end
-
-bSuccess	= MultiTask(@BetOne,{cPathIn, cPathOut},...
+%bet them all
+	b	= true(sz);
+	
+	opt		= rmfield(opt,'opt_extra');
+	b(bDo)	= MultiTask(@BetOne,{cPathIn(bDo) cPathOut(bDo) opt},...
 				'description'	, 'betting data'	, ...
 				'uniformoutput'	, true				, ...
 				'nthread'		, opt.nthread		, ...
@@ -68,13 +85,8 @@ end
 
 
 %------------------------------------------------------------------------------%
-function bSuccess = BetOne(strPathIn, strPathOut)
-	if ~opt.force && FileExists(strPathOut)
-		bSuccess	= true;
-		return;
-	end
-	
-	bSuccess	= false;
+function b = BetOne(strPathIn,strPathOut,opt)
+	b	= false;
 	
 	if ~FileExists(strPathIn)
 		return;
@@ -84,7 +96,7 @@ function bSuccess = BetOne(strPathIn, strPathOut)
 		hdr		= FSLReadHeader(strPathIn);
 		bMean	= hdr.dim4>1;
 		if bMean
-			status('Calculating mean(|d|)','silent',opt.silent);
+			status('calculating mean(|d|)','silent',opt.silent);
 			
 			strPathTemp	= GetTempFile('ext','nii.gz');
 			if CallProcess('fslmaths',{strPathIn '-abs' '-Tmean' strPathTemp},'silent',true)
@@ -132,8 +144,5 @@ function bSuccess = BetOne(strPathIn, strPathOut)
 			delete(strPathTemp);
 		end
 	%success!
-		bSuccess	= true;
-end
+		b	= true;
 %------------------------------------------------------------------------------%
-
-end

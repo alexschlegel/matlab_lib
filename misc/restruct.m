@@ -2,13 +2,15 @@ function s = restruct(s,varargin)
 % restruct
 % 
 % Description:	flip between two ways of storing arrayed data in a struct:
-%					1) a struct array / cellnest of structs
+%					1) a struct array / cellnest of uniform structs
 %					2) a 1x1 struct of arrays
 % 
 % Syntax:	s = restruct(s)
 % 
-% Updated: 2015-03-17
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-22
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %get the array size
 	szArray	= ParseArgs(varargin,[]);
@@ -21,22 +23,13 @@ function s = restruct(s,varargin)
 		return;
 	end
 
-%do we have a cellnest of uniform structs?
-	if iscell(s)
-		c	= cellnestflatten(s);
-		
-		if ~isempty(c) && all(cellfun(@isstruct,c)) && uniform(cellfun(@fieldnames,c,'uni',false));
-			cField	= fieldnames(c{1});
-			
-			%invert the array
-				cStruct	= cellfun(@(f) cellnestfun(@(x) x.(f),s),cField,'uni',false);
-				s		= cell2struct(cStruct,cField);
-			
-			return;
-		end
-	end
 
-if isstruct(s)
+if iscell(s)
+	[cf,uf]	= cellnestflatten(s);
+	sf		= cell2mat(cf);
+	sr		= restruct(sf);
+	s		= structtreefun(@(x) cellnestunflatten(x,uf),sr);
+elseif isstruct(s)
 	if numel(s)==1
 		s	= Scalar2Array(s,szArray);
 	else
@@ -61,7 +54,7 @@ function s2 = Scalar2Array(s,szArray)
 			x	= restruct(x,szArray);
 		end
 		
-		if isscalar(x)
+		if isscalar(x) && ~iscell(x)
 			[s2(1:nArray).(cField{kF})]	= deal(x);
 		else
 			szX	= size(x);
@@ -85,15 +78,24 @@ function s2 = Array2Scalar(s,szArray)
 		strField	= cField{kF};
 		
 		x	= reshape({s.(strField)},szArray);
-		if all(cellfun(@isstruct,x))
+		if all(reshape(cellfun(@isstruct,x),[],1))
 			x	= restruct(cell2mat(x),szArray);
-		elseif all(cellfun(@(y) isscalar(y) && ~ischar(y),x))
-			x	= cell2mat(x);
+		elseif all(reshape(cellfun(@(y) isscalar(y) && ~ischar(y),x),[],1))
+			if any(reshape(cellfun(@iscell,x),[],1))
+				x	= cellfun(@UnwrapScalarCell,x,'uni',false);
+			else
+				x	= cell2mat(x);
+			end
 		%elseif all(cellfun(@iscell,x))
 		%	x	= cell2mat2(x);
 		end
 		
 		s2.(strField)	= x;
+	end
+%------------------------------------------------------------------------------%
+function x = UnwrapScalarCell(x) 
+	if iscell(x)
+		x	= x{1};
 	end
 %------------------------------------------------------------------------------%
 function sz = GetArraySize(s) 
@@ -117,7 +119,7 @@ function sz = GetArraySize(s)
 		else
 			sz	= size(s);
 		end
-	elseif isscalar(s)
+	elseif isscalar(s) && ~iscell(s)
 		sz	= NaN;
 	else
 		sz	= size(s);

@@ -86,8 +86,6 @@ function EEGReadHeader_Preprocessed()
 	strPathHeader	= PathAddSuffix(strPathEEG,'','hdr');
 	
 	hdr	= load(strPathHeader,'-mat');
-	%hdr	= StructMerge(ifo,ifo.hdr);
-	%hdr	= rmfield(hdr,'hdr');
 end
 %------------------------------------------------------------------------------%
 function EEGReadHeader_BDF()

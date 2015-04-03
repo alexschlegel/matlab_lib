@@ -6,20 +6,22 @@ function bit = int2bit(x,varargin)
 % Syntax:	bit = int2bit(x,[bitMax]=<determine>)
 % 
 % In:
-% 	x			- an M1 x ... x MN array of unsigned integers (at most 32 bit)
+% 	x			- an M1 x ... x MN array of unsigned integers
 %	[bitMax]	- the highest bit in the return array (0-based)
 % 
 % Out:
 % 	bit	- an array of the bits of elements of x along its first singleton
 %		  dimension 
 % 
-% Updated: 2010-07-22
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-03-19
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 bitMax	= ParseArgs(varargin,[]);
 
 if isempty(bitMax)
 	bitMax	= floor(log2(max(double(x(:)))));
 end
+
+bScalar	= isscalar(x);
 
 %get the first singleton dimension
 	sz			= [size(x) 1];
@@ -38,4 +40,7 @@ end
 	bit	= bitand(x,bitCompare)~=0;
 %unpermute
 	bit	= permute(bit,[2:kSingleton 1 kSingleton+1:nd]);
-	
+
+if bScalar
+	bit	= reshape(bit,1,[]);
+end

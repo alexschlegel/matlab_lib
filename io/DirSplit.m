@@ -21,17 +21,16 @@ function cDir = DirSplit(strDir,varargin)
 % 
 % Example:	DirSplit('c:\temp\blah') => {'c:','temp','blah'}
 % 
-% Updated:	2010-04-10
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-opt	= ParseArgs(varargin,...
-		'limit'			, -1		, ...
-		'limit_type'	, 'reverse'	  ...
-		);
+% Updated: 2015-03-24
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
-if isempty(strDir)
-	cDir	= {};
-	return;
-end
+%parse the inputs
+	opt	= ParseArgs(varargin,...
+			'limit'			, -1		, ...
+			'limit_type'	, 'reverse'	  ...
+			);
 
 %get just the directory
 	strDir	= PathGetDir(strDir);
@@ -39,21 +38,26 @@ end
 %split based on forward/backslashes
 	cDir	= split(strDir,'[\\\/]');
 	
-%in case the caller passed '\' or '//'
-	if strDir(1)=='/'
-		cDir	= [{'/'}; cDir];
-	elseif isequal(strDir(1:2),'\\')
-		cDir	= [{'\\'}; cDir];
+%in case the caller passed '/' or '\\'
+	if numel(strDir)>0 && strDir(1)=='/'
+		cDir	= ['/'; cDir];
+	elseif numel(strDir>1) && isequal(strDir(1:2),'\\')
+		cDir	= ['\\'; cDir];
 	end
 
 %limit the output
 	if opt.limit>=0
+		nDir	= numel(cDir);
+		
 		switch lower(opt.limit_type)
 			case 'reverse'
-				cDir	= cDir(end-opt.limit+1:end);
+				kKeep	= max(1,nDir-opt.limit+1):nDir;
 			case 'forward'
-				cDir	= cDir(1:opt.limit);
+				kKeep	= 1:min(nDir,opt.limit);
 			otherwise
-				error(['"' opt.limit_type '" is an unknown limit type.']);
+				error('"%s" is not a valid limit type.',opt.limit_type);
 		end
+		
+		cDir	= cDir(kKeep);
 	end
+	

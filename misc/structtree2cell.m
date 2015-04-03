@@ -3,10 +3,10 @@ function x = structtree2cell(s)
 % 
 % Description:	convert a structtree to a cell array
 % 
-% Syntax:	x = structtree2acell(s)
+% Syntax:	x = structtree2cell(s)
 % 
 % In:
-% 	s	- a struct tree with each homogeneous levels
+% 	s	- a struct tree with homogeneous levels
 % 
 % Out:
 % 	x	- the cell version of s

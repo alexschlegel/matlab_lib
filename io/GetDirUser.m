@@ -3,9 +3,9 @@ function strDirUser = GetDirUser()
 % 
 % Description:	get a user's home directory
 % 
-% Syntax:	strDirHome = GetHomeDir()
+% Syntax:	strDirUser = GetDirUser()
 % 
-% Updated: 2015-03-11
+% Updated: 2015-03-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

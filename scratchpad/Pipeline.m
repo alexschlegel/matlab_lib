@@ -28,7 +28,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150331,...
+	version				= struct('pipeline',20150402,...
 							'capsuleFormat',20150331)
 	defaultOptions
 	implicitOptionNames
@@ -54,7 +54,7 @@ methods
 	%		seed:		(randseed2) Seed to use for randomizing
 	%		subSilent:	(true) Suppress status messages from TE, etc.
 	%		szIm:		(200) Pixel height of debug images
-	%		verbosData:	(false) Preserve extra data in simulation summary
+	%		verbosData:	(true) Preserve extra data in simulation summary
 	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
 	%					-- Subjects
@@ -69,9 +69,9 @@ methods
 	%
 	%					-- Time:
 	%
-	%		nTBlock:	(1) number of time points per block
+	%		nTBlock:	(4) number of time points per block
 	%		nTRest:		(4) number of time points per rest periods
-	%		nRepBlock:	(20) number of repetitions of each block per run
+	%		nRepBlock:	(12) number of repetitions of each block per run
 	%		nRun:		(10) number of runs
 	%
 	%					-- Signal characteristics:
@@ -101,9 +101,10 @@ methods
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
 	%
-	%					-- Batch processing
+	%					-- Batch processing and plot preparation
 	%
 	%		max_cores:	(1) Maximum number of cores to request for multitasking
+	%		nIteration:	(10) Number of simulations per point in plot-data generation
 	%		saveplot:	(false) Save individual plot capsules to mat files on generation
 	%
 	function obj = Pipeline(varargin)
@@ -117,15 +118,15 @@ methods
 			'seed'			, randseed2	, ...
 			'subSilent'		, true		, ...
 			'szIm'			, 200		, ...
-			'verbosData'	, false		, ...
+			'verbosData'	, true		, ...
 			'verbosity'		, 1			, ...
 			'nSubject'		, 20		, ...
 			'nSig'			, 10		, ...
 			'nSigCause'		, 10		, ...
 			'nVoxel'		, 100		, ...
-			'nTBlock'		, 1			, ...
+			'nTBlock'		, 4			, ...
 			'nTRest'		, 4			, ...
-			'nRepBlock'		, 20		, ...
+			'nRepBlock'		, 12		, ...
 			'nRun'			, 10		, ...
 			'CRecurX'		, 0.1		, ...
 			'CRecurY'		, 0.7		, ...
@@ -146,6 +147,7 @@ methods
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
+			'nIteration'	, 10		, ...
 			'saveplot'		, false		  ...
 			};
 		opt						= ParseArgs(varargin,obj.defaultOptions{:});
@@ -158,7 +160,7 @@ methods
 		if ~iscell(opt.fudge)
 			error('Invalid fudge: must be a cell.');
 		end
-		invalidFudgeInd			= ~ismember(opt.fudge,{'fakecause','stubsim'});
+		invalidFudgeInd			= ~ismember(opt.fudge,{'fakecause','oldplot','stubsim'});
 		if any(invalidFudgeInd)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudgeInd}));
 		end
@@ -475,7 +477,8 @@ methods
 	end
 
 	%expected usage: product of cell arrays
-	%needn't be a method, could be a function
+	%needn't be a method, could be a free-standing function
+	%TODO: with plot-code changes, may be obsolete (so, remove)
 	function cprod = computeCartesianProduct(obj,varargin)
 		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
 			error('Arguments must be cell vectors.');
@@ -491,7 +494,8 @@ methods
 	end
 
 	%expected usage: product of cell arrays
-	%needn't be a method, could be a function
+	%needn't be a method, could be a free-standing function
+	%TODO: with plot-code changes, may be obsolete (so, remove)
 	function cprod = computeLittleEndianCartesianProduct(obj,varargin)
 		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
 			error('Arguments must be cell vectors.');
@@ -535,6 +539,46 @@ methods
 			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
 		end
 		out				= weightedSum./sqrt(sumSqCoeffs);
+	end
+
+	function [array,meta] = convertPlotCapsuleResultToArray(obj,capsule)
+		u			= obj.uopt;
+		result		= capsule.result;
+		keys		= result{1}.keyTuple;
+		keymaps		= arrayfun(@(k) {keys{k},@(r)forcenum(r.valueTuple{k})}, ...
+						1:numel(keys),'uni',false);
+		datamaps	= {	{'seed',	@(r)r.seed}, ...
+						{'acc',		@(r)r.summary.alex.meanAccAllSubj}, ...
+						{'stderr',	@(r)r.summary.alex.stderrAccAllSu}, ...
+						{'p',		@(r)r.summary.alex.p} ...
+					  };
+		stubmaps	= {};
+		if ismember('stubsim',u.fudge)
+			stubmaps	= arrayfun(@(k) {['(' keys{k} ')'], ...
+							@(r)fetchopt(r.summary,keys{k})}, ...
+							1:numel(keys),'uni',false);
+		end
+		maps		= [keymaps datamaps stubmaps];
+		meta		= cellfun(@(m)m{1},maps,'uni',false);
+		cArray		= cellfun(@(m)cellfun(@(r)m{2}(r),result), ...
+						maps,'uni',false);
+		array		= cat(1+numel(keys),cArray{:});
+
+		function n = forcenum(n)
+			if ~isnumeric(n)||~isscalar(n)
+				n	= -Inf;
+			elseif isnan(n)
+				n	= Inf;
+			end
+		end
+
+		function n = fetchopt(summary,optname)
+			if isfield(summary,'uopt') && isfield(summary.uopt,optname)
+				n	= forcenum(summary.uopt.(optname));
+			else
+				n	= -Inf;
+			end
+		end
 	end
 
 	% TODO: clean up comments
@@ -741,6 +785,60 @@ methods
 
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
+		if ~ismember('oldplot',obj.uopt.fudge)
+			capsule	= makePlotCapsuleNew(obj,plotSpec,varargin{:});
+		else
+			capsule	= makePlotCapsuleOld(obj,plotSpec,varargin{:});
+		end
+	end
+
+	%TODO: comments
+	function capsule = makePlotCapsuleNew(obj,plotSpec,varargin)
+		opt					= ParseArgs(varargin,...
+			'saveplot'		, obj.uopt.saveplot	  ...
+			);
+		plotSpec			= regularizePlotSpec(obj,plotSpec);
+
+		pause(1);
+		start_ms			= nowms;
+		augSpec				= plotSpec;
+		augSpec.varName		= ['kIteration' plotSpec.varName];
+		augSpec.varValues	= [{num2cell(1:plotSpec.nIteration)} plotSpec.varValues];
+		augSpec.valuesShape	= cellfun(@numel,augSpec.varValues);
+		nSim				= prod(augSpec.valuesShape);
+
+		if obj.uopt.verbosity > 0
+			fprintf('Number of plot-variable combinations = %d\n',nSim);
+		end
+
+		rng(obj.uopt.seed,'twister');
+
+		augSpec.seed		= randi(intmax,nSim,1);
+		wrapperInterface	= @(i) makePlotTaskWrapper(obj,augSpec,i);
+		cResult				= MultiTask(wrapperInterface, ...
+								{num2cell(1:nSim)}, ...
+								'nthread',obj.uopt.max_cores, ...
+								'silent',(obj.uopt.max_cores<2));
+		cResult				= reshape(cResult,augSpec.valuesShape);
+		end_ms				= nowms;
+
+		capsule.begun		= FormatTime(start_ms);
+		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
+		capsule.version		= obj.version;
+		capsule.plotSpec	= plotSpec;
+		capsule.uopt		= obj.uopt;
+		capsule.result		= cResult;
+		capsule.elapsed_ms	= end_ms - start_ms;
+		capsule.done		= FormatTime(end_ms);
+
+		if opt.saveplot
+			iflow_plot_capsule	= capsule; %#ok
+			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
+		end
+	end
+
+	%TODO: comments
+	function capsule = makePlotCapsuleOld(obj,plotSpec,varargin)
 		opt	= ParseArgs(varargin,...
 			'saveplot'		, obj.uopt.saveplot	  ...
 			);
@@ -761,7 +859,7 @@ methods
 		nSim		= numel(cValue);
 
 		if obj.uopt.verbosity > 0
-			fprintf('Number of plot-variable combinations = %d\n',nSim);
+			fprintf('Number of plot-variable combinations = %d (*)\n',nSim);
 		end
 
 		rng(obj.uopt.seed,'twister');
@@ -812,6 +910,32 @@ methods
 		end
 	end
 
+	function result = makePlotTaskWrapper(obj,augSpec,taskIndex)
+		vind		= cell(1,numel(augSpec.varName));
+		[vind{:}]	= ind2sub(augSpec.valuesShape,taskIndex);
+		valueTuple	= arrayfun(@(j) augSpec.varValues{j}{vind{j}}, ...
+						1:numel(vind),'uni',false);
+		if isfield(augSpec,'filter') && ~isempty(augSpec.filter)
+			[valueTuple{2:end}]	= augSpec.filter(obj.uopt,valueTuple{2:end});
+		end
+
+		vopt				= obj.uopt;
+		vopt.seed			= augSpec.seed(taskIndex);
+		vopt.progress		= false;
+		for kV=1:numel(augSpec.varName)
+			name			= augSpec.varName{kV};
+			if isfield(vopt,name)
+				vopt.(name)	= valueTuple{kV};
+			end
+		end
+		vobj				= obj;
+		vobj.uopt			= vopt;
+		result.keyTuple		= augSpec.varName;
+		result.valueTuple	= valueTuple;
+		result.seed			= vopt.seed;
+		result.summary		= simulateAllSubjects(vobj);
+	end
+
 	function note = noteVaryingOpts(obj,capsule)
 		u			= obj.uopt; %#ok
 		spec		= capsule.plotSpec;
@@ -851,8 +975,7 @@ methods
 		end
 		requiredFields	= {
 			'varName'		, ...
-			'varValues'		, ...
-			'nIteration'	  ...
+			'varValues'		  ...
 			};
 		missingFields	= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
 		if any(missingFields)
@@ -909,6 +1032,10 @@ methods
 		dupInd		= strcmp(sortedVars(1:end-1),sortedVars(2:end));
 		if any(dupInd)
 			error('Duplicate plot-spec variable(s):%s',sprintf(' ''%s''',sortedVars{dupInd}));
+		end
+
+		if ~isfield(plotSpec,'nIteration')
+			plotSpec.nIteration	= obj.uopt.nIteration;
 		end
 	end
 
@@ -1241,8 +1368,6 @@ methods (Static)
 
 		spec(4).varName		= 'nTBlock';
 		spec(4).varValues	= 1:5;
-
-		[spec(:).nIteration]	= deal(10);
 
 		capMeta.varName		= 'CRecurY';
 		capMeta.varValues	= [0 0.35 0.7];

@@ -600,7 +600,7 @@ function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
 				stat		= structfun2(@StackCell,stat);
 				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
 			%calculate a jackknife t-test across subjects
-				nd			= unless(find(size(stat)>1,1,'last'),1);
+				nd			= unless(find(size(stat.r)>1,1,'last'),1);
 				stat.mz		= nanmean(stat.z,nd);
 				stat.sez	= nanstderrJK(stat.z,[],nd);
 				

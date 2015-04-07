@@ -543,7 +543,9 @@ methods
 		out				= weightedSum./sqrt(sumSqCoeffs);
 	end
 
-	function [array,meta] = convertPlotCapsuleResultToArray(obj,capsule)
+	% TODO: Clean up.  This method is an abject mess.
+	function [array,cLabel,label2index,getfield] = ...
+				convertPlotCapsuleResultToArray(obj,capsule)
 		u			= obj.uopt;
 		result		= capsule.result;
 		keys		= result{1}.keyTuple;
@@ -552,7 +554,7 @@ methods
 		datamaps	= {	{'seed',	@(r)r.seed}, ...
 						{'acc',		@(r)r.summary.alex.meanAccAllSubj}, ...
 						{'stderr',	@(r)r.summary.alex.stderrAccAllSu}, ...
-						{'p',		@(r)r.summary.alex.p} ...
+						{'alex_p',	@(r)r.summary.alex.p} ...
 					  };
 		stubmaps	= {};
 		if ismember('stubsim',u.fudge)
@@ -561,10 +563,20 @@ methods
 							1:numel(keys),'uni',false);
 		end
 		maps		= [keymaps datamaps stubmaps];
-		meta		= cellfun(@(m)m{1},maps,'uni',false);
+		cLabel		= cellfun(@(m)m{1},maps,'uni',false);
 		cArray		= cellfun(@(m)cellfun(@(r)m{2}(r),result), ...
 						maps,'uni',false);
 		array		= cat(1+numel(keys),cArray{:});
+		label2index	= @getLabelIndex;
+		getfield	= @getSubarrayForLabel;
+
+		function n = fetchopt(summary,optname)
+			if isfield(summary,'uopt') && isfield(summary.uopt,optname)
+				n	= forcenum(summary.uopt.(optname));
+			else
+				n	= -Inf;
+			end
+		end
 
 		function n = forcenum(n)
 			if ~isnumeric(n)||~isscalar(n)
@@ -574,12 +586,18 @@ methods
 			end
 		end
 
-		function n = fetchopt(summary,optname)
-			if isfield(summary,'uopt') && isfield(summary.uopt,optname)
-				n	= forcenum(summary.uopt.(optname));
-			else
-				n	= -Inf;
+		function index = getLabelIndex(label)
+			index	= find(strcmp(label,cLabel));
+			if ~isscalar(index)
+				error('Invalid or non-unique label %s',label);
 			end
+		end
+
+		function values = getSubarrayForLabel(label,data)
+			shape	= size(data);
+			index	= getLabelIndex(label);
+			data	= shiftdim(data,numel(keys));
+			values	= reshape(data(index,:),shape(1:end-1));
 		end
 	end
 
@@ -770,6 +788,8 @@ methods
 
 	function label = getOptLabel(~,optName)
 		switch optName
+			case 'acc'
+				label	= 'Accuracy (%)';
 			case 'WFullness'
 				label	= 'W fullness';
 			case 'WSum'
@@ -945,6 +965,39 @@ methods
 		opt			= capsule.uopt;
 		cNote		= {};
 
+		%{
+		if ~strcmp(spec.varName,'nSubject')
+			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
+		end
+		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
+			cNote{end+1}	= 'recur=0';
+		elseif opt.CRecurX == u.CRecurX && opt.CRecurY ~= u.CRecurY && opt.CRecurZ == u.CRecurZ
+			cNote{end+1}	= sprintf('recurY=%.2f',opt.CRecurY);
+		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
+			cNote{end+1}	= 'recur=?';
+		end
+		if isfield(opt,'WSquash') && opt.WSquash
+			cNote{end+1}	= 'wsqsh';
+		end
+		if isfield(opt,'WSumTweak') && opt.WSumTweak
+			cNote{end+1}	= 'wstwk';
+		end
+		if isfield(opt,'normVar') && opt.normVar ~= 0
+			cNote{end+1}	= sprintf('normVar=%d',opt.normVar);
+		end
+		if isfield(opt,'preSource') && opt.preSource == 0
+			cNote{end+1}	= '~preSrc';
+		end
+		%}
+		note		= strjoin(cNote,',');
+	end
+
+	function note = noteVaryingOptsOldFormat(obj,capsule)
+		u			= obj.uopt; %#ok
+		spec		= capsule.plotSpec;
+		opt			= capsule.uopt;
+		cNote		= {};
+
 		if ~strcmp(spec.varName,'nSubject')
 			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
 		end
@@ -1042,7 +1095,125 @@ methods
 		end
 	end
 
-	function h = renderMultiLinePlot(obj,cCapsule,capMeta,capIndices)
+	function [h,legend] = renderMultiLinePlot(obj,capsule,xVarName,varargin)
+		opt	= ParseArgs(varargin,...
+			'yVarName'				, 'acc'				, ...
+			'lineVarName'			, ''				, ...
+			'lineVarValues'			, {}				, ...
+			'lineLabels'			, {}				, ...
+			'fixedVarValuePairs'	, {}				  ...
+			);
+		if ~isfield(capsule,'version') || ...
+				~isfield(capsule.version,'capsuleFormat') || ...
+				capsule.version.capsuleFormat ~= obj.version.capsuleFormat
+			error('Incompatible capsule format.');
+		end
+		if isempty(opt.lineVarName) ~= isempty(opt.lineVarValues)
+			error('Both lineVarName and lineVarValues %s', ...
+				'must be specified, or neither.');
+		end
+		yVarName		= opt.yVarName;
+		nLineVarValue	= numel(opt.lineVarValues);
+		nLineLabel		= numel(opt.lineLabels);
+		nPlotLine		= max([1 nLineVarValue]);
+		if nLineLabel > 0 && nLineLabel ~= nPlotLine
+			error('Inconsistent number of lineLabels.');
+		elseif nLineLabel == 0
+			if isempty(opt.lineVarName)
+				opt.lineLabels	= {yVarName};
+			else
+				%TODO Fix. Type test is at wrong level
+				isfrac			= @(n)n~=floor(n);
+				if ~all(cellfun(@isnumeric,opt.lineVarValues(:)))
+					template	= '%s=%s';
+				elseif any(cellfun(isfrac,opt.lineVarValues(:)))
+					template	= '%s=%.2f';
+				else
+					template	= '%s=%d';
+				end
+				vv2label		= @(vv)sprintf(template,opt.lineVarName,vv);
+				opt.lineLabels	= cellfun(vv2label,opt.lineVarValues, ...
+									'uni',false);
+			end
+		end
+		fixedVars				= opt.fixedVarValuePairs(1:2:end);
+		fixedVarValues			= opt.fixedVarValuePairs(2:2:end);
+		if numel(fixedVars) ~= numel(fixedVarValues) || ...
+				~all(cellfun(@ischar,fixedVars))
+			error('Ill-formed fixedVarValuePairs.');
+		end
+
+		[data,~,label2index,getfield]	= ...
+				convertPlotCapsuleResultToArray(obj,capsule);
+		for kFV=1:numel(fixedVars)
+			data	= constrainData(data,fixedVars{kFV},fixedVarValues{kFV});
+			if numel(data) == 0
+				error('Variables overconstrained.');
+			end
+		end
+		if strcmp(yVarName,'acc')
+			[facY,facE]	= deal(100); % Percentages
+		else
+			[facY,facE]	= deal(1,0);
+		end
+		[xvals,yvals,errorvals]	= deal(cell(1,nPlotLine));
+		for kPL=1:nPlotLine
+			plData		= data;
+			if ~isempty(opt.lineVarName)
+				plData	= constrainData(plData,opt.lineVarName, ...
+								opt.lineVarValues{kPL});
+			end
+			sqzData		= squeeze(plData);
+			if numel(size(sqzData)) > 3
+				error('Variables underconstrained.');
+			end
+			% The aggregates below (min, max, mean) explicitly specify
+			% dimension 1 in case nIteration == 1, in which case the
+			% implicit aggregation dimension would *not* equal 1.
+			allx			= getfield(xVarName,plData);
+			minx			= min(allx,[],1);
+			maxx			= max(allx,[],1);
+			if any(minx(:) ~= maxx(:))
+				error('Inconsistent x values.');
+			end
+			xvals{kPL}		= squeeze(maxx);
+			yvals{kPL}		= squeeze(facY*mean(getfield(yVarName,plData),1));
+			errorvals{kPL}	= squeeze(facE*mean(getfield('stderr',plData),1));
+		end
+
+		parennote	= noteVaryingOpts(obj,capsule);
+		if ~isempty(parennote)
+			parennote	= sprintf(' (%s)',parennote);
+		end
+		xlabel		= getOptLabel(obj,xVarName);
+		ylabel		= getOptLabel(obj,yVarName);
+		legend		= opt.lineLabels;
+		title		= sprintf('%s vs %s%s',ylabel,xVarName,parennote);
+		h			= alexplot(xvals,yvals,...
+						'error'		, errorvals			, ...
+						'title'		, title				, ...
+						'xlabel'	, xlabel			, ...
+						'ylabel'	, ylabel			, ...
+						'legend'	, legend			, ...
+						'errortype'	, 'bar'				  ...
+						);
+
+		function subdata = constrainData(data,varName,varValue)
+			varIdx		= label2index(varName);
+			lastDim		= numel(size(data));
+			rdims		= 1:(lastDim-1);
+			perm		= [varIdx lastDim rdims(rdims~=varIdx)];
+			pdata		= permute(data,perm);
+			sz_pdata	= size(pdata);
+			varData		= permute(pdata(:,varIdx,:),[1 3 2]);
+			varEq		= find(all(varData==varValue,2));
+			pdata		= pdata(varEq,:);
+			pdata		= reshape(pdata,[numel(varEq) sz_pdata(2:end)]);
+			subdata		= ipermute(pdata,perm);
+		end
+	end
+
+	function h = renderMultiLinePlotOldFormat(obj,cCapsule,capMeta,capIndices)
 		if nargin < 4
 			capIndices	= 1:numel(cCapsule);
 		end
@@ -1088,7 +1259,7 @@ methods
 		meanStderr	= mean(stderrAcc,1);
 		%stderrMean	= stderr(meanAcc,0,1);  %Conventional stat, but not desired.
 
-		parennote	= noteVaryingOpts(obj,cap1);
+		parennote	= noteVaryingOptsOldFormat(obj,cap1);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end
@@ -1407,7 +1578,7 @@ methods (Static)
 		nFig		= size(cap,2);
 		cH			= cell(1,nFig);
 		for kF=1:nFig
-			cH{kF}	= pipeline.renderMultiLinePlot(cap(:,kF),meta);
+			cH{kF}	= pipeline.renderMultiLinePlotOldFormat(cap(:,kF),meta);
 		end
 	end
 

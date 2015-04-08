@@ -388,6 +388,27 @@ methods
 		end
 	end
 
+	% TODO: should be a function, not a method--but is there a nice built-in for this?
+	function s = asString(~,value)
+		s	= toString(value);
+
+		function s = toString(value)
+			if iscell(value)
+				s	= strjoin(cellfun(@toString,value(:).','uni',false));
+			elseif ischar(value)
+				s	= value(:).'; % TODO: maybe improve?
+			elseif ~isnumeric(value)
+				s	= '??'; % TODO: improve
+			elseif ~isscalar(value)
+				s	=  strjoin(arrayfun(@toString,value(:).','uni',false));
+			elseif value ~= floor(value)
+				s	=  sprintf('%.2f',value); % TODO: refine
+			else
+				s	=  sprintf('%d',value);
+			end
+		end
+	end
+
 	%calculateLizierMVCTE: obsolescent, deprecated, soon to be removed.
 	function TE = calculateLizierMVCTE(obj,X,Y)
 		u		= obj.uopt;
@@ -959,6 +980,14 @@ methods
 		result.summary		= simulateAllSubjects(vobj);
 	end
 
+	function note = noteFixedVars(obj,fixedVars,fixedVarValues)
+		[~,ix]	= sort(lower(fixedVars));
+		cNote	= arrayfun(@(i)sprintf('%s=%s',fixedVars{i}, ...
+						asString(obj,fixedVarValues{i})), ...
+						ix,'uni',false);
+		note	= strjoin(cNote,',');
+	end
+
 	function note = noteVaryingOpts(obj,capsule)
 		u			= obj.uopt; %#ok
 		spec		= capsule.plotSpec;
@@ -1095,12 +1124,16 @@ methods
 		end
 	end
 
-	function [h,legend] = renderMultiLinePlot(obj,capsule,xVarName,varargin)
+	function h = renderMultiLinePlot(obj,capsule,xVarName,varargin)
 		opt	= ParseArgs(varargin,...
 			'yVarName'				, 'acc'				, ...
 			'lineVarName'			, ''				, ...
 			'lineVarValues'			, {}				, ...
 			'lineLabels'			, {}				, ...
+			'horizVarName'			, ''				, ...
+			'horizVarValues'		, {}				, ...
+			'vertVarName'			, ''				, ...
+			'vertVarValues'			, {}				, ...
 			'fixedVarValuePairs'	, {}				  ...
 			);
 		if ~isfield(capsule,'version') || ...
@@ -1108,9 +1141,12 @@ methods
 				capsule.version.capsuleFormat ~= obj.version.capsuleFormat
 			error('Incompatible capsule format.');
 		end
-		if isempty(opt.lineVarName) ~= isempty(opt.lineVarValues)
-			error('Both lineVarName and lineVarValues %s', ...
-				'must be specified, or neither.');
+		checkBothOrNeither('line');
+		checkBothOrNeither('horiz');
+		checkBothOrNeither('vert');
+		if ~isempty(opt.horizVarName) || ~isempty(opt.vertVarName)
+			h			= makeMultiplot;
+			return;
 		end
 		yVarName		= opt.yVarName;
 		nLineVarValue	= numel(opt.lineVarValues);
@@ -1122,16 +1158,8 @@ methods
 			if isempty(opt.lineVarName)
 				opt.lineLabels	= {yVarName};
 			else
-				%TODO Fix. Type test is at wrong level
-				isfrac			= @(n)n~=floor(n);
-				if ~all(cellfun(@isnumeric,opt.lineVarValues(:)))
-					template	= '%s=%s';
-				elseif any(cellfun(isfrac,opt.lineVarValues(:)))
-					template	= '%s=%.2f';
-				else
-					template	= '%s=%d';
-				end
-				vv2label		= @(vv)sprintf(template,opt.lineVarName,vv);
+				vv2label		= @(vv)sprintf('%s=%s',opt.lineVarName,...
+									asString(obj,vv));
 				opt.lineLabels	= cellfun(vv2label,opt.lineVarValues, ...
 									'uni',false);
 			end
@@ -1181,22 +1209,31 @@ methods
 			errorvals{kPL}	= squeeze(facE*mean(getfield('stderr',plData),1));
 		end
 
-		parennote	= noteVaryingOpts(obj,capsule);
+		parennote	= noteFixedVars(obj,fixedVars,fixedVarValues);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end
 		xlabel		= getOptLabel(obj,xVarName);
 		ylabel		= getOptLabel(obj,yVarName);
-		legend		= opt.lineLabels;
 		title		= sprintf('%s vs %s%s',ylabel,xVarName,parennote);
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals			, ...
 						'title'		, title				, ...
 						'xlabel'	, xlabel			, ...
 						'ylabel'	, ylabel			, ...
-						'legend'	, legend			, ...
+						'legend'	, opt.lineLabels	, ...
 						'errortype'	, 'bar'				  ...
 						);
+		set(h.hTitle,'FontSize',12);
+
+		function checkBothOrNeither(prefix)
+			name	= [prefix 'VarName'];
+			values	= [prefix 'VarValues'];
+			if isempty(opt.(name)) ~= isempty(opt.(values))
+				error(['Both %s and %s must be specified, ' ...
+					'or neither.'],name,values);
+			end
+		end
 
 		function subdata = constrainData(data,varName,varValue)
 			varIdx		= label2index(varName);
@@ -1210,6 +1247,44 @@ methods
 			pdata		= pdata(varEq,:);
 			pdata		= reshape(pdata,[numel(varEq) sz_pdata(2:end)]);
 			subdata		= ipermute(pdata,perm);
+		end
+
+		function mp = makeMultiplot
+			nH						= max(1,numel(opt.horizVarValues));
+			nV						= max(1,numel(opt.vertVarValues));
+			figGrid					= cell(nV,nH);
+			subopt					= opt;
+			subopt.horizVarName		= '';
+			subopt.vertVarName		= '';
+			subopt.horizVarValues	= {};
+			subopt.vertVarValues	= {};
+			for kH=1:nH
+				for kV=1:nV
+					subopt.fixedVarValuePairs ...
+									= cat(2,opt.fixedVarValuePairs, ...
+										getPair('horiz',kH), ...
+										getPair('vert',kV));
+					suboptcell		= opt2cell(subopt);
+					figGrid{kV,kH}	= renderMultiLinePlot(obj, ...
+										capsule,xVarName,suboptcell{:});
+				end
+			end
+			hFGrid	= cellfun(@(h) h.hF,figGrid);
+			set(hFGrid,'Position',[0 0 600 350]);
+
+			mp						= multiplot(figGrid);
+
+			PostSetLegend(figGrid{end});
+
+			function pair = getPair(direction,index)
+				name	= opt.([direction 'VarName']);
+				cValue	= opt.([direction 'VarValues']);
+				if isempty(name)
+					pair	= {};
+				else
+					pair	= {name,cValue{index}};
+				end
+			end
 		end
 	end
 

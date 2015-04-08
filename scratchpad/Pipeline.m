@@ -1175,9 +1175,6 @@ methods
 				convertPlotCapsuleResultToArray(obj,capsule);
 		for kFV=1:numel(fixedVars)
 			data	= constrainData(data,fixedVars{kFV},fixedVarValues{kFV});
-			if numel(data) == 0
-				error('Variables overconstrained.');
-			end
 		end
 		if strcmp(yVarName,'acc')
 			[facY,facE]	= deal(100); % Percentages
@@ -1191,8 +1188,10 @@ methods
 				plData	= constrainData(plData,opt.lineVarName, ...
 								opt.lineVarValues{kPL});
 			end
-			sqzData		= squeeze(plData);
-			if numel(size(sqzData)) > 3
+			if numel(plData) == 0
+				error('Variables overconstrained.');
+			end
+			if numel(size(squeeze(plData))) > 3
 				error('Variables underconstrained.');
 			end
 			% The aggregates below (min, max, mean) explicitly specify
@@ -1495,6 +1494,11 @@ methods
 			%summary.alex.meanAccAllSubj	= u.WSum;
 			%summary.alex.stderrAccAllSu	= 0.1*u.CRecurY;
 		else
+			% NOTE: It may appear that the second assignment below, in
+			% overwriting summary, is wiping out the fields of summary
+			% that are already present.  However, those fields are
+			% retained because summary is an *input* to the RHS, and is
+			% updated, not replaced, by simulateAllSubjectsInternal.
 			summary.isMissing			= false;
 			summary						= simulateAllSubjectsInternal(...
 											obj,summary);

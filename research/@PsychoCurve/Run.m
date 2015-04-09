@@ -14,8 +14,8 @@ function Run(p,varargin)
 %					this value
 %		silent:		(false) true to suppress status messages
 % 
-% Updated: 2012-02-09
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -33,7 +33,7 @@ end
 %iterate
 	kIt	= 1;
 	
-	progress(min(opt.itmax,1e6),'label','Fitting Psychometric Curve','silent',opt.silent); 
+	progress('action','init','total',min(opt.itmax,1e6),'label','Fitting Psychometric Curve','silent',opt.silent); 
 	while kIt<=opt.itmin || (p.se>opt.stop_se && kIt<=opt.itmax)
 		p.Step('plot',p.debug && kIt/10==round(kIt/10),'silent',opt.silent);
 		
@@ -41,7 +41,7 @@ end
 		
 		progress;
 	end
-	progress('end');
+	progress('action','end');
 %one last robust fit
 	%p.Fit;
 %plot the results

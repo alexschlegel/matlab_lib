@@ -16,7 +16,7 @@ function [cPathFound,nFound] = SearchInFiles(cPathSearch,str,varargin)
 %	nFound		- the number of instances of the search string found in each
 %				  file in cPathFound
 % 
-% Updated: 2015-03-22
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -32,7 +32,8 @@ nSearch		= numel(cPathSearch);
 bKeep	= false(szSearch);
 nFound	= zeros(szSearch);
 
-progress(nSearch,...
+progress('action','init',...
+			'total'		, nSearch				, ...
 			'label'		, 'searching in files'	, ...
 			'silent'	, opt.silent			  ...
 			);

@@ -32,8 +32,11 @@ function [cPath,cDir,nPath] = FindFiles(strDir,varargin)
 %	FindFiles('c:\','\.txt$') will find all .txt files in the root
 %	directory
 % 
-% Updated:	2010-04-17
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
 [re,opt]	= ParseArgs(varargin, '.*', ...
 				'subdir'		, false	, ...
 				'casei'			, false	, ...
@@ -82,7 +85,7 @@ function [cPath,cDir,nPath] = FindFiles(strDir,varargin)
 	end
 	
 	if opt.progress
-		progress(nDir,'label','Searching for Files');
+		progress('action','init','total',nDir,'label','Searching for Files');
 	end
 	
 	for kDir=1:nDir

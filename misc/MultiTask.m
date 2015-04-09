@@ -42,8 +42,10 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK	- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-03-25
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the input
 	opt	= ParseArgs(varargin,...
@@ -90,7 +92,8 @@ function varargout = MultiTask(f,cIn,varargin)
 
 %prepare the progress bar
 	strLabel	= sprintf('%s (%d thread%s)',opt.description,opt.nthread,plural(opt.nthread));
-	pName		= progress(nTask,'label',strLabel,'silent',opt.silent);
+	sProgress	= progress('action','init','total',nTask,'label',strLabel,'silent',opt.silent);
+	pName		= sProgress.name;
 
 %execute the jobs
 	%pass along some info to the subfunctions
@@ -134,7 +137,7 @@ function varargout = MultiTask(f,cIn,varargin)
 			end
 		
 		%close the progress bar
-			progress('end','name',pName);
+			progress('action','end','name',pName);
 	else
 	%just a regular old for loop
 		cOut	= MultiTaskSerial(f,cIn,opt);
@@ -530,7 +533,7 @@ function ManagerError(strError)
 %the manager uses this to process an error
 	if ~param.catch
 		%close this here because an error will be raised shortly
-			progress('end','name',param.progress);
+			progress('action','end','name',param.progress);
 		
 		if isempty(err)
 			err	= strError;
@@ -546,7 +549,7 @@ function UpdateProgress(tmr,evt)
 	
 	try
 		if ~bProgressEnd
-			progress(param.ntaskfinished + nTaskFinished,'name',param.progress);
+			progress('current',param.ntaskfinished + nTaskFinished,'name',param.progress);
 		end
 		
 		if nTaskFinished==nTask
@@ -589,7 +592,7 @@ function TaskError(kTask,me)
 	if param.catch
 		param.log.Print(sprintf('error on task %d',kTask),'error','exception',me);
 	else
-		progress('end','name',param.progress);
+		progress('action','end','name',param.progress);
 		rethrow(me);
 	end
 end

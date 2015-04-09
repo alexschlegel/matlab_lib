@@ -21,8 +21,8 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 %	kRemove		- an array/cell of array of the ICA components that were marked
 %				  for removal
 % 
-% Updated: 2012-07-18
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -111,7 +111,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 	stop(tAR);
 	delete(tAR);
 	
-	progress('end','name','ar_remove');
+	progress('action','end','name','ar_remove');
 	
 	if ~all(bDoneAR)
 		MultiTask(@DoAR,{num2cell(kData(~bDoneAR))},...
@@ -158,7 +158,7 @@ function StepMark(varargin)
 		%first call
 			bStartedMark	= true;
 			
-			progress(sum(bMark),'name','ar_mark','label','marking artifacts');
+			progress('action','init','total',sum(bMark),'name','ar_mark','label','marking artifacts');
 		end
 		
 		DoMark(kDoMark);
@@ -244,7 +244,7 @@ function StepAR(tmr,f)
 		%first call
 			bStartedAR	= true;
 			
-			progress(sum(bAR),'name','ar_remove','label','removing artifacts');
+			progress('action','init','total',sum(bAR),'name','ar_remove','label','removing artifacts');
 		end
 		
 		DoAR(kDoAR);

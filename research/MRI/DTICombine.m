@@ -87,8 +87,10 @@ function bSuccess = DTICombine(cPathData,varargin)
 %		cPathData = cellfun(@(d) FindFiles(d,'data\.nii\.gz','subdir',true),'UniformOutput',false);
 %		bSuccess = DTICombine(cPathData,'nthread',5,'f_thresh',0.2);
 % 
-% Updated: 2011-03-22
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'stage'			, 1:9	, ...
 		'stage_check'	, true	, ...
@@ -160,7 +162,7 @@ end
 	bSuccess	= true(sSet);
 	nStage		= numel(opt.stage);
 	
-	progress(nStage,'label','Combining DTI Data','status',true,'silent',opt.silent);
+	progress('action','init','total',nStage,'label','Combining DTI Data','status',true,'silent',opt.silent);
 	for kS=1:nStage
 		kSuccess		= find(bSuccess);
 		
@@ -239,7 +241,7 @@ function bSuccess = DTICombineStage(cDirCombined,cPathData,cPathBVecs,cPathBVals
 		%concatenate bvecs and bvals
 			bSuccess	= true(nCombined,1);
 			
-			progress(nCombined,'label','Concatenating bvecs files','silent',opt.silent);
+			progress('action','init','total',nCombined,'label','Concatenating bvecs files','silent',opt.silent);
 			for kC=1:nCombined
 				bvecs	= cell2mat(cellfun(@(f) str2array(fget(f)),cPathBVecs{kC},'UniformOutput',false)');
 				bvals	= cell2mat(cellfun(@(f) str2array(fget(f)),cPathBVals{kC},'UniformOutput',false)');
@@ -263,7 +265,7 @@ function bSuccess = DTICombineStage(cDirCombined,cPathData,cPathBVecs,cPathBVals
 		%average the data
 			bSuccess	= true(nCombined,1);
 			
-			progress(nCombined,'label','Averaging corrected data','silent',~opt.average | opt.silent);
+			progress('action','init','total',nCombined,'label','Averaging corrected data','silent',~opt.average | opt.silent);
 			for kC=1:nCombined
 				if opt.average
 				%extract and average each eddy_corrected data set
@@ -316,7 +318,7 @@ function bSuccess = DTICombineStage(cDirCombined,cPathData,cPathBVecs,cPathBVals
 		%save the b0 image
 			bSuccess	= true(nCombined,1);
 			
-			progress(nCombined,'label',['Extracting b0 image' strPlural],'silent',opt.silent);
+			progress('action','init','total',nCombined,'label',['Extracting b0 image' strPlural],'silent',opt.silent);
 			for kC=1:nCombined
 				bvals	= str2array(fget(cPathBValsCombined{kC}));
 				

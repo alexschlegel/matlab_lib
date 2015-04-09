@@ -55,8 +55,10 @@ function [eeg,bDelete] = EEGRemoveEyeArtifact(eeg,varargin)
 %				remove windows in which the Fz/Pz channels deviate greater than
 %				80uV from baseline
 % 
-% Updated: 2011-11-04
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [nChannel,nWindow,nSample]	= size(eeg.data);
 bDelete						= false(nWindow,1);
 
@@ -131,7 +133,7 @@ function RemoveArtifact_SOBI()
 		
 		[bInputCorrelate,kInputCorrelate]	= ismember(kChannelEOGCorrelate,opt.input);
 	%remove eye artifact from each window
-		progress(nWindow,'label','Removing eye artifact from windows using SOBI','status',true,'noffset',-1,'silent',opt.silent);
+		progress('action','init','total',nWindow,'label','Removing eye artifact from windows using SOBI','status',true,'status_offset',-1,'silent',opt.silent);
 		
 		for kW=1:nWindow
 			%decompose data into source components using SOBI

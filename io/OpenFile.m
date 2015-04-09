@@ -15,6 +15,6 @@ cFile	= ForceCell(cFile);
 nFile	= numel(cFile);
 
 for k=1:nFile
-	system([strProgram ' ' cFile{k}]);
+	system(sprintf('%s %s&',strProgram,cFile{k}));
 end
 

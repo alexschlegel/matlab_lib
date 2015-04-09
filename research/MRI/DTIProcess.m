@@ -81,7 +81,7 @@ cDirSession	= cellfun(@AddSlash,ForceCell(cDirSession),'UniformOutput',false);
 	bSuccess	= true(sSession);
 	nStage		= numel(opt.stage);
 	
-	progress(nStage,'label','Processing DTI Stages','status',true,'silent',opt.silent);
+	progress('action','init','total',nStage,'label','Processing DTI Stages','status',true,'silent',opt.silent);
 	for kS=1:nStage
 		kSuccess		= find(bSuccess);
 		

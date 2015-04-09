@@ -21,8 +21,10 @@ function rgbc = rgbAutoCorrect(rgb,varargin)
 % 	rgbc		- the autocorrected photo
 %	cPathOut	- the output image path(s)
 % 
-% Updated: 2010-12-09
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 switch class(rgb)
 	case 'char'
 		if isdir(rgb)
@@ -46,7 +48,7 @@ switch class(rgb)
 		rgbc		= cell(nIm,1);
 		bOverwrite	= [];
 		
-		progress(nIm,'label','Auto-correcting images','silent',false);
+		progress('action','init','total',nIm,'label','Auto-correcting images');
 		for kIm=1:nIm
 			[strDirIn,strPathPre,strExt]	= PathSplit(rgb{kIm});
 			
@@ -62,7 +64,7 @@ switch class(rgb)
 					if ~opt.silent
 						res	= ask(['Autocorrected ' PathGetFilename(rgbc{kIm}) ' already exists.  Overwrite?'],'title','autocorrect','choice',{'Always','Never','Cancel'},'default','Never');
 						if isempty(res) || isequal(res,'Cancel');
-							progress('end');
+							progress('action','end');
 							error('User aborted.');
 						else
 							bOverwrite	= isequal(res,'Always');

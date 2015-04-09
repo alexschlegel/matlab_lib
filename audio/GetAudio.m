@@ -34,8 +34,11 @@ function [wav,ifo,fid] = GetAudio(varargin)
 %	fid	- the file identifier of the file if <options>.close==false, 0
 %		  otherwise.
 % 
-% Updated:	2009-02-28
-% Copyright 2009 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
 
 %optional arguments
 	[strPathAudio,opt]	= ParseArgs(varargin,[],			  ...
@@ -99,7 +102,7 @@ function [wav,ifo,fid] = GetAudio(varargin)
 		
 		%read each sample
 			pFact	= 100;
-			progress(nRead/pFact,'label','Sample','ptotal',ifo.nSample,'pstart',opt.ksample(1),'pend',opt.ksample(end));
+			progress('action','init','total',ifo.nSample,'label','Sample','start',opt.ksample(1),'end',opt.ksample(end));
 			for kS=1:nRead
 				kSample	= opt.ksample(kS);
 				
@@ -114,7 +117,7 @@ function [wav,ifo,fid] = GetAudio(varargin)
 					
 				kTest	= kS/pFact;
 				if kTest==floor(kTest)
-					progress(kSample);
+					progress('current',kSample);
 				end
 			end
 	else

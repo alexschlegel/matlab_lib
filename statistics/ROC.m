@@ -22,8 +22,10 @@ function [tp,fp,varargout] = ROC(bClass,vScore,varargin)
 %			  random classes assigned to the given vScore data
 %	hF		- the handle to the ROC plot
 % 
-% Updated:	2010-04-17
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [pSig,bPlot]	= ParseArgs(varargin,95,false);
 
 nPoint	= numel(bClass);
@@ -44,7 +46,7 @@ nPoint	= numel(bClass);
 	if nargout>3
 		nRand	= 1000;
 		aucRand	= zeros(nRand,1);
-		progress(nRand,'label','rand for AUC');
+		progress('action','init','total',nRand,'label','rand for AUC');
 		for kR=1:nRand
 			bClass	= rand(nPoint,1)>=0.5;
 			

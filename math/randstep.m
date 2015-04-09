@@ -17,8 +17,10 @@ function r = randstep(s,varargin)
 % Out:
 % 	r	- the random step array
 % 
-% Updated:	2010-12-09
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [mStep,nDeriv,r]	= ParseArgs(varargin,1,0,[]);
 
 %get the output dimensions
@@ -65,7 +67,7 @@ function r = randstep(s,varargin)
 			
 			%integrate
 				nIntTotal	= 2.^(nDeriv+1)-1;
-				progress(nIntTotal,'label','Integration');
+				progress('action','init','total',nIntTotal,'label','Integration');
 				
 				for kD=nDeriv+1:-1:1
 					nGradCur	= 2^(kD-1);

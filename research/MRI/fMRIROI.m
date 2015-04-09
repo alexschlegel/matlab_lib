@@ -16,7 +16,7 @@ function cPathOut = fMRIROI(varargin)
 % Out:
 % 	cPathOut	- the path(s) to the extracted ROI data
 % 
-% Updated: 2015-03-05
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -100,7 +100,7 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 	%extract each mask
 		nMask	= numel(cPathMask);
 		
-		progress(nMask,'label','extracting ROIs for one dataset');
+		progress('action','init','total',nMask,'label','extracting ROIs for one dataset');
 		for kM=1:nMask
 			strPathMask	= cPathMask{kM};
 			strPathOut	= cPathOut{kM};

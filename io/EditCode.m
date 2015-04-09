@@ -1,12 +1,18 @@
 function EditCode(strFunction)
 % EditCode
 % 
-% Description:	open a function in jedit
+% Description:	open a function/file in jedit
 % 
 % Syntax:	EditCode(strFunction)
 % 
-% Updated: 2011-11-30
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 strCommand	= conditional(isunix,'jedit','C:\Programs\Develop\jEdit\jEdit');
 
-OpenFile(which(strFunction),strCommand);
+if ~FileExists(strFunction)
+	strFunction	= which(strFunction);
+end
+
+OpenFile(strFunction,sprintf('%s -reuseview',strCommand));

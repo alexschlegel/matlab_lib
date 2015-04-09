@@ -58,8 +58,10 @@ function [eeg,t,fid] = EEGRead(strPathEEG,varargin)
 % Notes:	only implemented for files in which all channels have the same
 %			sampling rate.
 % 
-% Updated: 2010-09-07
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 t	= [];
 
 opt	= ParseArgs(varargin,...
@@ -240,7 +242,7 @@ function EEGRead_Preprocessed()
 		nGroupSample		= numel(cSample);
 	%get the samples from each channel for each sample block
 		if nChannelRead>0 && nGroupSample>0
-			progress(nChannelRead,'label','Reading Channel','silent',opt.silent | nChannelRead<2);
+			progress('action','init','total',nChannelRead,'label','Reading Channel','silent',opt.silent | nChannelRead<2);
 		
 			for kC=1:nChannelRead
 				nOffsetChannel	= nBytePerChannel*(kChannelReadProc(kC)-1);

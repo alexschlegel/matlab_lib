@@ -27,7 +27,7 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 %	yMatch	- the reordered set of y signals
 %	sMatch	- a struct of info about the match process
 % 
-% Updated: 2015-03-09
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -55,7 +55,7 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 	
 	sMatch	= dealstruct('D','negate','idx_y2x',cell(nChunk));
 	
-	progress(nChunk,'label','Processing each chunk','silent',opt.silent);
+	progress('action','init','total',nChunk,'label','Processing each chunk','silent',opt.silent);
 	for kC=1:nChunk
 		chunk	= chunks(kC);
 		

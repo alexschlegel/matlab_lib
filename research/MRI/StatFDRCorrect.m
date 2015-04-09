@@ -23,8 +23,10 @@ function strPathPCorr = StatFDRCorrect(strPathP,varargin)
 % Out:
 % 	strPathCorr	- the path to the FDR-corrected p-values
 % 
-% Updated: 2011-03-25
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'dependent'	, false	, ...
 		'invert'	, []	, ...
@@ -74,7 +76,7 @@ reFSL	= '(_vox_p_)|(_tfce_p_)';
 	cPathDoOut	= strPathPCorr(bDo);
 	cPathDoMask	= cPathMask(bDo);
 	
-	progress(nDo,'label','FDR-correcting p values','silent',opt.silent);
+	progress('action','init','total',nDo,'label','FDR-correcting p values','silent',opt.silent);
 	for kP=1:nDo
 		%load the p values
 			nii	= NIfTIRead(cPathDoIn{kP});

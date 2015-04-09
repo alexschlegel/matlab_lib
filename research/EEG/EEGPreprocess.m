@@ -55,8 +55,10 @@ function hdr = EEGPreprocess(strPathEEG,varargin)
 %			preprocessed data.  if events are processed the status channel is
 %			also deleted from the preprocessed data
 % 
-% Updated: 2015-01-02
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the optional arguments
 	[cChannelProc,opt]	= ParseArgs(varargin,[],...
@@ -254,7 +256,7 @@ status(['Preprocessing EEG file ' strFile],'silent',opt.silent);
 %preprocess each channel and save it to t
 	nChannelProc	= numel(kChannelProc);
 	
-	progress(nChannelProc,'label',['Preprocessing data channels in ' strFile],'silent',opt.silent);
+	progress('action','init','total',nChannelProc,'label',['Preprocessing data channels in ' strFile],'silent',opt.silent);
 	status('preprocessing channels','noffset',1,'silent',opt.silent);
 	
 	%output sampling rate status message

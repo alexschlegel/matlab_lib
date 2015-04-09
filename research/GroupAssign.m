@@ -19,8 +19,8 @@ function GroupAssign(c,varargin)
 %		attempts:	(1000) the number of randomized attempts to make to assign
 %					groups with matching traits
 % 
-% Updated: 2012-12-17
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -70,7 +70,7 @@ nTrait	= numel(cTrait);
 	kGroup		= cell(opt.attempts,nGroup);
 	pTraitDiff	= NaN(opt.attempts,nTrait);
 	
-	progress(opt.attempts,'label','Random Group Assignment');
+	progress('action','init','total',opt.attempts,'label','Random Group Assignment');
 	for kA=1:opt.attempts
 		kSubject	= (1:nSubject)';
 		kNumGroup	= NaN(nSubject,1);

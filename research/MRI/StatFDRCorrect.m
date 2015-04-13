@@ -23,7 +23,7 @@ function strPathPCorr = StatFDRCorrect(strPathP,varargin)
 % Out:
 % 	strPathCorr	- the path to the FDR-corrected p-values
 % 
-% Updated: 2015-04-08
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -79,8 +79,8 @@ reFSL	= '(_vox_p_)|(_tfce_p_)';
 	progress('action','init','total',nDo,'label','FDR-correcting p values','silent',opt.silent);
 	for kP=1:nDo
 		%load the p values
-			nii	= NIfTIRead(cPathDoIn{kP});
-			p	= nii.data;
+			nii	= NIfTI.Read(cPathDoIn{kP});
+			p	= double(nii.data);
 		%invert the p values
 			bInvert	= notfalse(opt.invert) || (isempty(opt.invert) & ~isempty(regexp(cPathDoIn{kP},reFSL)));
 			if bInvert
@@ -88,7 +88,7 @@ reFSL	= '(_vox_p_)|(_tfce_p_)';
 			end
 		%load the mask
 			if ~isempty(cPathDoMask{kP})
-				m	= logical(getfield(NIfTIRead(cPathDoMask{kP}),'data'));
+				m	= logical(NIfTI.Read(cPathDoMask{kP},'return','data'));
 			else
 				m	= [];
 			end
@@ -100,7 +100,7 @@ reFSL	= '(_vox_p_)|(_tfce_p_)';
 			end
 		%save the corrected p values
 			nii.data	= pCorr;
-			NIfTIWrite(nii,cPathDoOut{kP});
+			NIfTI.Write(nii,cPathDoOut{kP});
 		
 		progress;
 	end

@@ -23,8 +23,10 @@ function [bSuccess,cPathGM] = FreeSurferMaskGM(cDirSubject,varargin)
 %				  created
 %	cPathGM		- path/cell of paths to the gray matter masks
 % 
-% Updated: 2012-07-02
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'output'		, []		, ...
 		'cerebellum'	, true		, ...
@@ -87,7 +89,7 @@ function b = MaskOne(strDirSubject,strPathGM)
 			return;
 		end
 	%extract the gray matter
-		nii	= NIfTIRead(strPathLabelNII);
+		nii	= NIfTI.Read(strPathLabelNII);
 		
 		if opt.cerebellum
 			nii.data	= nii.data>=11000 | ismember(nii.data,[8 47]);
@@ -95,7 +97,7 @@ function b = MaskOne(strDirSubject,strPathGM)
 			nii.data	= nii.data>=11000;
 		end
 		
-		NIfTIWrite(nii,strPathGM);
+		NIfTI.Write(nii,strPathGM);
 	%grow
 		if opt.grow~=0
 			b	= MRIMaskGrow(strPathGM,opt.grow,'output',strPathGM,'silent',opt.silent);

@@ -1,21 +1,21 @@
-function m = NIfTIMaskMean(nii,msk)
-% NIfTIMaskMean
+function m = MaskMean(nii,msk)
+% NIfTI.MaskMean
 % 
 % Description:	get the mean value of a NIfTI data set within a mask
 % 
-% Syntax:	m = NIfTIMaskMean(nii,msk)
+% Syntax:	m = NIfTI.MaskMean(nii,msk)
 % 
 % In:
-% 	nii	- the path to a NIfTI file, a NIfTI struct loaded with NIfTIRead, or
+% 	nii	- the path to a NIfTI file, a NIfTI struct loaded with NIfTI.Read, or
 %		  a 3d or 4d array
 %	msk	- the path to a NIfTI mask file, a NIfTI mask struct loaded with
-%		  NIfTIRead, or a 3d logical array
+%		  NIfTI.Read, or a 3d logical array
 % 
 % Out:
 % 	m	- an Nx1 array of the mean value at each volume of nii
 % 
-% Updated: 2012-04-12
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -54,7 +54,7 @@ function m = NIfTIMaskMean(nii,msk)
 function nii = GetData(nii)
 	switch class(nii)
 		case 'char'
-			nii	= getfield(NIfTIRead(nii),'data');
+			nii	= NIfTI.Read(nii,'return','data');
 		case 'struct'
 			nii	= nii.data;
 		otherwise

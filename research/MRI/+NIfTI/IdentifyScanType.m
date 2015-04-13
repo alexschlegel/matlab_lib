@@ -1,10 +1,10 @@
-function strType = NIfTIIdentifyScanType(strPathData)
-% NIfTIIdentifyScanType
+function strType = IdentifyScanType(strPathData)
+% NIfTI.IdentifyScanType
 % 
 % Description:	attempt to identify the scan type of a NIfTI (Analyze) formatted
 %				data file
 % 
-% Syntax:	strType = NIfTIIdentifyScanType(strPathData)
+% Syntax:	strType = NIfTI.IdentifyScanType(strPathData)
 % 
 % In:
 % 	strPathData	- path to the data file to identify
@@ -21,8 +21,10 @@ function strType = NIfTIIdentifyScanType(strPathData)
 %
 %			DTI file recognition is not implemented
 % 
-% Updated:	2010-02-25
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %make sure the file is valid
 	if ~exist(strPathData,'file')

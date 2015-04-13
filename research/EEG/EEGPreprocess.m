@@ -28,21 +28,21 @@ function hdr = EEGPreprocess(strPathEEG,varargin)
 %							of the specified event
 %		crop_end_event:		(<none>) keep everything before the last occurrence
 %							of the specified event
-%		hp_stop:		(0.016) the FFT high pass filter stop frequency, in Hz.
-%						specify false to skip highpass filtering
-%		hp_pass:		(0.032) the FFT high pass filter pass frequency, in Hz.
-%						specify false to skip highpass filtering
-%		lp_cutoff:		(70) the low pass filter cutoff frequency, in Hz.
-%						specify false to skip lowpass filtering
-%		session_date:	(<from hdr>) the session date as milliseconds from the
-%						epoch, for determining the scheme to use
-%		rate:			(<input rate>) the output sampling rate, in Hz
-%		close:			(true) true to close the output data file (fid is in
-%						hdr.fid)
-%		nthread:		(1) number of threads to use
-%		force:			(false) true to force preprocessing again if
-%						preprocessed data already exists
-%		silent:			(false) true to suppress status output
+%		hp_stop:			(0.016) the FFT high pass filter stop frequency, in Hz.
+%							specify false to skip highpass filtering
+%		hp_pass:			(0.032) the FFT high pass filter pass frequency, in
+%							Hz. set to false to skip highpass filtering.
+%		lp_cutoff:			(70) the low pass filter cutoff frequency, in Hz.
+%							specify false to skip lowpass filtering
+%		session_date:		(<from hdr>) the session date as milliseconds from
+%							the epoch, for determining the scheme to use
+%		rate:				(<input rate>) the output sampling rate, in Hz
+%		close:				(true) true to close the output data file (fid is in
+%							hdr.fid)
+%		nthread:			(1) number of threads to use
+%		force:				(false) true to force preprocessing again if
+%							preprocessed data already exists
+%		silent:				(false) true to suppress status output
 % 
 % Out:
 % 	hdr	- a struct of header info about the preprocessed data, or a cell of such

@@ -1,13 +1,13 @@
-function [bSuccess,cPathOut] = NIfTIApplyMask(cPathIn,cPathMask,varargin)
-% NIfTIApplyMask
+function [bSuccess,cPathOut] = ApplyMask(cPathIn,cPathMask,varargin)
+% NIfTI.ApplyMask
 % 
 % Description:	apply a mask to a NIfTI data file
 % 
-% Syntax:	[bSuccess,cPathOut] = NIfTIApplyMask(cPathIn,cPathMask,<options>)
+% Syntax:	[bSuccess,cPathOut] = NIfTI.ApplyMask(cPathIn,cPathMask,<options>)
 % 
 % In:
 % 	cPathIn		- the path to a NIfTI file, or a cell of paths
-%	cPathMask	- the path to a NifTI mask file, or a cell of paths
+%	cPathMask	- the path to a NIfTI mask file, or a cell of paths
 %	<options>:
 %		output:		(<in>-masked.nii.gz) the path/cell of paths to the output
 %					file(s)
@@ -20,8 +20,8 @@ function [bSuccess,cPathOut] = NIfTIApplyMask(cPathIn,cPathMask,varargin)
 %				  masked
 %	cPathOut	- the output path/cell of output paths
 % 
-% Updated: 2012-03-17
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -72,8 +72,8 @@ function b = MaskOne(strPathIn,strPathMask,strPathOut)
 	
 	try
 		%load the data
-			nii		= NIfTIRead(strPathIn);
-			niiMask	= NIfTIRead(strPathMask);
+			nii		= NIfTI.Read(strPathIn);
+			niiMask	= NIfTI.Read(strPathMask);
 		%get size info
 			sNII		= size(nii.data);
 			sNIIMask	= size(niiMask.data);
@@ -88,7 +88,7 @@ function b = MaskOne(strPathIn,strPathMask,strPathOut)
 				
 				nii.data(~m)	= NaN;
 			%save the masked data
-				NIfTIWrite(nii,strPathOut);
+				NIfTI.Write(nii,strPathOut);
 		end
 		
 		b	= true;

@@ -1,10 +1,10 @@
-function strSession = NIfTIIdentifySession(strPathData,varargin)
-% NIfTIIdentifySession
+function strSession = IdentifySession(strPathData,varargin)
+% NIfTI.IdentifySession
 % 
 % Description:	attempt to identify the session code of a NIfTI (Analyze)
 %				formatted data file
 % 
-% Syntax:	strSession = NIfTIIdentifySession(strPathData,[bConsiderDir]=true,[bConsiderFileName]=true,[bConsiderDesc]=true)
+% Syntax:	strSession = NIfTI.IdentifySession(strPathData,[bConsiderDir]=true,[bConsiderFileName]=true,[bConsiderDesc]=true)
 % 
 % In:
 % 	strPathData			- path to the data file to identify
@@ -23,8 +23,10 @@ function strSession = NIfTIIdentifySession(strPathData,varargin)
 %			directory chain or closer to the beginning of the file name
 %			and description strings are given precedence.
 % 
-% Updated:	2010-02-25
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [bConsiderDir,bConsiderFileName,bConsiderDesc]	= ParseArgs(varargin,true,true,true);
 
 %parameters

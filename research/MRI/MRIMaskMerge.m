@@ -25,8 +25,10 @@ function bSuccess = MRIMaskMerge(cPathMask,strPathOut,varargin)
 % Out:
 % 	bSuccess	- true if the masks were sucessfully merged
 % 
-% Updated: 2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'method'	, 'or'	, ...
 		'force'		, true	, ...
@@ -86,7 +88,7 @@ if opt.force || ~FileExists(strPathOut)
 	else
 	%multiple masks
 		%load the masks
-			nii		= cellfun(@NIfTIRead,cPathMask,'UniformOutput',false);
+			nii		= cellfun(@NIfTI.Read,cPathMask,'UniformOutput',false);
 			niiMask	= nii{1};
 			nii		= cellfun(@(x) getfield(x,'data'),nii,'UniformOutput',false);
 		%merge
@@ -94,7 +96,7 @@ if opt.force || ~FileExists(strPathOut)
 		
 			clear nii;
 		%save the merged mask
-			NIfTIWrite(niiMask,strPathOut);
+			NIfTI.Write(niiMask,strPathOut);
 	end
 end
 

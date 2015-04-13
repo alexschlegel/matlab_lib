@@ -28,8 +28,10 @@ function [nii,sLabel] = MRIMaskTalairach(cROI,varargin)
 %	sLabel	- a struct of info about Talairach labels, to save time for future
 %			  calls to MRIMaskTalairach 
 % 
-% Updated: 2011-02-23
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'space'		, 'MNI152_T1_1mm'	, ...
 		'output'	, []				, ...
@@ -43,7 +45,7 @@ nROI	= numel(cROI);
 	if ischar(opt.space)
 		switch lower(opt.space)
 			case {'mni152_t1_1mm','avg152t1','fmrib58_fa'}
-				niiOutputSpace	= NIfTIRead(FSLPathMNIAnatomical('type',opt.space)); 
+				niiOutputSpace	= NIfTI.Read(FSLPathMNIAnatomical('type',opt.space)); 
 			otherwise
 				error(['"' opt.space '" is not a recognized output space.']);
 		end
@@ -57,7 +59,7 @@ nROI	= numel(cROI);
 		sLabel		= load('label_talairach');
 		
 		strPathAtlas	= FSLPathAtlas('talairach_1mm');
-		sLabel.nii		= NIfTIRead(strPathAtlas);
+		sLabel.nii		= NIfTI.Read(strPathAtlas);
 	else
 	%Talairach atlas info was previously loaded
 		sLabel	= opt.slabel;
@@ -71,8 +73,8 @@ nROI	= numel(cROI);
 	nii.data	= ismember(nii.data,cLabel);
 
 %reorient the mask
-	if ~NIfTISameSpace(nii,niiOutputSpace)
-		nii	= NIfTIReorient(nii,niiOutputSpace);
+	if ~NIfTI.SameSpace(nii,niiOutputSpace)
+		nii	= NIfTI.Reorient(nii,niiOutputSpace);
 	end
 %get the output path
 	bSave	= ~isempty(opt.output);
@@ -82,7 +84,7 @@ nROI	= numel(cROI);
 	end
 %save the mask
 	if bSave
-		NIfTIWrite(nii,opt.output);
+		NIfTI.Write(nii,opt.output);
 		nii	= opt.output;
 	end
 

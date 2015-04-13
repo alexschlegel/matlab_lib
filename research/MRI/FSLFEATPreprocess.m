@@ -66,7 +66,7 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %	tr			- the TR of each processed data file
 %	cDirFEAT	- the path/cell of paths to preprocessing feat directories
 % 
-% Updated: 2015-03-15
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -165,7 +165,7 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strPathOut,opt)
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
 	
-	[tr,sNIfTI]	= NIfTIGetTiming(strPathData);
+	[tr,sNIfTI]	= NIfTI.GetTiming(strPathData);
 	
 	%temporary directory so we're not left with a bunch of crap
 		strDirTemp	= GetTempDir;

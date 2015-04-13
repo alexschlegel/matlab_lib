@@ -1,13 +1,13 @@
-function strPathMAT = NIfTIPathMAT(strPathData)
-% NIfTIPathMAT
+function strPathMAT = PathMAT(strPathData)
+% NIfTI.PathMAT
 % 
 % Description:	get the path to a .mat file associated with a NIfTI file (if the
 %				file was converted with PARREC2NIfTI)
 % 
-% Syntax:	strPathMAT = NIfTIPathMAT(strPathData)
+% Syntax:	strPathMAT = NIfTI.PathMAT(strPathData)
 % 
-% Updated: 2013-10-20
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 

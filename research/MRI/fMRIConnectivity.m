@@ -8,11 +8,11 @@ function [z,kPair] = MRIConnectivity(nii,varargin)
 % 
 % In:
 % 	nii		- the path to a functional NIfTI file, a functional NIfTI struct
-%			  loaded with NIfTIRead, or a 4d array
+%			  loaded with NIfTI.Read, or a 4d array
 %	msk1	- the path to a NIfTI mask file, a NIfTI mask struct loaded with
-%			  NIfTIRead, or a 3d logical array representing the first mask
+%			  NIfTI.Read, or a 3d logical array representing the first mask
 %	msk2	- the path to a NIfTI mask file, a NIfTI mask struct loaded with
-%			  NIfTIRead, or a 3d logical array representing the second mask
+%			  NIfTI.Read, or a 3d logical array representing the second mask
 %	cMask	- a cell of masks as described above, in which case the connectivity
 %			  is calculated between each pair
 %	<options>:
@@ -32,8 +32,8 @@ function [z,kPair] = MRIConnectivity(nii,varargin)
 %	kPair	- an nMaskPair x 2 array of the indices of the masks associated with
 %			  each connectivity row
 % 
-% Updated: 2013-02-05
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -56,7 +56,7 @@ function [z,kPair] = MRIConnectivity(nii,varargin)
 	nii		= GetData(nii);
 	cMask	= cellfun(@(m) logical(GetData(m)),cMask,'UniformOutput',false);
 %get the mean timecourses
-	dMask	= cellfun(@(m) NIfTIMaskMean(nii,m),cMask,'UniformOutput',false);
+	dMask	= cellfun(@(m) NIfTI.MaskMean(nii,m),cMask,'UniformOutput',false);
 %parse the events
 	if isempty(opt.event)
 		opt.event	= [1 size(nii,4)];
@@ -108,7 +108,7 @@ function [z,kPair] = MRIConnectivity(nii,varargin)
 function nii = GetData(nii)
 	switch class(nii)
 		case 'char'
-			nii	= getfield(NIfTIRead(nii),'data');
+			nii	= NIfTI.Read(nii,'return','data');
 		case 'struct'
 			nii	= nii.data;
 		otherwise

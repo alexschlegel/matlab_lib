@@ -1,9 +1,9 @@
-function cPathOut = NIfTISaveSampleImages(strPathNII,varargin)
-% NIfTISaveSampleImages
+function cPathOut = SaveSampleImages(strPathNII,varargin)
+% NIfTI.SaveSampleImages
 % 
 % Description:	save some sample images from a NIfTI data set
 % 
-% Syntax:	cPathOut = NIfTISaveSampleImages(strPathNII,[strDirOut]=<same dir>,[strSession]=<find>,<options>)
+% Syntax:	cPathOut = NIfTI.SaveSampleImages(strPathNII,[strDirOut]=<same dir>,[strSession]=<find>,<options>)
 % 
 % In:
 % 	strPathNII		- the path to a NIfTI file
@@ -20,8 +20,10 @@ function cPathOut = NIfTISaveSampleImages(strPathNII,varargin)
 % Out:
 % 	cPathOut	- a cell of output image file paths
 % 
-% Updated: 2012-02-15
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [strDirOut,strSession,opt]	= ParseArgs(varargin,'',[],...
 	'bound'			, 1/4			, ...
 	'output_box'	, [1600 1600]	, ...
@@ -74,7 +76,7 @@ cPlaneName	= {'sag','cor','axi'};
 %get the output paths
 	kNum	= repmat((1:nPerPlane)',[3 1]);
 	
-	mOrient		= NIfTIImageGridOrientation(strPathNII);
+	mOrient		= NIfTI.ImageGridOrientation(strPathNII);
 	cPlaneName	= cPlaneName([find(mOrient(1,:)) find(mOrient(2,:)) find(mOrient(3,:))]);
 	cPlaneName	= [repmat(cPlaneName(1),[nPerPlane 1]); repmat(cPlaneName(2),[nPerPlane 1]); repmat(cPlaneName(3),[nPerPlane 1])]; 
 	
@@ -92,7 +94,7 @@ cPlaneName	= {'sag','cor','axi'};
 	end
 
 %load the file
-	nii	= NIfTIRead(strPathNII);
+	nii	= NIfTI.Read(strPathNII);
 %get the images
 	sData	= size(nii.data);
 	fPos	= GetInterval(opt.bound,1-opt.bound,nPerPlane)';

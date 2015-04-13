@@ -26,8 +26,10 @@ function b = MRIMaskCrop(x,f,varargin)
 % 	bSuccess	- true if the mask was successfully created
 %	b			- the cropped mask array
 % 
-% Updated: 2011-03-03
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 switch class(x)
 	case 'char'
@@ -51,11 +53,11 @@ switch class(x)
 		if opt.force || ~FileExists(strPathOut)
 			try
 				%load the mask
-					nii	= NIfTIRead(strPathIn);
+					nii	= NIfTI.Read(strPathIn);
 				%crop it
 					nii.data	= DoCrop(nii.data);
 				%save the inverse
-					NIfTIWrite(nii,strPathOut);
+					NIfTI.Write(nii,strPathOut);
 			catch me
 				status(['Could not crop the mask "' strPathOut '".'],'warning',true,'silent',opt.silent);
 				return;

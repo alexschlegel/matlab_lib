@@ -25,7 +25,7 @@ function nii = MRIMaskBrodmann(kArea,varargin)
 %							Talairach template stored in MNI space
 %						strPathTemplate: the path to a Brodmann template (a 3D
 %							NIfTI file storing Brodmann labels)
-%						nii: a 3D NIfTI object loaded with NIfTIRead and storing
+%						nii: a 3D NIfTI object loaded with NIfTI.Read and storing
 %							Brodmann labels
 %		output:		(<none>) the output path for the mask.  either a file name
 %					or the directory if the default file name should be used
@@ -36,8 +36,10 @@ function nii = MRIMaskBrodmann(kArea,varargin)
 %
 % Assumptions:	assumes the input template is not aligned obliquely
 % 
-% Updated: 2011-02-23
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'hemisphere'	, 'both'			, ...
 		'fraction'		, [0 0 0; 1 1 1]	, ...
@@ -50,7 +52,7 @@ opt	= ParseArgs(varargin,...
 	if ischar(opt.space)
 		strPathMNI	= FSLPathMNIAnatomical('type',opt.space);
 		if ~isempty(strPathMNI)
-			niiOutputSpace	= NIfTIRead(strPathMNI);
+			niiOutputSpace	= NIfTI.Read(strPathMNI);
 		else
 			error(['"' opt.space '" is not a recognized output space.']);
 		end
@@ -65,14 +67,14 @@ opt	= ParseArgs(varargin,...
 			switch lower(opt.input)
 				case 'fsl_talairach'
 					strPathFSLMNI	= FSLPathMNIAnatomical('type','MNI152_T1_1mm');
-					niiBA			= NIfTIRead(strPathFSLMNI);
+					niiBA			= NIfTI.Read(strPathFSLMNI);
 					bFSLTalairach	= true;
 				case 'mricron'
 					strPathMRIcronBA	= PathUnsplit(DirAppend(GetDirMRIcron,'templates'),'brodmann','nii.gz');
-					niiBA				= NIfTIRead(strPathMRIcronBA);
+					niiBA				= NIfTI.Read(strPathMRIcronBA);
 				otherwise
 					if FileExists(opt.input)
-						niiBA	= NIfTIRead(opt.input);
+						niiBA	= NIfTI.Read(opt.input);
 					else
 						error('Specified Brodmann template is not recognized.');
 					end
@@ -83,7 +85,7 @@ opt	= ParseArgs(varargin,...
 			error('Specified Brodmann template is not recognized.');
 	end
 %get the coordinate directions
-	mOrient		= NIfTIImageGridOrientation(niiBA);
+	mOrient		= NIfTI.ImageGridOrientation(niiBA);
 	kDirection	= arrayfun(@(x) find(mOrient(:,x)),1:3);
 	dDirection	= arrayfun(@(x,y) mOrient(x,y),kDirection,1:3);
 	
@@ -166,8 +168,8 @@ opt	= ParseArgs(varargin,...
 		end
 	end
 %reorient the mask
-	if ~NIfTISameSpace(nii,niiOutputSpace)
-		nii	= NIfTIReorient(nii,niiOutputSpace);
+	if ~NIfTI.SameSpace(nii,niiOutputSpace)
+		nii	= NIfTI.Reorient(nii,niiOutputSpace);
 	end
 %get the output path
 	bSave	= ~isempty(opt.output);
@@ -176,7 +178,7 @@ opt	= ParseArgs(varargin,...
 	end
 %save the mask
 	if bSave
-		NIfTIWrite(nii,opt.output);
+		NIfTI.Write(nii,opt.output);
 		nii	= opt.output;
 	end
 

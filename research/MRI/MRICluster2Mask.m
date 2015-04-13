@@ -13,8 +13,8 @@ function varargout = MRICluster2Mask(varargin)
 % Out:
 % 	strPathMask	- the output mask path
 % 
-% Updated: 2012-04-02
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 	gui_Singleton = 1;
@@ -812,11 +812,11 @@ function handles = SetAnat(handles,strPathAnat,bDraw)
 	
 	set(handles.edtPathAnatomy,'String',handles.strPathAnat);
 	
-	handles.anat		= NIfTIRead(handles.strPathAnat);
-	handles.anat.data	= 1+uint8(round(254*normalize(handles.anat.data)));
+	handles.anat		= NIfTI.Read(handles.strPathAnat);
+	handles.anat.data	= 1+uint8(round(254*normalize(double(handles.anat.data))));
 	
 	%get the image grid orientation
-		mOrient	= NIfTIImageGridOrientation(handles.anat);
+		mOrient	= NIfTI.ImageGridOrientation(handles.anat);
 	%make it go r->l, p->a, s->i
 		mOrient(:,1)	= -mOrient(:,1);
 		mOrient(:,3)	= -mOrient(:,3);
@@ -840,7 +840,8 @@ function handles = SetStat(handles,strPathStat,bDraw)
 	
 	set(handles.edtPathStatistic,'String',handles.strPathStat);
 	
-	handles.stat	= NIfTIRead(handles.strPathStat);
+	handles.stat		= NIfTI.Read(handles.strPathStat);
+	handles.stat.data	= double(handles.stat.data);
 	
 	handles	= SetThreshold(handles,[],[],bDraw);
 %------------------------------------------------------------------------------%
@@ -856,7 +857,7 @@ function b = SaveMask(handles)
 		nii			= handles.anat;
 		nii.data	= handles.selected;
 		
-		NIfTIWrite(nii,handles.strPathMask);
+		NIfTI.Write(nii,handles.strPathMask);
 		
 		b	= true;
 	end

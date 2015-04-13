@@ -1,9 +1,9 @@
-function varargout = NIfTIImageGridOrientation(nii)
-% NIfTIImageGridOrientation
+function varargout = ImageGridOrientation(nii)
+% NIfTI.ImageGridOrientation
 % 
 % Description:	determine the orientation of the image grid in a NIfTI file 
 % 
-% Syntax:	[mOrient] = NIfTIImageGridOrientation(nii)
+% Syntax:	[mOrient] = NIfTI.ImageGridOrientation(nii)
 % 
 % In:
 % 	nii	- either a NIfTI object or a path to a NIfTI file 
@@ -23,8 +23,10 @@ function varargout = NIfTIImageGridOrientation(nii)
 % Assumptions:	assumes SPM8 is installed and the NIfTI data are not aligned
 %				obliquely
 % 
-% Updated: 2010-12-10
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %get a NIfTI object
 	switch class(nii)
@@ -36,7 +38,7 @@ function varargout = NIfTIImageGridOrientation(nii)
 			elseif ~bGZip
 				nii	= nifti(nii);
 			else
-				nii	= NIfTIRead(nii);
+				nii	= NIfTI.Read(nii,'method','spm');
 			end
 		case {'nifti','struct'}
 		otherwise

@@ -42,7 +42,7 @@ function d = fmri(varargin)
 % Out:
 % 	d	- a struct of simulated data and associated information
 % 
-% Updated: 2015-02-28
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -195,11 +195,11 @@ function d = SaveData(d)
 		end
 	
 	%make the NII struct
-		nii	= make_nii(data);
+		nii	= NIfTI.Create(data);
 	
 	%save it
 		d.path.data	= PathUnsplit(d.param.output_dir,d.param.subject,'nii.gz');
-		NIfTIWrite(nii,d.path.data);
+		NIfTI.Write(nii,d.path.data);
 %------------------------------------------------------------------------------%
 function d = SaveAttributes(d)
 	d.path.attr	= PathUnsplit(d.param.output_dir,d.param.subject,'attr');

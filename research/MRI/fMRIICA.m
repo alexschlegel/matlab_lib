@@ -6,7 +6,7 @@ function [icaComp,icaWeight] = fMRIICA(nii,varargin)
 % Syntax:	[icaComp,icaWeight] = fMRIICA(nii,<options>)
 % 
 % In:
-% 	nii	- the path to a NIfTI file, a NIfTI struct loaded with NIfTIRead, a
+% 	nii	- the path to a NIfTI file, a NIfTI struct loaded with NIfTI.Read, a
 %		  4D data set, or a cell of the above
 %	<options>:
 %		components:	(25) the number of PCA/ICA components to compute
@@ -28,8 +28,8 @@ function [icaComp,icaWeight] = fMRIICA(nii,varargin)
 %				  of such)
 %	icaWeight	- a 4D array of the weights for each component (or a cell...)
 % 
-% Updated: 2014-01-25
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -66,8 +66,8 @@ function [icaComp, icaWeight] = ComputeICA(nii,msk,t,strPrefixOut)
 	
 	if ~opt.force && FileExists(cPathICAComp) && FileExists(strPathICAWeight)
 	%already done. just load the results.
-		icaComp		= permute(getfield(NIfTIRead(strPathICACop),'data'),[4 1 2 3]);
-		icaWeight	= getfield(NIfTIRead(strPathICAWeight),'data');
+		icaComp		= permute(NIfTI.Read(strPathICAComp,'return','data'),[4 1 2 3]);
+		icaWeight	= NIfTI.Read(strPathICAWeight,'return','data');
 		
 		return;
 	end
@@ -99,32 +99,32 @@ function [icaComp, icaWeight] = ComputeICA(nii,msk,t,strPrefixOut)
 			
 			
 			%nComponent x 1 x 1 x nSample
-			niiComp	= make_nii(permute(icaComp,[2 3 4 1]));
-			NIfTIWrite(niiComp,strPathICAComp);
+			niiComp	= NIfTI.Create(permute(icaComp,[2 3 4 1]));
+			NIfTI.Write(niiComp,strPathICAComp);
 			
 			niiWeight		= niis;
 			niiWeight.data	= icaWeight;
-			NIfTIWrite(niiWeight,strPathICAWeight);
+			NIfTI.Write(niiWeight,strPathICAWeight);
 		end
 end
 %------------------------------------------------------------------------------%
 function [nii,sz,niis] = GetData(nii)
 	switch class(nii)
 		case 'char'
-			niis	= NIfTIRead(nii);
+			niis	= NIfTI.Read(nii);
 			nii		= niis.data;
 			niis	= rmfield(niis,'data');
 		case 'struct'
 			niis	= rmfield(nii,'data');
 			nii		= nii.data;
 		otherwise
-			niis	= rmfield(make_nii(nii),'data');
+			niis	= rmfield(NIfTI.Create(nii),'data');
 	end
 	
 	%reshape to nSample x nVoxel
 		sz	= size(nii);
 		nT	= size(nii,4);
-		nii	= reshape(permute(nii, [4 1 2 3]),nT,[]);
+		nii	= double(reshape(permute(nii, [4 1 2 3]),nT,[]));
 end
 %------------------------------------------------------------------------------%
 

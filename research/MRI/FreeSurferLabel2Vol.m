@@ -35,8 +35,10 @@ function [bSuccess,strPathOut] = FreeSurferLabel2Vol(cPathLabel,varargin)
 % 	bSuccess	- true if the conversion was successful
 %	strPathOut	- the output mask volume path
 % 
-% Updated: 2011-03-02
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess	= false;
 
 %parse inputs based on the call type
@@ -115,9 +117,9 @@ bSuccess	= false;
 			end
 		%binarize the volume if multiple labels were specified
 			if nLabel>1
-				nii			= NIfTIRead(strPathOut);
+				nii			= NIfTI.Read(strPathOut);
 				nii.data	= nii.data>0;
-				NIfTIWrite(nii,strPathOut);
+				NIfTI.Write(nii,strPathOut);
 			end
 		%transform to the output space
 			if ~isempty(opt.xfm)
@@ -138,9 +140,10 @@ bSuccess	= false;
 								'silent'	, opt.silent	  ...
 								);
 						%threshold the mask
-							nii			= NIfTIRead(strPathOut);
+							nii			= NIfTI.Read(strPathOut);
+							nii.data	= double(nii.data);
 							nii.data	= reshape(im2bw(nii.data(:),graythresh(nii.data)),size(nii.data));
-							NIfTIWrite(nii,strPathOut);
+							NIfTI.Write(nii,strPathOut);
 					otherwise
 						error(['"' tostring(opt.xfm) '" is not a recognized transform.']);
 				end

@@ -22,8 +22,10 @@ function [bSuccess,cPathVentricle] = FreeSurferMaskVentricle(cDirSubject,varargi
 %					  created
 %	cPathVentricle	- path/cell of paths to the ventricle masks
 % 
-% Updated: 2012-07-03
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'output'		, []		, ...
 		'grow'			, 0			, ...
@@ -85,12 +87,12 @@ function b = MaskOne(strDirSubject,strPathVentricle)
 			return;
 		end
 	%extract the ventricles
-		nii	= NIfTIRead(strPathLabelNII);
+		nii	= NIfTI.Read(strPathLabelNII);
 		
 		kVentricle	= [4 5 14 15 43 44 72 75 76 213];
 		nii.data	= ismember(nii.data,kVentricle);
 		
-		NIfTIWrite(nii,strPathVentricle);
+		NIfTI.Write(nii,strPathVentricle);
 	%grow
 		if opt.grow~=0
 			b	= MRIMaskGrow(strPathVentricle,opt.grow,'output',strPathVentricle,'silent',opt.silent);

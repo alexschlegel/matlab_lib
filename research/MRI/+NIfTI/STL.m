@@ -1,12 +1,13 @@
-function [stl,strPathSTL,isoval] = NIfTI2STL(nii,varargin)
-% NIfTI2STL
+function [stl,strPathSTL,isoval] = STL(nii,varargin)
+% NIfTI.STL
 % 
 % Description:	create an STL of an isosurface of the specified NIfTI data
 % 
-% Syntax:	[stl,strPathSTL,isoval] = NIfTI2STL(nii,[isoval]=<auto>,<options>)
+% Syntax:	[stl,strPathSTL,isoval] = NIfTI.STL(nii,[isoval]=<auto>,<options>)
 % 
 % In:
-% 	nii			- a NIfTI struct loaded with NIfTIRead or the path to a NIfTI file
+% 	nii			- a NIfTI struct loaded with NIfTI.Read or the path to a NIfTI
+%				  file
 %	[isoval]	- the isosurface value
 %	<options>:
 %		prefix:	(<filepre>) the prefix of the STL name
@@ -19,8 +20,10 @@ function [stl,strPathSTL,isoval] = NIfTI2STL(nii,varargin)
 %	strPathSTL	- the output STL path, if the STL was saved
 %	isoval		- the isovalue used to create the isosurface
 % 
-% Updated: 2011-03-19
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [isoval,opt]	= ParseArgs(varargin,{},...
 					'prefix'	, []			, ...
 					'mat'		, []			, ...
@@ -32,7 +35,7 @@ function [stl,strPathSTL,isoval] = NIfTI2STL(nii,varargin)
 	if ischar(nii)
 		[strDir,strFilePre,strExt]	= PathSplit(nii,'favor','nii.gz');
 		
-		nii	= NIfTIRead(nii);
+		nii	= NIfTI.Read(nii);
 	else
 		[strDir,strFilePre,strExt]	= PathSplit(nii.orig.dat.fname,'favor','nii.gz');
 	end

@@ -1,5 +1,5 @@
-function cPathEroded = NIfTIMaskErode(cPathMask,varargin)
-% NIfTIMaskErode
+function cPathEroded = MaskErode(cPathMask,varargin)
+% NIfTI.MaskErode
 % 
 % Description:	erode a mask or set of masks as follows:
 %					1) erode the mask until it is at least as small as the
@@ -7,7 +7,7 @@ function cPathEroded = NIfTIMaskErode(cPathMask,varargin)
 %					2) re-add enough random voxels eliminated during the last
 %					   erosion to achieve the desired mask size
 % 
-% Syntax:	cPathEroded = NIfTIMaskErode(cPathMask,[nVoxel]=<auto>,<options>)
+% Syntax:	cPathEroded = NIfTI.MaskErode(cPathMask,[nVoxel]=<auto>,<options>)
 % 
 % In:
 % 	cPathMask	- the path to a mask NIfTI file, or a cell of paths
@@ -27,8 +27,8 @@ function cPathEroded = NIfTIMaskErode(cPathMask,varargin)
 % Out:
 % 	cPathEroded	- the path/cell of paths to the eroded masks
 % 
-% Updated: 2013-06-28
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [nVoxel,opt]	= ParseArgs(varargin,[],...
@@ -74,7 +74,7 @@ function cPathEroded = NIfTIMaskErode(cPathMask,varargin)
 %------------------------------------------------------------------------------%
 function msk = GetMask(x)
 	if ischar(x)
-		msk	= NIfTIRead(x);
+		msk	= NIfTI.Read(x);
 	else
 		msk	= x;
 	end
@@ -107,5 +107,5 @@ function ErodeOne(msk,nVoxel,strPathEroded)
 			msk.data	= d;
 	end
 	
-	NIfTIWrite(msk,strPathEroded);
+	NIfTI.Write(msk,strPathEroded);
 %------------------------------------------------------------------------------%

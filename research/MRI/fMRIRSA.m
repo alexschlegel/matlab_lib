@@ -27,8 +27,8 @@ function [rsa,cOrder] = fMRIRSA(cPathData,C,varargin)
 %	cOrder	- an nCondition x 1 cell specifying the ordering of conditions in
 %			  the RSA matrices
 % 
-% Updated: 2014-04-20
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -78,15 +78,15 @@ end
 %------------------------------------------------------------------------------%
 function rsa = RSAOne(strPathData,c,cPathMask)
 	%load the data
-		d	= getfield(NIfTIRead(strPathData),'data');
+		d	= NIfTI.Read(strPathData,'return','data');
 		
 		nTR		= size(d,4);
 		nVoxel	= numel(d)/nTR;
 		
-		d	= reshape(d,nVoxel,nTR);
+		d	= double(reshape(d,nVoxel,nTR));
 	%load the masks
 		if ~isempty(cPathMask)
-			msk	= cellfun(@(f) reshape(logical(getfield(NIfTIRead(f),'data')),[],1),cPathMask,'uni',false);
+			msk	= cellfun(@(f) reshape(logical(NIfTI.Read(f,'return','data')),[],1),cPathMask,'uni',false);
 		else 
 			msk	= {true(nVoxel,1)};
 		end

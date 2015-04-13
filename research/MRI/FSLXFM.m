@@ -30,8 +30,10 @@ function [bSuccess,strPathOut] = FSLXFM(strPathIn,strPathXFM,strPathRef,varargin
 % 	bSuccess	- true if the transformation was successful
 %	strPathOut	- the path to the output file
 % 
-% Updated: 2011-03-19
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess	= false;
 
 opt	= ParseArgs(varargin,...
@@ -77,7 +79,8 @@ if opt.force || ~FileExists(strPathOut)
 %fix the mask
 	if bMask
 	%load the mask
-		nii	= NIfTIRead(strPathOut);
+		nii			= NIfTI.Read(strPathOut);
+		nii.data	= double(nii.data);
 	%normalize it
 		nii.data	= normalize(nii.data);
 	%apply the threshold
@@ -87,7 +90,7 @@ if opt.force || ~FileExists(strPathOut)
 		
 		nii.data	= reshape(im2bw(nii.data(:),opt.mask_thresh),size(nii.data));
 	%save the mask
-		NIfTIWrite(nii,strPathOut);
+		NIfTI.Write(nii,strPathOut);
 	end
 end
 

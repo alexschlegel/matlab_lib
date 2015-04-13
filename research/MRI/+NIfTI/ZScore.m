@@ -1,9 +1,9 @@
-function [bSuccess,cPathZScore] = NIfTI2ZScore(cPathNII,varargin)
-% NIfTI2ZScore
+function [bSuccess,cPathZScore] = ZScore(cPathNII,varargin)
+% NIfTI.ZScore
 % 
 % Description:	convert NIfTI data to Z-scores
 % 
-% Syntax:	[bSuccess,cPathZScore] = NIfTI2ZScore(cPathNII,<options>)
+% Syntax:	[bSuccess,cPathZScore] = NIfTI.ZScore(cPathNII,<options>)
 % 
 % In:
 % 	cPathNII	- a path to an NIfTI file, or a cell of such
@@ -21,8 +21,10 @@ function [bSuccess,cPathZScore] = NIfTI2ZScore(cPathNII,varargin)
 %				  successfully computed
 %	cPathZScore	- the output Z-score path or cell of paths
 % 
-% Updated: 2011-03-11
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'nonzero'	, true	, ...
 		'output'	, []	, ...
@@ -63,21 +65,22 @@ function bSuccess = NII2ZScore(strPathNII,strPathZScore,bNonZero)
 	
 	try
 		%load the NIfTI data
-			nii	= NIfTIRead(strPathNII,'method','load_nii');
+			nii			= NIfTI.Read(strPathNII);
+			nii.data	= double(nii.data);
 		%only calculate for non-zero NII values
 			if bNonZero
-				b	= ~isnan(nii.img) & nii.img~=0;
+				b	= ~isnan(nii.data) & nii.data~=0;
 			else
-				b	= true(size(nii.img));
+				b	= true(size(nii.data));
 			end
 		%mean of the data
-			m	= mean(nii.img(b));
+			m	= mean(nii.data(b));
 		%standard deviation of data
-			sd	= std(nii.img(b));
+			sd	= std(nii.data(b));
 		%z-score
-			nii.img(b)	= conditional(sd==0,0,(nii.img(b) - m)./sd);
+			nii.data(b)	= conditional(sd==0,0,(nii.data(b) - m)./sd);
 		%write the z-score data
-			NIfTIWrite(nii,strPathZScore);
+			NIfTI.Write(nii,strPathZScore);
 	catch me
 		bSuccess	= false;
 	end

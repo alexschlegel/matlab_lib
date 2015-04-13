@@ -170,7 +170,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % 	res	- if <combine> is selected, then a structtree of analysis results.
 %		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-04-03
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -410,7 +410,7 @@ function param = ParseMaskBalancer(param)
 	if isequal(param.mask_balancer,'erode')
 	%erode the masks to equal size
 		%no need to erode if all masks are already the same size
-			nVoxelMask	= cellfun(@(f) sum(reshape(getfield(NIfTIRead(f),'data'),[],1)),param.path_mask);
+			nVoxelMask	= cellfun(@(f) sum(reshape(NIfTI.Read(f,'return','data'),[],1)),param.path_mask);
 			
 			if uniform(nVoxelMask)
 				return;
@@ -421,7 +421,7 @@ function param = ParseMaskBalancer(param)
 			cPathOut					= cellfun(@(f,e) PathUnsplit(param.dir_out,sprintf('%s-%s-erode',param.name,f),e),cFileMask,cExtMask,'uni',false);
 		
 		%erode
-			param.path_mask	= NIfTIMaskErode(param.path_mask,'output',cPathOut,'silent',true);
+			param.path_mask	= NIfTI.MaskErode(param.path_mask,'output',cPathOut,'silent',true);
 	end
 %------------------------------------------------------------------------------%
 function SaveAttributes(param,kTarget,kChunk)

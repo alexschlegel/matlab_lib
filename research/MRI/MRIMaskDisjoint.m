@@ -21,7 +21,7 @@ function [b,cPathOut] = MRIMaskDisjoint(cPathMask,varargin)
 % 	b			- an array indicating which sets were successfully created
 %	cPathOut	- a cell/cell of cells of output file paths
 % 
-% Updated: 2015-03-23
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -102,7 +102,7 @@ function b = DisjointOne(cPathMask,cPathOut)
 		end
 	
 	%load the input masks
-		msk		= cellfun(@NIfTIRead,cPathMask,'uni',false);
+		msk		= cellfun(@NIfTI.Read,cPathMask,'uni',false);
 		nMask	= numel(msk);
 	
 	%create each output mask
@@ -120,7 +120,7 @@ function b = DisjointOne(cPathMask,cPathOut)
 		end
 	
 	%save the output masks
-		cellfun(@NIfTIWrite,msk,cPathOut);
+		cellfun(@NIfTI.Write,msk,cPathOut);
 	
 	%success!
 		b	= true;

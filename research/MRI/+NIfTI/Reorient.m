@@ -1,9 +1,9 @@
-function nii = NIfTIReorient(niiSource,niiDest,varargin)
-% NIfTIReorient
+function nii = Reorient(niiSource,niiDest,varargin)
+% NIfTI.Reorient
 % 
 % Description:	reorient a NIfTI data set to be in line with another data set
 % 
-% Syntax:	nii = NIfTIReorient(niiSource,niiDest,<options>)
+% Syntax:	nii = NIfTI.Reorient(niiSource,niiDest,<options>)
 % 
 % In:
 % 	niiSource	- the source NIfTI
@@ -14,8 +14,10 @@ function nii = NIfTIReorient(niiSource,niiDest,varargin)
 % Out:
 % 	nii	- niiSource reoriented in the destination space
 % 
-% Updated: 2010-12-10
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'method'	, 'linear'	  ...
 		);

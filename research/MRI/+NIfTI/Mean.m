@@ -1,9 +1,9 @@
-function [b,cPathOut] = NIfTIMean(cPathNII,varargin)
-% NIfTIMean
+function [b,cPathOut] = Mean(cPathNII,varargin)
+% NIfTI.Mean
 % 
 % Description:	construct the temporal mean of a 4D NIfTI data set
 % 
-% Syntax:	[b,cPathOut] = NIfTIMean(cPathNII,[cPathOut]=<auto>,<options>)
+% Syntax:	[b,cPathOut] = NIfTI.Mean(cPathNII,[cPathOut]=<auto>,<options>)
 % 
 % In:
 % 	cPathNII	- the path to a 4D NIfTI file, or a cell of paths
@@ -18,8 +18,8 @@ function [b,cPathOut] = NIfTIMean(cPathNII,varargin)
 %	b			- true if the operation was a success
 %	cPathOut	- the path/cell of paths to the output mean NIfTI file
 % 
-% Updated: 2012-12-04
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [cPathOut,opt]	= ParseArgs(varargin,[],...

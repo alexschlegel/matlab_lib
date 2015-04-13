@@ -19,8 +19,10 @@ function [bSuccess,strPathOut] = MRIMaskGrow(strPathMask,nGrow,varargin)
 % 	bSuccess	- true if the mask was successfully grown
 %	strPathOut	- the output mask path
 % 
-% Updated: 2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess	= false;
 
 opt	= ParseArgs(varargin,...
@@ -34,7 +36,7 @@ strPathOut	= unless(opt.output,PathAddSuffix(strPathMask,['_g(' num2str(nGrow) '
 if opt.force || ~FileExists(strPathOut)
 	try
 		%load the mask
-			nii	= NIfTIRead(strPathMask);
+			nii	= NIfTI.Read(strPathMask);
 		%dilate/erode
 			if nGrow>0
 			%dilate
@@ -48,7 +50,7 @@ if opt.force || ~FileExists(strPathOut)
 				end
 			end
 		%save the mask
-			NIfTIWrite(nii,strPathOut);
+			NIfTI.Write(nii,strPathOut);
 	catch me
 		status('Error while growing the mask.','warning',true,'silent',opt.silent);
 		return;

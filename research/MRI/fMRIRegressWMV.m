@@ -22,8 +22,8 @@ function [bSuccess,cPathOut] = fMRIRegressWMV(cPathData,cDirFEAT,cDirFreeSurfer,
 %				  regressed
 %	cPathOut	- the output path/cell of output paths
 % 
-% Updated: 2012-07-12
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -123,10 +123,10 @@ function b = DoRegress(strPathData,strDirFEAT,strDirFreeSurfer,strPathOut)
 		
 		if ~b;	return;	end
 	%extract and save the mean timecourses
-		nii	= NIfTIRead(strPathData);
+		nii	= NIfTI.Read(strPathData);
 		
-		mWM	= NIfTIMaskMean(nii,strPathWM);
-		mV	= NIfTIMaskMean(nii,strPathV);
+		mWM	= NIfTI.MaskMean(nii,strPathWM);
+		mV	= NIfTI.MaskMean(nii,strPathV);
 		
 		strPathT	= PathAddSuffix(strPathOut,'','dat','favor','nii.gz');
 		

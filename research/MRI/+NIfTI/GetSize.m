@@ -1,11 +1,11 @@
-function s = NIfTIGetSize(strPathNII)
-% NIfTIGetSize
+function s = GetSize(strPathNII)
+% NIfTI.GetSize
 % 
 % Description:	get the size of a NIfTI data set.  requires FSL.
 % 
-% Syntax:	s = NIfTIGetSize(strPathNII)
+% Syntax:	s = NIfTI.GetSize(strPathNII)
 % 
-% Updated: 2015-03-24
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

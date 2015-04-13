@@ -42,8 +42,10 @@ function [bSuccess,strPathMask,strName] = FreeSurferMask(strDirSubject,cLabel,va
 % 
 % Notes:	Crop directions: x:R->L y:S->I z:P->A
 % 
-% Updated: 2011-03-03
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess				= false;
 [strPathMask,strName]	= deal([]);
 
@@ -108,7 +110,7 @@ if opt.force || ~FileExists(strPathMask)
 			return;
 		end
 	%load aseg
-		niiSeg	= NIfTIRead(strPathSeg);
+		niiSeg	= NIfTI.Read(strPathSeg);
 	%OR the individual masks
 		if bCropBefore
 			niiMask			= niiSeg;
@@ -129,7 +131,7 @@ if opt.force || ~FileExists(strPathMask)
 			niiMask.data	= MRIMaskCrop(niiMask.data,opt.crop);
 		end
 	%save the mask
-		NIfTIWrite(niiMask,strPathMask);
+		NIfTI.Write(niiMask,strPathMask);
 	%transform the mask
 		if ~isempty(opt.xfm) && ~FSLXFM(strPathMask,opt.xfm,opt.ref,...
 									'output'	, strPathMask	, ...

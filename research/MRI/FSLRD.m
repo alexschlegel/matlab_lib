@@ -19,8 +19,10 @@ function [bSuccess,cPathRD] = FSLRD(cDirDTI,varargin)
 %					already exists
 %		silent:		(false) true to suppress status messages
 % 
-% Updated: 2011-04-02
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'output'	, []	, ...
 		'nthread'	, 1		, ...
@@ -52,12 +54,12 @@ function b = CalcRD(strDirDTI,strPathOut)
 	end
 	
 	try
-		niiL2	= NIfTIRead(strPathL2);
-		niiL3	= NIfTIRead(strPathL3);
+		niiL2	= NIfTI.Read(strPathL2);
+		niiL3	= NIfTI.Read(strPathL3);
 		
 		niiL2.data	= (niiL2.data + niiL3.data)/2;
 		
-		NIfTIWrite(niiL2,strPathOut);
+		NIfTI.Write(niiL2,strPathOut);
 	catch me
 		return;
 	end

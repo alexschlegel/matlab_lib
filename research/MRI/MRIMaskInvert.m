@@ -17,8 +17,10 @@ function [bSuccess,strPathMaskInv] = MRIMaskInvert(strPathMask,varargin)
 % 	bSuccess		- true if the inverted mask was successfully created
 %	strPathMaskInv	- the path to the inverted mask
 % 
-% Updated: 2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess	= false;
 
 opt	= ParseArgs(varargin,...
@@ -32,11 +34,11 @@ strPathMaskInv	= unless(opt.output,PathAddSuffix(strPathMask,'_inv','favor','nii
 if opt.force || ~FileExists(strPathMaskInv)
 	try
 		%load the mask
-			nii	= NIfTIRead(strPathMask);
+			nii	= NIfTI.Read(strPathMask);
 		%invert it
 			nii.data	= ~logical(nii.data);
 		%save the inverse
-			NIfTIWrite(nii,strPathMaskInv);
+			NIfTI.Write(nii,strPathMaskInv);
 	catch me
 		status('Error while inverting the mask.','warning',true,'silent',opt.silent);
 		return;

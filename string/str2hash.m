@@ -16,7 +16,7 @@ function h = str2hash(str,varargin)
 % Out:
 % 	h	- the hashed value
 % 
-% Updated: 2015-03-19
+% Updated: 2015-04-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -35,8 +35,8 @@ n	= numel(s);
 
 switch opt.output
 	case 'number'
-		m	= uint64(2^nb - 1);
-		c	= uint64(63 + 2^(nb/2));
+		m	= cast(2^nb - 1,'uint64');
+		c	= cast(63 + 2^(nb/2),'uint64');
 		h	= 0;
 		for k=1:n
 			h	= mod(h*c + s(k),m);

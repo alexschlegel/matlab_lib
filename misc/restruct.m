@@ -44,6 +44,7 @@ function s = restruct(s,varargin)
 
 
 if iscell(s)
+	opt			= rmfield(opt,'array_size');
 	opt.array	= true;
 	
 	[cf,uf]	= cellnestflatten(s);

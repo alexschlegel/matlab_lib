@@ -81,6 +81,8 @@ methods
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		normVar:	(false) normalize signal variances (approximately)
 	%		preSource:	(false) include pre-source causal effects
+	%		snr:		(0.1) signal-to-noise ratio
+	%		snrMode:	([]) mode for applying SNR: [], 'norm', 'useRecurXY'
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
@@ -95,7 +97,7 @@ methods
 	%
 	%					-- Analysis
 	%
-	%		analysis:	('total') analysis mode:  'alex', 'lizier', 'seth', or 'total'
+	%		analysis:	('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		loadJavaTE:	(false) Load Lizier's infodynamics JAR for calculating TE
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
@@ -134,6 +136,8 @@ methods
 			'CRecurZ'		, 0.5		, ...
 			'normVar'		, false		, ...
 			'preSource'		, false		, ...
+			'snr'			, 0.1		, ...
+			'snrMode'		, []		, ...
 			'WFullness'		, 0.1		, ...
 			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
@@ -142,7 +146,7 @@ methods
 			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
-			'analysis'		, 'total'	, ...
+			'analysis'		, 'alex'	, ...
 			'kraskov_k'		, 4			, ...
 			'loadJavaTE'	, false		, ...
 			'max_aclags'	, 1000		, ...
@@ -710,18 +714,210 @@ methods
 		end
 	end
 
-	function [X,Y] = generateSignalsMaybeMixed(obj,block,target,sW,doDebug)
+	function [X,Y] = generateSignalNoiseMixture(obj,block,target,sW,doDebug)
+		u			= obj.uopt;
+
+		if u.nSig ~= u.nSigCause
+			error('For snrMode ''%s'', nSig must equal nSigCause.',asString(obj,u.snrMode));
+		end
+		if ~u.doMixing
+			error('For snrMode ''%s'', doMixing must be true.',asString(obj,u.snrMode));
+		end
+
+		nTRun		= numel(target{1});	%number of time points per run
+		nVoxel		= u.nVoxel;
+		nSig		= u.nSig;
+		nNoise		= nVoxel-nSig;
+		funcidx		= 1:nSig;
+		noiseidx	= (nSig+1):nVoxel;
+		[X,Y]		= deal(zeros(nTRun,u.nRun,nVoxel));
+
+		switch u.snrMode
+			case 'norm'
+				% Abbreviating MixX as M, a given signal x(i) at time T is
+				% computed as the value from time T-1 of
+				%
+				%   M(i,1)*x(1) + M(i,2)*x(2) + ....
+				%
+				% For the purposes of signal-to-noise computation, components
+				% 1 through nSig (the functional signals) are considered to be
+				% the *signal*; the remaining nNoise components are noise.
+				%
+				% The variance of functional signal i at time T (abbrev xi@T)
+				% is approximately
+				%
+				%   M(i,1)^2*var(x1@(T-1)) + M(i,2)^2*var(x2@(T-1)) + ....
+				%
+				% (This approximation assumes that the functional signals are
+				% not cross-correlated, although to some degree they are.)
+				%
+				% Assume variances of functional signals are all equal, and
+				% invariant over time, and that variances of noise components
+				% are all 1.  Let vfx denote the variance of each functional
+				% signal.  Then, for i in funcidx (i.e., i in 1:nSig), we have
+				%
+				%   vfx == vfx*(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2) +
+				%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2).
+				%
+				% Hence
+				%
+				%   vfx*(1-(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2)) ==
+				%       M(i,nSig+1)^2 + ... + M(i,nVoxel)^2,
+				%
+				% or
+				%
+				% (1) vfx == (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) /
+				%            (1-(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2)).
+				%
+				% We define signal-to-noise ratio as vfx*nSig/nNoise.  Then for
+				% a given SNR, vfx == SNR*nNoise/nSig.  To obtain desired vfx,
+				% we can adjust either the numerator or denominator of Eq (1).
+				% For simplicity, we set denominator at 0.5 and calibrate
+				% elements of M accordingly.
+				%
+				% The case of MixY is similar to that of MixX, but there is an
+				% extra term in the recurrence for Y, so the variance of y(i)
+				% is approximately
+				%
+				%   M(i,1)^2*var(y(1)) + ... + M(i,nVoxel)^2*var(y(nVoxel)) +
+				%       W(1,i)^2*var(x(1)) + ... + W(nSig,i)^2*var(x(nSig)).
+				%
+				% Let vfy denote the variance of each functional signal in y.
+				% For i in funcidx we have
+				%
+				%   vfy == vfy*(M(i,1)^2 + ... + M(i,nSig)^2) +
+				%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) +
+				%          vfx*(W(1,i)^2 + ... + W(nSig,i)^2).
+				%
+				% If our target value for vfy is the same as vfx, then we have
+				%
+				%   vfy == vfy*(M(i,1)^2 + ... M(i,nSig)^2 +
+				%               W(1,i)^2 + .. + W(nSig,i)^2) +
+				%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2),
+				%
+				% or
+				%
+				% (2) vfy == (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) /
+				%            (1-(M(i,1)^2 + ... + M(i,nSig)^2 +
+				%                W(1,i)^2 + ... + W(nSig,i)^2)).
+				%
+				% Note that W(1,i)^2 + ... + W(nSig,i)^2 cannot exceed WSum^2.
+				% If, as in the case of x, we make M(i,1)^2 + ... + M(i,nSig)^2
+				% equal to 0.5, then for WSum <= 0.5, the presence of the W
+				% terms adds at most 0.25, and hence affects the denominator by
+				% at most a factor of two.  On this basis we ignore the effect
+				% of W for now, though as a future refinement we may wish to
+				% take it into account.
+
+				MixXSig		= randn(nSig,nSig);
+				MixXNoise	= randn(nSig,nNoise);
+				sumSqXSig	= sum(MixXSig.^2,2);
+				sumSqXNoise	= sum(MixXNoise.^2,2);
+				scaleXSig	= sqrt(0.5./sumSqXSig);
+				scaleXNoise	= sqrt((0.5*u.snr*nNoise/nSig)./sumSqXNoise);
+				MixXSig		= repmat(scaleXSig,1,nSig).*MixXSig;
+				MixXNoise	= repmat(scaleXNoise,1,nNoise).*MixXNoise;
+				MixX		= [MixXSig MixXNoise];
+
+				MixYSig		= randn(nSig,nSig);
+				MixYNoise	= randn(nSig,nNoise);
+				sumSqYSig	= sum(MixYSig.^2,2);
+				sumSqYNoise	= sum(MixYNoise.^2,2);
+				scaleYSig	= sqrt(0.5./sumSqYSig);
+				scaleYNoise	= sqrt((0.5*u.snr*nNoise/nSig)./sumSqYNoise);
+				MixYSig		= repmat(scaleYSig,1,nSig).*MixYSig;
+				MixYNoise	= repmat(scaleYNoise,1,nNoise).*MixYNoise;
+				MixY		= [MixYSig MixYNoise];
+
+				if doDebug
+					sumSqXSig	= sum(MixXSig.^2,2);
+					sumSqXNoise	= sum(MixXNoise.^2,2);
+					vfx			= sumSqXNoise ./ (1 - sumSqXSig);
+					SNRx		= vfx * (nSig/nNoise);
+					fprintf('scaleXSig.''   =%s\n',sprintf(' %.3f',scaleXSig.'));
+					fprintf('scaleXNoise.'' =%s\n',sprintf(' %.3f',scaleXNoise.'));
+					fprintf('sumSqXSig.''   =%s\n',sprintf(' %.3f',sumSqXSig.'));
+					fprintf('sumSqXNoise.'' =%s\n',sprintf(' %.3f',sumSqXNoise.'));
+					fprintf('vfx.''         =%s\n',sprintf(' %.3f',vfx.'));
+					fprintf('SNRx.''        =%s\n',sprintf(' %.3f',SNRx.'));
+
+					sumSqYSig	= sum(MixYSig.^2,2);
+					sumSqYNoise	= sum(MixYNoise.^2,2);
+					vfy			= sumSqYNoise ./ (1 - sumSqYSig);
+					SNRy		= vfy * (nSig/nNoise);
+					fprintf('scaleYSig.''   =%s\n',sprintf(' %.3f',scaleYSig.'));
+					fprintf('scaleYNoise.'' =%s\n',sprintf(' %.3f',scaleYNoise.'));
+					fprintf('sumSqYSig.''   =%s\n',sprintf(' %.3f',sumSqYSig.'));
+					fprintf('sumSqYNoise.'' =%s\n',sprintf(' %.3f',sumSqYNoise.'));
+					fprintf('vfy.''         =%s\n',sprintf(' %.3f',vfy.'));
+					fprintf('SNRy.''        =%s\n',sprintf(' %.3f',SNRy.'));
+				end
+
+				nPrev		= nVoxel;
+
+			case 'useRecurXY'
+				MixX		= u.CRecurX*randn(nSig,nVoxel);
+				MixY		= u.CRecurY*randn(nSig,nVoxel);
+
+				nPrev		= nVoxel;
+
+			otherwise
+				error('Invalid snrMode ''%s''',asString(obj,u.snrMode));
+		end
+
+		for kR=1:u.nRun
+			sW.W	= sW.WBlank;
+			for kT=1:nTRun
+				%previous values
+				if kT==1
+					xPrev	= randn(nPrev,1);
+					yPrev	= randn(nPrev,1);
+				else
+					xPrev	= squeeze(X(kT-1,kR,1:nPrev));
+					yPrev	= squeeze(Y(kT-1,kR,1:nPrev));
+				end
+
+				%X=source, Y=destination
+				X(kT,kR,funcidx)	= MixX*xPrev;
+				X(kT,kR,noiseidx)	= randn(nNoise,1);
+
+				Y(kT,kR,funcidx)	= MixY*yPrev + sW.W.'*xPrev(funcidx);
+				Y(kT,kR,noiseidx)	= randn(nNoise,1);
+
+				%causality matrix for the next sample
+				switch target{kR}{kT}
+					case 'A'
+						sW.W	= sW.WA;
+					case 'B'
+						sW.W	= sW.WB;
+					otherwise
+						sW.W	= sW.WBlank;
+				end
+			end
+		end
+
+		if doDebug
+			showFunctionalSigStats(obj,X,Y);
+			showFunctionalSigPlot(obj,X,Y,block);
+		end
+	end
+
+	function [X,Y] = generateSignalsWithOptions(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 
-		%generate the functional signals
-		[X,Y]	= generateFunctionalSignals(obj,block,target,sW,doDebug);
+		if isempty(u.snrMode)
+			%generate the functional signals
+			[X,Y]	= generateFunctionalSignals(obj,block,target,sW,doDebug);
 
-		%mix between voxels (if applicable)
-		if u.doMixing
-			nTRun	= numel(target{1});	%number of time points per run
-			nT		= nTRun*u.nRun;		%total number of time points
-			X		= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
-			Y		= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+			%mix between voxels (if applicable)
+			if u.doMixing
+				nTRun	= numel(target{1});	%number of time points per run
+				nT		= nTRun*u.nRun;		%total number of time points
+				X		= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+				Y		= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+			end
+		else
+			[X,Y]	= generateSignalNoiseMixture(obj,block,target,sW,doDebug);
 		end
 	end
 
@@ -1585,16 +1781,16 @@ methods
 
 	function subjectStats = simulateSubject(obj,doDebug)
 		%causality matrices
-		sW	= generateStructOfWs(obj,doDebug);
+		sW				= generateStructOfWs(obj,doDebug);
 
 		%block design
-		[block,target] = generateBlockDesign(obj,doDebug);
+		[block,target]	= generateBlockDesign(obj,doDebug);
 
 		%generate test signals
-		[XTest,YTest]	= generateSignalsMaybeMixed(obj,block,target,sW,doDebug);
+		[XTest,YTest]	= generateSignalsWithOptions(obj,block,target,sW,doDebug);
 
 		%preprocess and analyze test signals according to analysis mode(s)
-		subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
+		subjectStats	= analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
 	end
 end
 

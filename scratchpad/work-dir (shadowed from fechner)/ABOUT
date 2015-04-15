@@ -3,10 +3,16 @@ simulations on fechner.
 
 The script "run_matlab.sh" can be used either to initiate a batch job
 in background or interactively in foreground.  In either instance, the
-matlabpath is set to use the "iflow" version of matlab_lib (along with
-its scratchpad subdirectory) rather than the default matlab_lib.  At
+present directory becomes the "current" directory, and the matlabpath
+is set to use the "iflow" version of matlab_lib (along with its
+scratchpad subdirectory) rather than the default matlab_lib.  At
 present, the "iflow" matlabpath also differs from the standard one in
 omitting such tools as FSL and SPM (not necessarily a complete list).
+
+On fechner this directory is a *sibling* of the iflow version of
+matlab_lib.  It is also a sibling of data_store.  Therefore, when
+MATLAB is run with the present directory as the "current" directory,
+paths starting with "../data_store/" should resolve correctly.
 
 The conventions followed by the batch scripts in this directory have
 evolved somewhat over time, which is why some (but not all) of the

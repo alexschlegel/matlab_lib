@@ -47,7 +47,7 @@ function sInfo = progress(varargin)
 %		pause(0.1);
 %	end
 % 
-% Updated: 2015-04-09
+% Updated: 2015-04-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -382,8 +382,8 @@ function StepIndicator()
 		end
 		
 		if next < GetIndicatorEnd(opt.name)
+			ifo.indicator.(opt.name).changed	= next ~= s.current;
 			ifo.indicator.(opt.name).current	= next;
-			ifo.indicator.(opt.name).changed	= true;
 		else
 			ShutdownIndicator;
 		end

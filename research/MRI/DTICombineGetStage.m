@@ -48,7 +48,7 @@ sCombined		= size(cDirCombined);
 nCombined		= numel(cDirCombined);
 kStage			= zeros(sCombined);
 
-progress('action','init','total',nCombined,'label','Determining DTI Processing Stage','status',true,'silent',opt.silent)
+progress('action','init','total',nCombined,'label','Determining DTI Processing Stage','silent',opt.silent)
 for kC=1:nCombined
 	for kS=nStage:-1:1
 		[cPathCum,cPathExclude] = DTICombineStageFiles(cDirCombined{kC},kStageAll(kS),'nfibres',opt.nfibres);

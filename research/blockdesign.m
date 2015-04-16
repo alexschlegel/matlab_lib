@@ -13,9 +13,10 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %			  the struct defines the possible values of one parameter. values
 %			  are balanced by run, experiment, or are not balanced, depending on
 %			  the number of possible parameter values.
-%				
+%	
 %	<options>:
-%		seed:	(randseed2) the seed to use for randomizing
+%		seed:	(randseed2) the seed to use for randomizing. set to false to
+%				skip seeding of the random number generator.
 % 
 % Out:
 % 	C		- an nRun x nBlock array of the conditions to show in each block
@@ -25,22 +26,30 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %	this will not complain if bad design parameters are entered (e.g. more runs
 %	than can be handled by a balanced Latin square)
 % 
-% Updated: 2015-02-15
+% Updated: 2015-04-16
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-[param,opt]	= ParseArgs(varargin,struct,...
-				'seed'	, randseed2	  ...
-				);
 
-%set the seed
-	rng(opt.seed,'twister');
+%parse the input
+	[param,opt]	= ParseArgs(varargin,struct,...
+					'seed'	, []	  ...
+					);
+	
+	if isempty(opt.seed)
+		opt.seed	= randseed2;
+	end
+
+%seed the random number generator
+	if notfalse(opt.seed)
+		rng(opt.seed,'twister');
+	end
 
 %construct the blocks
 	nCondition	= numel(c);
 	block		= repmat(reshape(c,1,[]),[1 nRep]);
 %randomize them
-	block	= randomize(block,'seed',randi(intmax));
+	block	= randomize(block,'seed',false);
 	nBlock	= numel(block);
 
 %get a balanced latin square for the blocks
@@ -72,7 +81,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %map to the conditions
 	C	= block(C);
 %randomize across rows
-	C	= randomize(C,1,'rows','seed',randi(intmax));
+	C	= randomize(C,1,'rows','seed',false);
 %keep the requested runs
 	C	= C(1:nRun,:);
 
@@ -101,7 +110,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 				%generate parameters for each run
 					for kC=1:nCondition
 					%randomize the order for each condition
-						param.(strField)(kR,CInt(kR,:)==kC)	= randomize(pChoose,'seed',randi(intmax));
+						param.(strField)(kR,CInt(kR,:)==kC)	= randomize(pChoose,'seed',false);
 					end
 				end
 			elseif divides(nValue,nRep*nRun)
@@ -110,7 +119,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 				
 				for kC=1:nCondition
 				%randomize the order for each condition
-					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',randi(intmax));
+					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',false);
 				end
 			else
 			%just choose randomly (actually the same as the previous case)
@@ -118,8 +127,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 				
 				for kC=1:nCondition
 				%randomize the order for each condition
-					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',randi(intmax));
+					param.(strField)(CInt==kC)	= randomize(pChoose,'seed',false);
 				end
 			end
 	end
-	

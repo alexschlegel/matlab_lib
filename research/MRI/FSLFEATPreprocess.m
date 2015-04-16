@@ -42,7 +42,7 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %							the same directory as the BETed data).
 %		standard:			(<MNI152_T1_2mm_brain>) path to the standard brain to
 %							which to register the data.  set to false to skip
-%							registration to standard space
+%							registration to standard space.
 %		standard_dof:		(12) degrees of freedom for the structural->standard
 %							registration
 %		standard_fnirt:		(true) true to FNIRT the structural to the standard
@@ -66,7 +66,7 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %	tr			- the TR of each processed data file
 %	cDirFEAT	- the path/cell of paths to preprocessing feat directories
 % 
-% Updated: 2015-04-13
+% Updated: 2015-04-16
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

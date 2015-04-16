@@ -10,7 +10,7 @@ function eeg = Read(strPathEEG,varargin)
 %				  EEG.ReadHeader
 %	<options>:
 %		channel:	(<all>) a cell of data channel names to read. set to false
-%					to skip reading data channels
+%					to skip reading data channels.
 %		status:		(true) true to read the status channel (if raw data are
 %					being read)
 %		sample:		(<all>) the samples to read
@@ -24,12 +24,7 @@ function eeg = Read(strPathEEG,varargin)
 %			.data:		an nChannelData x (sample size) array of the electrode
 %						data
 %
-% Assumptions:	assumes data are stored as signed 24-bit integers
-% 
-% Notes:	only implemented for files in which all channels have the same
-%			sampling rate
-% 
-% Updated: 2015-04-10
+% Updated: 2015-04-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

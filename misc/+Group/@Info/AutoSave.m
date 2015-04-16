@@ -8,7 +8,7 @@ function AutoSave(ifo,tInterval)
 %
 % In:
 %	tInterval	- the autosave interval, in milliseconds.  set to false to stop
-%				  autosaving
+%				  autosaving.
 % 
 % Updated: 2011-12-20
 % Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed

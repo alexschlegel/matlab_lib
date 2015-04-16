@@ -55,7 +55,10 @@ nd	= numel(sz);
 	ssXY	= nansum((x-mXR).*(y-mYR),nd);
 
 %correlation coefficient
-	r	= min(1,max(-1,ssXY./sqrt(ssX.*ssY)));
+	n		= ssXY;
+	d		= sqrt(ssX.*ssY);
+	r		= min(1,max(-1,n./d));
+	r(d==0)	= NaN;
 
 %stats
 	if nargout>0
@@ -65,7 +68,7 @@ nd	= numel(sz);
 			
 		%significance
 			stat.tails	= conditional(opt.twotail,'two','one');
-			stat.df		= nNoNaN - 2;
+			stat.df		= max(0,nNoNaN - 2);
 			stat.t		= r.*sqrt(stat.df./(1-r.^2));
 			stat.p		= t2p(stat.t,stat.df,opt.twotail);
 			

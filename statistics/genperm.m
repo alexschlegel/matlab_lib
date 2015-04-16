@@ -15,13 +15,25 @@ function p = genperm(n,nPerm,varargin)
 % 	p	- an nPerm x n array of permutations. if fewer than nPerm permutations
 %		  are possible, the complete space of permutations is returned.
 % 
-% Updated: 2015-02-28
+% Updated: 2015-04-16
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgs(varargin,...
-		'exclude'	, zeros(0,n)	  ...
-		);
+
+%parse the inputs
+	opt	= ParseArgs(varargin,...
+			'exclude'	, zeros(0,n)	, ...
+			'seed'		, []			  ...
+			);
+	
+	if isempty(opt.seed)
+		opt.seed	= randseed2;
+	end
+	
+%seed the random number generator
+	if notfalse(opt.seed)
+		rng(opt.seed,'twister');
+	end
 
 nMax	= factorial(n);
 
@@ -42,5 +54,5 @@ else
 		nNeeded	= nPerm - size(p,1);
 	end
 	
-	p	= randomize(p,1,'rows');
+	p	= randomize(p,1,'rows','seed',false);
 end

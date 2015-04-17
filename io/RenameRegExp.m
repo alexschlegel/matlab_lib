@@ -24,8 +24,10 @@ function [cPathAfter,cPathBefore] = RenameRegExp(strDir,reFrom,reTo,varargin)
 % 	cPathAfter	- a cell of paths to files after renaming
 %	cPathBefore	- a cell of paths to files before renaming
 % 
-% Updated:	2010-09-13
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin	, ...
 		'casei'		, false	, ...
 		'ext'		, []	, ...
@@ -40,7 +42,7 @@ opt	= ParseArgs(varargin	, ...
 	
 %check each file
 	if opt.confirm
-		progress(nSearch,'label','Searching file name');
+		progress('action','init','total',nSearch,'label','Searching file name');
 	end
 	
 	if opt.casei
@@ -78,7 +80,7 @@ opt	= ParseArgs(varargin	, ...
 	if nReplace==0 
 		if opt.confirm
 			if opt.confirm
-				progress('end');
+				progress('action','end');
 			end
 			
 			msgbox('No files to replace');
@@ -103,7 +105,7 @@ opt	= ParseArgs(varargin	, ...
 
 %replace!
 	if opt.confirm
-		progress(nReplace,'label','Renaming file');
+		progress('action','init','total',nReplace,'label','Renaming file');
 	end
 	
 	for k=1:nReplace

@@ -41,8 +41,10 @@ function [vExitCode,cOutput] = RunBashScript(cScript,varargin)
 % 	cOutput		- the stdout and stderr output from the script execution (or a
 %				  cell of outputs)
 % 
-% Updated: 2015-03-16
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'description'	, 'Running Bash Script'	, ...
 		'file_prefix'	, 'runbashscript'		, ...
@@ -140,7 +142,7 @@ nScript					= numel(cScript);
 			cOutput		= cell(sScript);
 			
 			if ~opt.silent
-				progress(nScript,'label',opt.description,'status',true,'silent',opt.silent);
+				progress('action','init','total',nScript,'label',opt.description,'status',true,'silent',opt.silent);
 			end
 			for kS=1:nScript
 				[vExitCode(kS),cOutput{kS}]	= RunOne(cPathMetaScript{kS},cPathLogTemp{kS},opt);

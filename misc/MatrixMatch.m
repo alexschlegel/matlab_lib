@@ -25,8 +25,10 @@ function [kRM,kCM,x,kRN,kCN,bTimedOut] = MatrixMatch(m,varargin)
 %	kRN	- an N x 1 array of the rows that went unmatched
 %	kCN	- an N x 1 array of the columns that went unmatched
 % 
-% Updated: 2012-10-26
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [R,C]	= size(m);
 	
 kR	= (1:R)';
@@ -97,7 +99,8 @@ kC	= (1:C)';
 		nRC			= numel(k);
 	
 	if bFirst
-		opt.name	= progress(opt.timeout,'label','searching for matrixmatch solution','silent',opt.silent);
+		sProgress	= progress('action','init','total',opt.timeout,'label','searching for matrixmatch solution','silent',opt.silent);
+		opt.name	= sProgress.name;
 		
 		if bMulti
 		%prepare the multi-threaded search
@@ -194,7 +197,7 @@ kC	= (1:C)';
 					
 					if opt.nthread==1 || bFirst
 						t	= nowms-opt.start;
-						progress(min(opt.timeout-1,round(t)),'name',opt.name,'silent',opt.silent);
+						progress('current',min(opt.timeout-1,round(t)),'name',opt.name);
 					end
 				
 				kD		= kD+1;
@@ -261,7 +264,7 @@ kC	= (1:C)';
 	end
 	
 	if bFirst
-		progress('end');
+		progress('action','end');
 	end
 	if bMulti
 		MATLABPoolClose('silent',opt.silent);

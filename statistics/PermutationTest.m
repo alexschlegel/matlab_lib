@@ -33,8 +33,8 @@ function stat = PermutationTest(f,x,varargin)
 %				p:		the percentage of permuted values that were >= the
 %						actual value (i.e. the p-value of the permutation test)
 % 
-% Updated: 2014-03-02
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [v,opt]	= ParseArgs(varargin,[],...
@@ -78,7 +78,7 @@ nd	= numel(s);
 %calculate each permuted value
 	vPermute	= NaN(nPerm,1);
 	
-	progress(nPerm,'label','computing significance','silent',opt.silent);
+	progress('action','init','total',nPerm,'label','computing significance','silent',opt.silent);
 	for kP=1:nPerm
 		%permute the data
 			xPerm	= cellfun(@(x) fPermute(x,perm(kP,:)),x,'uni',false);

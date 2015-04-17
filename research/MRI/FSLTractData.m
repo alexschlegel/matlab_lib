@@ -36,8 +36,10 @@ function d = FSLTractData(cDirDTI,cNameTract,strType,varargin)
 %			  represent combined data) of the tract data, or NaNs if the
 %			  required files don't exist
 % 
-% Updated: 2014-02-24
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'data'				, []	, ...
 		'lengthcorrect'		, false	, ...
@@ -108,7 +110,7 @@ function d = CalcData(strDirDTI,strNameTract,strPathD,bCombined)
 			return;
 		end
 		
-		roi			= getfield(NIfTIRead(strPathROI),'data');
+		roi			= double(NIfTI.Read(strPathROI,'return','data'));
 		roiTotal	= sum(roi(:));
 		
 		if roiTotal==0

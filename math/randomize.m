@@ -10,25 +10,36 @@ function [x,k] = randomize(x,varargin)
 %	[dim]		- the dimension along which to randomize
 %	['rows']	- for 2D arrays, randomizes the rows
 %	<options>:
-%		seed:	(randseed2) the seed to use for randomizing
+%		seed:	(randseed2) the seed to use for randomizing, or false to skip
+%				seeding the random number generator
 % 
 % Out:
 % 	x	- x randomized
 %	k	- the randomized indices along dimension dim
 % 
-% Updated:	2015-01-26
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[dim,strRows,opt]	= ParseArgs(varargin,[],[],...
-						'seed'	, randseed2	  ...
-						);
+% Updated: 2015-04-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
-bRows	= isequal(lower(strRows),'rows');
+%parse the inputs
+	[dim,strRows,opt]	= ParseArgs(varargin,[],[],...
+							'seed'	, []	  ...
+							);
+	
+	if isempty(opt.seed)
+		opt.seed	= randseed2;
+	end
+	
+	bRows	= isequal(lower(strRows),'rows');
+	
+	s	= size(x);
+	nd	= numel(s);
 
-s	= size(x);
-nd	= numel(s);
-
-%set the seed
-	rng(opt.seed);
+%seed the random number generator
+	if notfalse(opt.seed)
+		rng(opt.seed,'twister');
+	end
 
 %get the dimension along which to randomize
 	if isempty(dim)

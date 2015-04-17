@@ -17,8 +17,10 @@ function [p,m] = MRIMaskPosition(strPathMask,varargin)
 %	m	- the mass (i.e. number of voxels) of the mask, or NaN if the mask
 %		  doesn't exist
 % 
-% Updated: 2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'force'		, true	  ...
 		);
@@ -34,7 +36,8 @@ if ~opt.force && FileExists(strPathPos)
 elseif FileExists(strPathMask)
 %load the NIfTI and calculate the center of mass
 	%load
-		nii	= NIfTIRead(strPathMask);
+		nii			= NIfTI.Read(strPathMask);
+		nii.data	= double(nii.data);
 	%find non-zero values
 		kMask		= find(nii.data~=0 & ~isnan(nii.data));
 		nMask		= numel(kMask);

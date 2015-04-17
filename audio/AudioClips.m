@@ -25,8 +25,8 @@ function cPathOut = AudioClips(cPathAudio,durClip,varargin)
 % Out:
 % 	cPathOut	- a cell of output audio clip paths
 % 
-% Updated: 2012-06-23
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -57,7 +57,7 @@ end
 cPathOut	= {};
 nOut		= 0;
 
-progress(nAudio,'label','Extracting clips from audio');
+progress('action','init','total',nAudio,'label','Extracting clips from audio');
 for kA=1:nAudio
 	strExt		= unless(opt.outext,PathGetExt(cPathAudio{kA}));
 	

@@ -5,13 +5,13 @@ function Plot(p)
 % 
 % Syntax:	p.Plot
 % 
-% Updated: 2012-02-03
+% Updated: 2015-04-16
 % Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 %fit
-	figure(1);
+	figure;
 	
 	nBin	= 10;
 	szMin	= 2;
@@ -44,7 +44,7 @@ function Plot(p)
 	xlabel('stimulus');
 	ylabel('mean response');
 %t/b history
-	figure(2);
+	figure;
 	
 	k			= 1:numel(p.hist.t);
 	[ax,h1,h2]	= plotyy(k,p.hist.t,k,p.hist.b);
@@ -52,7 +52,7 @@ function Plot(p)
 	
 	legend('t','b');
 %r2/se history
-	figure(3);
+	figure;
 	
 	k			= 1:numel(p.hist.r2);
 	[ax,h1,h2]	= plotyy(k,p.hist.r2,k,p.hist.se,@plot,@semilogy);

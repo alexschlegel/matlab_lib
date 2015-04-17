@@ -16,7 +16,7 @@ function cPathOut = fMRIROI(varargin)
 % Out:
 % 	cPathOut	- the path(s) to the extracted ROI data
 % 
-% Updated: 2015-03-05
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -91,7 +91,7 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 	%load the data
 		assert(FileExists(strPathData),'%s does not exist.',strPathData);
 		
-		nii	= NIfTIRead(strPathData);
+		nii	= NIfTI.Read(strPathData);
 		
 		sData		= size(nii.data);
 		nT			= sData(end);
@@ -100,7 +100,7 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 	%extract each mask
 		nMask	= numel(cPathMask);
 		
-		progress(nMask,'label','extracting ROIs for one dataset');
+		progress('action','init','total',nMask,'label','extracting ROIs for one dataset');
 		for kM=1:nMask
 			strPathMask	= cPathMask{kM};
 			strPathOut	= cPathOut{kM};
@@ -111,7 +111,7 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 			
 			assert(FileExists(strPathMask),'%s does not exist.',strPathMask);
 			
-			msk		= NIfTIRead(strPathMask);
+			msk		= NIfTI.Read(strPathMask);
 			sMask	= size(msk.data);
 			
 			nSpaceData	= prod(sData(1:end-1));
@@ -126,7 +126,7 @@ function b = ExtractOne(strPathData,cPathMask,cPathOut)
 				roi.data	= reshape(roi.data(msk,:),[],1,1,nT);
 			
 			%save the output
-				NIfTIWrite(roi,strPathOut);
+				NIfTI.Write(roi,strPathOut);
 			
 			progress;
 		end

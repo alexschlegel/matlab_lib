@@ -30,8 +30,10 @@ function [p,t,f,pnz] = spectrogram2(x,varargin)
 %		  deviate significantly from zero.  only applies if a baseline is
 %		  specified.
 % 
-% Updated: 2012-09-13
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 if size(x,2)==1
 	x	= x';
 end
@@ -73,7 +75,7 @@ status(['using ' num2str(nWindow) ' samples per window'],'silent',opt.silent);
 	
 	[s,s2]	= deal(0);
 	
-	progress(nSignal,'label','Calculating spectrograms','silent',opt.silent);
+	progress('action','init','total',nSignal,'label','Calculating spectrograms','silent',opt.silent);
 	for kS=1:nSignal
 		%get the time/frequency decomposition
 			[str,tf,f,t]	= evalc(['timefreq(x(kS,:),opt.rate,'		...

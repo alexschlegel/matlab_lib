@@ -22,8 +22,8 @@ function [b,strPathOut] = FSLConcatenateGroup(cPathCat,varargin)
 % 	b			- true if the concatenation was successful
 %	strPathOut	- the output path
 % 
-% Updated: 2014-03-28
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -84,9 +84,9 @@ opt	= ParseArgs(varargin,...
 %get the mean volume across all subjects
 	strPathMean	= PathAddSuffix(strPathOut,'-example','favor','nii.gz');
 	
-	nii			= cellfun(@NIfTIRead,cPathExampleMNI);
+	nii			= cellfun(@NIfTI.Read,cPathExampleMNI);
 	nii(1).data	= mean(cat(4,nii.data),4);
-	NIfTIWrite(nii(1),strPathMean);
+	NIfTI.Write(nii(1),strPathMean);
 
 %set the mean of each volume to the mean of the first dataset
 	[b,cPathCatMNIDemean]	= FSLDemean(cPathCatMNI,...

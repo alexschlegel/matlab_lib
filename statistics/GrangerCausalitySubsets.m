@@ -24,7 +24,7 @@ function [gc,subSrc,subDst] = GrangerCausalitySubsets(src, dst, varargin)
 %	subDst	- an nSubsetDst x opt.size array of the variables included in each
 %			  destination subset
 % 
-% Updated: 2015-03-13
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -57,7 +57,7 @@ nVariableDst	= size(dst,2);
 %calculate the granger causalities
 	gc	= NaN(nSubsetSrc, nSubsetDst);
 	
-	progress(nSubsetSrc,'name','src','silent',opt.silent);
+	progress('action','init','total',nSubsetSrc,'name','src','silent',opt.silent);
 	for kS=1:nSubsetSrc
 		for kD=1:nSubsetDst
 			gc(kS,kD)	= GrangerCausality(src(:,subSrc{kS}),dst(:,subDst{kD}),cOptGC{:});

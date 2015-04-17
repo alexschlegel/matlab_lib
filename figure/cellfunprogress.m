@@ -12,57 +12,65 @@ function varargout = cellfunprogress(f,varargin)
 %				an input argument index if each element of that input should be
 %				displayed as a status as that element is processed
 % 
-% Updated: 2014-10-18
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
-%find the last of the first continuous block of cell inputs
-	bCell		= cellfun(@(x) isa(x,'cell'),varargin);
-	kLastCell	= find(~bCell,1,'first')-1;
-	if isempty(kLastCell)
-		kLastCell	= numel(varargin);
-	end
+%parse the inputs
+	%find the last of the first continuous block of cell inputs
+		bCell		= cellfun(@iscell,varargin);
+		kLastCell	= unless(find(~bCell,1,'first')-1,numel(varargin));
+	
+	cOpt	= varargin(kLastCell+1:end);
+	opt		= ParseArgs(cOpt,...
+				'status'	, false	  ...
+				);
 
-cOpt	= varargin(kLastCell+1:end);
-opt		= ParseArgs(cOpt,...
-			'status'	, false	, ...
-			'noffset'	, []	  ...
-			);
-if ~isempty(opt.noffset)
-	opt.noffset	= opt.noffset-1;
-end
-
-%parse the arguments
-	%function inputs
-		cCell	= varargin(1:kLastCell);
-		s		= size(cCell{1});
-		n		= numel(cCell{1});
-	%are we displaying statuses?
-		if ~islogical(opt.status)
-			cStatus		= cCell{opt.status};
-			opt.status	= true;
-		else
-			cStatus	= repmat({[]},s);
-		end
+	%parse the arguments
+		%function inputs
+			cCell	= varargin(1:kLastCell);
+			if isempty(cCell)
+				s	= [0 0];
+				n	= 0;
+			else
+				s	= size(cCell{1});
+				n	= numel(cCell{1});
+			end
+		%are we displaying statuses?
+			if ~islogical(opt.status)
+				cStatus		= cCell{opt.status};
+				opt.status	= true;
+			else
+				cStatus	= repmat({[]},s);
+			end
 
 %open the progress bar
 	fName	= char(f);
-	cOpt	= optadd(cOpt,'label',sprintf('cellfun: %s',fName));
 	
-	[strProgName,nStatus,optExtra]	= progress(n,cOpt{:},'noffset',opt.noffset,'status',opt.status);
+	opt_progress	= optadd(opt.opt_extra,...
+						'label',	sprintf('cellfun: %s',fName)	  ...
+						);
+	opt_progress	= optreplace(opt_progress,...
+						'action'	, 'init'		, ...
+						'total'		, n				, ...
+						'status'	, opt.status	  ...
+						);
+	
+	sProgress	= progress(opt_progress);
 
 %call cellfun
 	f			= repmat({f},s);
-	cProgName	= repmat({strProgName},s);
-	cNOffset	= repmat({nStatus+1},s);
-	cOptExtra	= opt2cell(optExtra);
-	[varargout{1:nargout}]	= cellfun(@cellfunfun,f,cProgName,cStatus,cNOffset,cCell{:},cOptExtra{:});
+	cProgName	= repmat({sProgress.name},s);
+	cOptExtra	= opt2cell(sProgress.opt_extra);
+	[varargout{1:nargout}]	= cellfun(@cellfunfun,f,cProgName,cStatus,cCell{:},cOptExtra{:});
 	
 %------------------------------------------------------------------------------%
-function varargout = cellfunfun(f,strProgName,strStatus,nOffset,varargin)
+function varargout = cellfunfun(f,strProgName,strStatus,varargin)
 	[varargout{1:nargout}]	= f(varargin{:});
 	
 	if ~isempty(strStatus)
-		status(strStatus,nOffset);
+		status(strStatus);
 	end
 	progress('name',strProgName);
 %------------------------------------------------------------------------------%

@@ -23,8 +23,10 @@ function [bSuccess,cPathWM] = FreeSurferMaskWM(cDirSubject,varargin)
 %				  created
 %	cPathWM		- path/cell of paths to the white matter masks
 % 
-% Updated: 2012-07-02
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'output'		, []		, ...
 		'cerebellum'	, true		, ...
@@ -87,7 +89,7 @@ function b = MaskOne(strDirSubject,strPathWM)
 			return;
 		end
 	%extract the white matter
-		nii	= NIfTIRead(strPathLabelNII);
+		nii	= NIfTI.Read(strPathLabelNII);
 		
 		kWhite	= [2 41 86 155:158 159:162 219 223 250:255];
 		if opt.cerebellum
@@ -96,7 +98,7 @@ function b = MaskOne(strDirSubject,strPathWM)
 		
 		nii.data	= ismember(nii.data,kWhite);
 		
-		NIfTIWrite(nii,strPathWM);
+		NIfTI.Write(nii,strPathWM);
 	%grow
 		if opt.grow~=0
 			b	= MRIMaskGrow(strPathWM,opt.grow,'output',strPathWM,'silent',opt.silent);

@@ -1384,15 +1384,20 @@ def preprocess_data(param, ds):
 	dataset_indices = np.unique(ds.sa.dataset)
 	dsp = [preprocess_data_one(param, ds[ds.sa.dataset==idx], show_status=idx==1) for idx in dataset_indices]
 	
-	if param['dcclassify']: #compute a DC pattern dataset
+	#compute a DC pattern dataset if specified
+	if param['dcclassify']:
 		#get the targets and chunks we are interested in
 		targets = param['target_subset']
 		status('including targets: %s' % (", ".join(targets)), indent=1, debug='all')
 	
 		#compute the directed connectivity patterns
 		ds = compute_directed_connectivity_patterns(dsp[0], dsp[1], lags=param['dcclassify_lags'], targets=targets)
-	else: #stack the data
+	else: #just stack the data
 		ds = vstack(dsp)
+	
+	#also stack the feature match dataset
+	if param['matchedcrossclassify'] and param['match_features']:
+		ds.a['feature_match_data'] = vstack([d.a.feature_match_data for d in dsp])
 	
 	#make sure we should actually do target balancing
 	param['do_target_balancer'] = False
@@ -1427,10 +1432,6 @@ def preprocess_data(param, ds):
 			status('target balancer selected but not needed', indent=1, debug='all')
 	else:
 		status('target balancer not selected', indent=1, debug='all')
-	
-	#also stack the feature match dataset
-	if param['matchedcrossclassify'] and param['match_features']:
-		ds.a['feature_match_data'] = vstack([d.a.feature_match_data for d in dsp])
 	
 	return ds
 

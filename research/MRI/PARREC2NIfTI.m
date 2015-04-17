@@ -8,6 +8,7 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 % 
 % In:
 % 	cPathPAR	- the path to a PAR file, or a cell of paths
+%	cPathNII	- the output file path(s)
 %	<options>:
 %		copyhdr:		(true) true to copy the header struct to a .mat file in
 %						the output folder
@@ -28,8 +29,8 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 %				  converted
 % 	cPathNII	- the path to the output NIfTI file, or a cell of paths
 % 
-% Updated: 2013-10-19
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [cPathNII,opt]	= ParseArgs(varargin,[],...
@@ -139,14 +140,14 @@ function b = ConvertOne(strPathPAR,strPathNII)
 		end
 	%the scanner has been randomly saving functional scans with a weird slice
 	%order (all slice 1, then all slice 2, etc.). fix this.
-		if isequal(strType,'functional')
+		if ismember(strType,{'functional','diffusion'})
 			nSlice	= hdr.general.max_number_of_slices;
-			nVol	= hdr.general.max_number_of_dynamics;
+			nVol	= numel(hdr.imageinfo.slice_number)/nSlice;
 			
 			if all(reshape(repmat(1:nSlice,[nVol 1]),[],1)==hdr.imageinfo.slice_number)
 			%wtf?
 				%load the NIfTI file
-					nii	= NIfTIRead(strPathNII);
+					nii	= NIfTI.Read(strPathNII);
 					s	= size(nii.data);
 					nd	= numel(s);
 				%find the slice dimension
@@ -161,7 +162,7 @@ function b = ConvertOne(strPathPAR,strPathNII)
 					nii.data	= reshape(nii.data,[sTemp(1:end-2) nVol nSlice]);
 					nii.data	= permute(nii.data,[1:dimSlice-1 nd dimSlice:nd-2 nd-1]);
 				%save the NIfTI file
-					NIfTIWrite(nii,strPathNII);
+					NIfTI.Write(nii,strPathNII);
 			end
 		end
 	

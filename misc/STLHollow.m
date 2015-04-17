@@ -21,8 +21,10 @@ function stl = STLHollow(stl,t,varargin)
 % 
 % Assumptions:	assumes normals of original surface point outward.
 % 
-% Updated:	2010-04-17
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin, ...
 					'freduce'		, 1		, ...
 					'nreducemin'	, 1000	  ...
@@ -54,7 +56,7 @@ nFace	= size(stl.Vertex,1);
 	
 	vNormal	= zeros(nVertex,3);
 	
-	progress(nVertex,'label','Vertex');
+	progress('action','init','total',nVertex,'label','Vertex');
 	
 	for kV=1:nVertex
 		kBlock	= kFace(kBlockStart(kV):kBlockEnd(kV));

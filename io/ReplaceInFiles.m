@@ -18,7 +18,7 @@ function [cPathReplace,nReplace] = ReplaceInFiles(cPathSearch,strSearch,strRepla
 %	nReplace		- the number of instances of the search string replaced in
 %					  each file in cPathReplace
 % 
-% Updated: 2015-03-22
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -55,7 +55,7 @@ opt	= ParseArgs(varargin,...
 	end
 
 %replace!
-	progress(nPath,'label','replacing in files','silent',opt.silent);
+	progress('action','init','total',nPath,'label','replacing in files','silent',opt.silent);
 	for kP=1:nPath
 		strPathReplace	= cPathReplace{kP};
 		

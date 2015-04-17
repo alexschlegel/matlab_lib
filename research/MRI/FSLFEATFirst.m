@@ -53,8 +53,8 @@ function [bSuccess,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %				  analyzed
 %	cDirOut		- a cell of output directories
 % 
-% Updated: 2014-12-10
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -148,7 +148,7 @@ function b = AnalyzeOne(strPathData,d,strDirOut)
 
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
 	
-	[tr,sNIfTI]	= NIfTIGetTiming(strPathData);
+	[tr,sNIfTI]	= NIfTI.GetTiming(strPathData);
 	
 	%make sure strDirOut exists
 		b	= CreateDirPath(strDirOut);

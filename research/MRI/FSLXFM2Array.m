@@ -8,8 +8,8 @@ function [M,xfm,niiFrom,niiRef] = FSLXFM2Array(xfm,niiFrom,niiRef)
 % 
 % In:
 % 	xfm		- a 4x4 FLIRT transform matrix or the path to one
-%	niiFrom	- the source NIfTI object loaded with NIfTIRead, or the path to it
-%	niiRef	- the reference NIfTI object loaded with NIfTIRead, or the path to it
+%	niiFrom	- the source NIfTI object loaded with NIfTI.Read, or the path to it
+%	niiRef	- the reference NIfTI object loaded with NIfTI.Read, or the path to it
 % 
 % Out:
 % 	M	- the transform matrix between the from volume and reference volume in
@@ -18,17 +18,19 @@ function [M,xfm,niiFrom,niiRef] = FSLXFM2Array(xfm,niiFrom,niiRef)
 % Notes:	adapted from Ged Ridgway's flirtmat2worldmat function
 %			http://www.nitrc.org/snippet/detail.php?type=package&id=1
 % 
-% Updated: 2011-03-27
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 if ischar(xfm)
 	xfm	= str2array(fget(xfm));
 end
 if ischar(niiFrom)
-	niiFrom	= NIfTIRead(niiFrom);
+	niiFrom	= NIfTI.Read(niiFrom);
 end
 if ischar(niiRef)
-	niiRef	= NIfTIRead(niiRef);
+	niiRef	= NIfTI.Read(niiRef);
 end
 
 %get the transform from array to FLIRT's "world" space, according to:

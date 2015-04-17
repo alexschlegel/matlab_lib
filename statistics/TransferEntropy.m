@@ -52,7 +52,7 @@ function [te,stat] = TransferEntropy(src,dst,varargin)
 % Example:
 %	nvX=2; nvY=nvX+1; n=1000; covariance=0.2; X=randn(n,nvX); Y=[zeros(1,nvY); covariance*[X(1:end-1,1:end-1).*X(1:end-1,2:end) X(1:end-1,end).*X(1:end-1,1)] randn(n-1,nvY-nvX)]+(1-covariance)*randn(n, nvY); [te,stat] = TransferEntropy(X,Y)
 % 
-% Updated: 2015-02-17
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -142,7 +142,7 @@ function te = CalcTEFromSubsamples(srcPastSubsample,dstPastSubsample,dstNextSubs
 	
 	te	= NaN(nSubsample,1);
 	
-	progress(nSubsample,'label','computing transfer entropy','silent',bSilent);
+	progress('action','init','total',nSubsample,'label','computing transfer entropy','silent',bSilent);
 	for kS=1:nSubsample
 		srcPast	= reshape(srcPastSubsample(:,:,:,kS),nSample,[]);
 		dstPast	= reshape(dstPastSubsample(:,:,:,kS),nSample,[]);

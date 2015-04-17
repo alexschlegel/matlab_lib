@@ -23,7 +23,7 @@ function [aSub,bSub,kASub,kBSub,stat] = SubsetPairMatch(a,b,varargin)
 %	kBSub	- the indices of the elements of b that were chosen
 %	stat	- a struct of stats about the subsets
 % 
-% Updated: 2015-03-13
+% Updated: 2015-04-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -65,7 +65,8 @@ end
 [set1Max,set2Max]		= deal([]);
 statMax					= struct;
 
-strProg	= progress(opt.timeout,'label','searching for a matching subset','silent',opt.silent);
+sProgress	= progress('action','init','total',opt.timeout,'label','searching for a matching subset','silent',opt.silent);
+strProg		= sProgress.name;
 
 for dSubOpt=1:n1
 %the maximum sub-optimality depth
@@ -133,7 +134,7 @@ for dSubOpt=1:n1
 						ProcessOutput;
 						return;
 					else
-						progress(tNow-tStart);
+						progress('current',tNow-tStart);
 					end
 				end
 			end
@@ -159,7 +160,7 @@ function ProcessOutput()
 	stat	= statMax;
 	stat.p	= pMax;
 	
-	progress('end','name',strProg);
+	progress('action','end','name',strProg);
 end
 %------------------------------------------------------------------------------%
 

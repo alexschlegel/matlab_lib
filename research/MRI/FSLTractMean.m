@@ -19,8 +19,10 @@ function m = FSLTractMean(cDirDTI,cNameTract,varargin)
 % Out:
 % 	m	- an array of tract means, or NaN if the required files don't exist
 % 
-% Updated: 2011-03-27
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'force'		, true	, ...
 		'forceprep'	, false	, ...
@@ -66,7 +68,7 @@ m	= NaN(sTract);
 %------------------------------------------------------------------------------%
 function m = CalcMean(strPathTract,strPathROI,strPathM)
 	%load each
-		[dT,dROI]	= varfun(@(f) getfield(NIfTIRead(f),'data'),strPathTract,strPathROI);
+		[dT,dROI]	= varfun(@(f) NIfTI.Read(f,'return','data'),strPathTract,strPathROI);
 	%get the mean of ROI voxels
 		b	= dROI~=0;
 		m	= mean(dT(b));

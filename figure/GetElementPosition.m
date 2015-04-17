@@ -21,36 +21,45 @@ function varargout = GetElementPosition(h,varargin)
 %			r:	the element's right position
 %	pK	- the struct for the Kth element
 % 
-% Updated: 2011-03-15
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-07
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'units'	, []	  ...
 		);
 opt.units	= lower(opt.units);
 bUnits		= ~isempty(opt.units);
 
-nH	= numel(h);
+p	= arrayfun(@GetPosition,h);
 
-p	= repmat(struct,[nH 1]);
-for kH=1:nH
-	strType			= lower(get(h(kH),'type'));
-	strUnitsOrig	= lower(get(h(kH),'Units'));
+if nargout>1
+	varargout	= num2cell(p);
+else
+	varargout{1}	= p;
+end
+
+
+%------------------------------------------------------------------------------%
+function p = GetPosition(h) 
+	strType			= lower(get(h,'type'));
+	strUnitsOrig	= lower(get(h,'Units'));
 	strUnits		= conditional(bUnits,opt.units,strUnitsOrig);
 	
 	if bUnits
-		set(h(kH),'Units',opt.units);
+		set(h,'Units',opt.units);
 	end
 	
-	if isempty(h(kH)) || h(kH)==0 %screen
+	if h==0 %screen
 		pE	= get(0,'ScreenSize');
 		
-		[p(kH).l,p(kH).r]	= deal(pE(1));
-		[p(kH).b,p(kH).t]	= deal(pE(2));
-		p(kH).w				= pE(3);
-		p(kH).h				= pE(4);
+		[p.l,p.r]	= deal(pE(1));
+		[p.b,p.t]	= deal(pE(2));
+		p.w			= pE(3);
+		p.h			= pE(4);
 	else
 		%parent position
-			hP	= get(h(kH),'Parent');
+			hP	= get(h,'Parent');
 			
 			if isempty(hP) || hP==0
 				pP	= get(0,'ScreenSize');
@@ -64,31 +73,27 @@ for kH=1:nH
 				case 'data'
 					pP(3)	= diff(get(hP,'XLim'));
 					pP(4)	= diff(get(hP,'YLim'));
-				otherwise
 			end
 		%element position
 			switch strType
 				case 'text'
-					pE	= get(h(kH),'Extent');
+					pE	= get(h,'Extent');
 				otherwise
-					pE	= get(h(kH),'Position');
+					pE	= get(h,'Position');
 			end
 		
-		p(kH).l	= pE(1);
-		p(kH).t	= pP(4) - pE(4) - pE(2) + isequal(strUnits,'pixels');
-		p(kH).w	= pE(3);
-		p(kH).h	= pE(4);
-		p(kH).b	= pE(2);
-		p(kH).r	= pP(3) - pE(3) - pE(1);
+		p.l	= pE(1);
+		p.t	= pP(4) - pE(4) - pE(2) + strcmp(strUnits,'pixels');
+		p.w	= pE(3);
+		p.h	= pE(4);
+		p.b	= pE(2);
+		p.r	= pP(3) - pE(3) - pE(1);
 	end
 	
 	if bUnits
-		set(h(kH),'Units',strUnitsOrig);
+		set(h,'Units',strUnitsOrig);
 	end
 end
+%------------------------------------------------------------------------------%
 
-if nargout>1
-	varargout	= arrayfun(@(x) x,p,'UniformOutput',false);
-else
-	varargout{1}	= p;
 end

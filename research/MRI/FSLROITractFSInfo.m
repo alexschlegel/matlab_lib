@@ -65,8 +65,10 @@ function [bDone,cName1,cName2,cNameLabel,varargout] = FSLROITractFSInfo(cDirDTI,
 % Note:	assumes the tract ordering is the same for each subject (e.g.
 %		blah1-to-blah2 for all instead of blah2-to-blah1 for some)
 % 
-% Updated: 2011-04-03
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the input
 	%find the info/option break point
@@ -159,7 +161,7 @@ cNameLabel	= cellfun(@(h) cellfun(@(n) [h '.' n],cNameLabel,'UniformOutput',fals
 		bDone	= true(sOut);
 	end
 	
-	progress(nInfo,'label','Calculating requested info','silent',opt.silent);
+	progress('action','init','total',nInfo,'label','Calculating requested info','silent',opt.silent);
 	for kI=1:nInfo
 		switch cInfo{kI}
 			case 'roi'
@@ -198,7 +200,8 @@ cNameLabel	= cellfun(@(h) cellfun(@(n) [h '.' n],cNameLabel,'UniformOutput',fals
 				if nTract>0
 					bCombined	= false;
 					
-					strName	= progress(nSubject,'name','fslroitractfsinfo_data','label',['calculating ' cInfo{kI} ' for each subject'],'silent',opt.silent);
+					sProgress	= progress('action','init','total',nSubject,'name','fslroitractfsinfo_data','label',['calculating ' cInfo{kI} ' for each subject'],'silent',opt.silent);
+					strName		= sProgress.name;
 					for kS=1:nSubject
 						[cData,bCombinedCur]	= FSLTractDataLoad(cDirDTI{1,kS},cInfo{kI},'silent',opt.silent);
 						cData					= ForceCell(cData);

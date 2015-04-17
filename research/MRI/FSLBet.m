@@ -28,11 +28,10 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 % 	b			- true if the bet and fslview ran successfully
 %	strPathOut	- the path to the output volume
 % 
-% Updated: 2015-03-23
+% Updated: 2015-04-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-persistent fThresh;
 
 %process the inputs
 	opt	= ParseArgs(varargin,...
@@ -47,7 +46,7 @@ persistent fThresh;
 			);
 	
 	opt.prompt	= unless(opt.prompt,isempty(opt.thresh));
-	opt.thresh	= unless(opt.thresh,unless(fThresh,0.5));
+	opt.thresh	= unless(opt.thresh,0.5);
 	
 	if opt.prompt
 		opt.nthread	= 1;
@@ -86,6 +85,10 @@ end
 
 %------------------------------------------------------------------------------%
 function b = BetOne(strPathIn,strPathOut,opt)
+	persistent fThresh;
+	
+	fThresh	= conditional(opt.propagate,unless(fThresh,opt.thresh),opt.thresh);
+	
 	b	= false;
 	
 	if ~FileExists(strPathIn)
@@ -109,7 +112,7 @@ function b = BetOne(strPathIn,strPathOut,opt)
 		bGo	= true;
 		while bGo
 			%run bet
-				if CallProcess('bet',{strPathIn strPathOut '-f' opt.thresh},'silent',true)
+				if CallProcess('bet',{strPathIn strPathOut '-f' fThresh},'silent',true)
 					return;
 				end
 			%prompt for changes
@@ -120,20 +123,16 @@ function b = BetOne(strPathIn,strPathOut,opt)
 						return;
 					end
 					
-					res	= ask('Enter a new threshold or accept:','title','FSLBet','default',opt.thresh);
+					res	= ask('Enter a new threshold or accept:','title','FSLBet','default',fThresh);
 					if isempty(res)
 						return;
 					else
-						bGo			= ~isequal(res,opt.thresh);
-						opt.thresh	= res;
+						bGo		= ~isequal(res,fThresh);
+						fThresh	= res;
 					end
 				else
 					bGo	= false;
 				end
-		end
-	%update fThresh
-		if opt.propagate
-			fThresh	= opt.thresh;
 		end
 	%binarize
 		if opt.binarize && CallProcess('fslmaths',{strPathOut '-bin' strPathOut},'silent',true)

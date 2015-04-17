@@ -57,7 +57,7 @@ function res = FSLMELODIC(varargin)
 %					comp_dataset:	comp transformed to a NIfTI dataset
 %					weight:			the weight NIfTI file
 % 
-% Updated: 2015-03-25
+% Updated: 2015-04-13
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -95,7 +95,7 @@ function res = FSLMELODIC(varargin)
 	cPathMask	= repto(ForceCell(unless(sPath.mask,[])),sData);
 	cDirOut		= repto(ForceCell(opt.dir_out),sData);
 	
-	%cut down on the variables space for workers
+	%cut down on the variable space for workers
 		opt	= rmfield(opt,'opt_extra');
 
 %MELODIC!
@@ -278,7 +278,7 @@ function d = PCADim(strDirMELODIC)
 	strPathCompD	= PathUnsplit(strDirMELODIC,'data_pca','nii.gz');
 	
 	if FileExists(strPathCompD)
-		sz	= NIfTIGetSize(strPathCompD);
+		sz	= NIfTI.GetSize(strPathCompD);
 		d	= sz(1);
 	else
 		d	= 0;
@@ -564,11 +564,11 @@ function [res,weight] = LoadWeight(res,opt,varargin)
 end
 %------------------------------------------------------------------------------%
 function data = ReadData(strPathData)
-	data	= getfield(NIfTIRead(strPathData),'data');
+	data	= NIfTI.Read(strPathData,'return','data');
 end
 %------------------------------------------------------------------------------%
 function WriteData(data,strPathData)
-	NIfTIWrite(make_nii(data),strPathData);
+	NIfTI.Write(NIfTI.Create(data),strPathData);
 end
 %------------------------------------------------------------------------------%
 function res = ProcessError(res,strError,opt)

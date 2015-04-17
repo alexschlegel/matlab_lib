@@ -22,8 +22,10 @@ function cPathDICOM = DICOMScale(cPathDICOM,varargin)
 % Side-effects:	saves scaled DICOM files as copies according to the specified
 %				suffix
 % 
-% Updated:	2010-04-17
-% Copyright 2010 Alex Schlegel (alex@roguecheddar.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [vMin,vMax,opt]	= ParseArgs(varargin,[],[],...
 		'suffix'	, '-scaled'	, ...
 		'silent'	, false		  ...
@@ -59,7 +61,7 @@ nPathDICOM	= numel(cPathDICOM);
 	nPath	= numel(cPathIn);
 	
 	if ~opt.silent
-		progress(nPath,'label','Scaling DICOM Image');
+		progress('action','init','total',nPath,'label','Scaling DICOM Image');
 	end
 	
 	for k=1:nPath

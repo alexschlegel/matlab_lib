@@ -27,8 +27,10 @@ function Run(s,x,rate,varargin)
 % 
 % Side-effects: sets s.result, an Mx2 array of segment start and end indices
 % 
-% Updated: 2012-11-18
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'segment_target'	, s.target	, ...
 		'segment_feature'	, s.feature	, ...
@@ -106,11 +108,11 @@ bRan	= s.ran && ~opt.reset;
 			
 			d	= cell(nFeature,1);
 			
-			progress(nFeature,'name','feature','label','Calculating features','silent',s.silent);
+			progress('action','init','total',nFeature,'name','feature','label','Calculating features','silent',s.silent);
 			for kF=1:nFeature
 				d{kF}	= cell(nSeg,1);
 				
-				progress(nSeg,'name','segment','label',cStrFeature{kF},'silent',s.silent);
+				progress('action','init','total',nSeg,'name','segment','label',cStrFeature{kF},'silent',s.silent);
 				for kS=1:nSeg
 					d{kF}{kS}	= reshape(fFeature{kF}(x(kStart(kS):kEnd(kS)),rate),1,[]);
 					
@@ -148,12 +150,12 @@ bRan	= s.ran && ~opt.reset;
 		%calculate the distances
 			dist	= NaN(nSeg,nFeature);
 			
-			progress(nFeature,'name','feature','label','Calculating distance for each feature','silent',s.silent);
+			progress('action','init','total',nFeature,'name','feature','label','Calculating distance for each feature','silent',s.silent);
 			for kF=1:nFeature
 				distCur		= NaN(nSeg,opt.segment_compare);
 				distPair	= NaN(nPair,1);
 				
-				progress(nPair,'name','pair','label',cStrFeature{kF},'silent',s.silent);
+				progress('action','init','total',nPair,'name','pair','label',cStrFeature{kF},'silent',s.silent);
 				
 				for kP=1:nPair
 					dCur			= [d{kF}{kPair(kP,1)}; d{kF}{kPair(kP,2)}];

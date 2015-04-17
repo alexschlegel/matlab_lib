@@ -30,8 +30,10 @@ function Run(e,x,rate,s,c,str,kStart,varargin)
 % 
 % Side-effects:	sets e.result, an Sx1 array of segment index exemplars
 % 
-% Updated: 2012-11-05
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 ns	= status('exemplarizing data (closest)','silent',e.silent);
 
 opt	= ParseArgs(varargin,...
@@ -200,7 +202,7 @@ bRan	= e.ran && ~opt.reset;
 			ce		= [c; c(1:n-1)]';
 			str		= str';
 		
-		progress(S-kDiff+1,'label',strStatus,'silent',e.silent,'status',false);
+		progress('action','init','total',S-kDiff+1,'label',strStatus,'silent',e.silent,'status',false);
 		for kS=kDiff:S
 			%find the exemplars of the current cluster type that follow the
 			%leading edge

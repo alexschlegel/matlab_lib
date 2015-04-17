@@ -38,8 +38,10 @@ function [bSuccess,strPathROI] = FSLTract2ROI(strDirDTI,strNameTract,varargin)
 % 	bSuccess	- true if the ROI was successfully saved
 %	strPathROI	- the path to the ROI
 % 
-% Updated: 2011-03-22
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 persistent ft fopt;
 
 bSuccess	= false;
@@ -80,7 +82,7 @@ end
 
 %load the paths
 	try
-		nii			= NIfTIRead(strPathTract);
+		nii			= NIfTI.Read(strPathTract);
 		nii.data	= double(nii.data);
 	catch me
 		status(['Could not load the paths file ' strPathTract '.'],'warning',true,'silent',false);
@@ -167,7 +169,8 @@ end
 			nii.data	= nii.data>0;
 		case 'weight'
 			%we need the output file to be float
-				nii.orig.dat.dtype	= regexprep(nii.orig.dat.dtype,'^INT','FLOAT');
+				%don't think this is necessary anymore since we're using nii_tool
+				%nii.orig.dat.dtype	= regexprep(nii.orig.dat.dtype,'^INT','FLOAT');
 			
 			s	= nansum(nii.data(:));
 			if s~=0
@@ -178,7 +181,7 @@ end
 	end
 %save the ROI
 	try
-		NIfTIWrite(nii,strPathROI);
+		NIfTI.Write(nii,strPathROI);
 	catch me
 		status(['Could not save the ROI file ' strPathROI '.'],'warning',true,'silent',false);
 		return;

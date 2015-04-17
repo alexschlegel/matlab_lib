@@ -34,8 +34,10 @@ function varargout = StatSimpleRegression(x,cPathNII,varargin)
 % Notes:	files are only saved if the corresponding output argument is
 %			specified
 % 
-% Updated: 2014-03-10
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [cDirOut,opt]	= ParseArgs(varargin,[],...
 					'output'	, {'r','p','m','b'}	, ...
 					'prefix'	, 'corr'			, ...
@@ -92,13 +94,13 @@ function varargout = RegressOne(cPathNII,strDirOut,strPathMask)
 		xCur		= x(bExist);
 		cPathNII	= cPathNII(bExist);
 	%load the data
-		d		= cellfun(@(f) NIfTIRead(f),cPathNII,'UniformOutput',false);
+		d		= cellfun(@NIfTI.Read,cPathNII,'UniformOutput',false);
 		niiOut	= d{1};
-		d		= cellfun(@(nii) nii.data,'UniformOutput',false);
+		d		= cellfun(@(nii) double(nii.data),'UniformOutput',false);
 		d		= stack(d{:});
 	%apply the mask
 		if ~isempty(strPathMask)
-			m		= single(GetFieldPath(NIfTIRead(strPathMask),'data'));
+			m		= single(NIfTI.Read(strPathMask,'return','data'));
 			m(m==0)	= NaN;
 			d		= d.*m;
 			
@@ -113,7 +115,7 @@ function varargout = RegressOne(cPathNII,strDirOut,strPathMask)
 			cPathOut{kN}	= PathUnsplit(strDirOut,[opt.prefix '-' opt.output{kN}],'nii.gz');
 			niiOut.data		= cOut{kN};
 			
-			NIfTIWrite(niiOut,cPathOut{kN});
+			NIfTI.Write(niiOut,cPathOut{kN});
 		end
 	%set the outputs
 		varargout	= cPathOut;

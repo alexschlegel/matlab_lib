@@ -18,8 +18,10 @@ function [cData,bCombined] = FSLTractDataLoad(strDirDTI,strType,varargin)
 % 	cData		- a data array or cell of data arrays if bCombined==true
 %	bCombined	- true if the DTI directory represents combined data
 % 
-% Updated: 2011-11-25
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 persistent typeMap;
 
 [bCombined,opt]	= ParseArgs(varargin,[],...
@@ -61,7 +63,7 @@ switch lower(strType)
 			status(['The following files do not exist: ' 10 join(cPathData(~bLoad),10)],'warning',true,'silent',opt.silent);
 		end
 		
-		cData(bLoad)	= cellfun(@(f) getfield(NIfTIRead(f),'data'),cPathData(bLoad),'UniformOutput',false);
+		cData(bLoad)	= cellfun(@(f) NIfTI.Read(f,'return','data'),cPathData(bLoad),'UniformOutput',false);
 	otherwise
 		error(['"' tostring(strType) '" is not a recognized data type.']);
 end

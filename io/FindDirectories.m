@@ -23,8 +23,10 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 %	cDir		- a cell of the matching subdirectory paths in strDir.
 %	nDirTotal	- the total number of directories searched
 % 
-% Updated:	2014-10-18
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [re,opt]	= ParseArgs(varargin, '.*', ...
 				'subdir'		, false	, ...
 				'maxdepth'		, -1	, ...
@@ -57,7 +59,8 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 	cDir	= {};
 	
 	if opt.first && opt.progress
-		strNameProgress	= progress(nDirSearch,'label','Finding Directories');
+		sProgress		= progress('action','init','total',nDirSearch,'label','Finding Directories');
+		strNameProgress	= sProgress.name;
 	else
 		strNameProgress	= opt.name_progress;
 	end
@@ -99,12 +102,12 @@ function [cDir,nDirTotal] = FindDirectories(strDir,varargin)
 			
 		%progress!
 			if opt.progress
-				progress('name',strNameProgress,'n',opt.dirtotal);
+				progress('name',strNameProgress,'total',opt.dirtotal);
 			end
 	end
 	
 	if opt.first && opt.progress
-		progress('end');
+		progress('action','end');
 	end
 	
 	nDirTotal	= opt.dirtotal;

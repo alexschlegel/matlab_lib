@@ -34,8 +34,8 @@ function [F,p,pCorrFWE,pCorrFDR,Chat] = StatLMELongitudinal(nii,t,g,varargin)
 %	pCorrFDR	- a 3D array of FDR corrected p-values
 %	Chat		- a 3D array of contrast values
 % 
-% Updated: 2013-06-19
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -65,7 +65,6 @@ opt	= ParseArgs(varargin,...
 				'fdr_q'			, opt.fdr_q			, ...
 				'nthread'		, opt.nthread		  ...
 				);
-	clear nii
 %reshape the results
 	[F,p,pCorrFWE,pCorrFDR,Chat]	= deal(NaN(sData));
 	
@@ -81,7 +80,7 @@ opt	= ParseArgs(varargin,...
 		end
 		
 		if isempty(niiBase)
-			niiBase	= make_nii(zeros(sData));
+			niiBase	= NIfTI.Create(zeros(sData));
 		end
 		
 		[niiF,niiP,niiPFWE,niiPFDR,niiChat]	= deal(niiBase);
@@ -98,11 +97,11 @@ opt	= ParseArgs(varargin,...
 		niiPFDR.data	= 1-pCorrFDR;
 		niiChat.data	= Chat;
 		
-		NIfTIWrite(niiF,strPathF);
-		NIfTIWrite(niiP,strPathP);
-		NIfTIWrite(niiPFWE,strPathPFWE);
-		NIfTIWrite(niiPFDR,strPathPFDR);
-		NIfTIWrite(niiChat,strPathChat);
+		NIfTI.Write(niiF,strPathF);
+		NIfTI.Write(niiP,strPathP);
+		NIfTI.Write(niiPFWE,strPathPFWE);
+		NIfTI.Write(niiPFDR,strPathPFDR);
+		NIfTI.Write(niiChat,strPathChat);
 	end
 	
 
@@ -159,7 +158,7 @@ function d = GetDataOne(nii)
 	switch class(nii)
 		case 'char'
 		%file path
-			nii	= NIfTIRead(nii);
+			nii	= NIfTI.Read(nii);
 			
 			if isempty(niiBase)
 				niiBase			= nii;
@@ -179,9 +178,9 @@ function d = GetDataOne(nii)
 		%assume we have what we want
 			d	= nii;
 	end
+	
+	d	= double(d);
 end
 %------------------------------------------------------------------------------%
-
-
 
 end

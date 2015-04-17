@@ -41,8 +41,10 @@ function [bSuccess,strPathSTL] = FSLTract2STL(strDirDTI,strNameTract,varargin)
 % 	bSuccess	- true if the STL file was successfully created
 %	strPathSTL	- the path to the STL file
 % 
-% Updated: 2011-04-08
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess	= false;
 strPathSTL	= [];
 
@@ -120,7 +122,7 @@ strDirTract	= FSLDirTract(strDirDTI,strNameTract);
 			error(['"' tostring(opt.space) '" is an unrecognized space.']);
 	end
 	
-	nii	= NIfTIRead(strPathTract);
+	nii	= NIfTI.Read(strPathTract);
 %get the isovalue
 	if ~isequal(lower(opt.isoval_method),'mask') && isempty(opt.isoval)
 		status('automatically determining isovalue','silent',opt.silent);
@@ -154,7 +156,7 @@ strDirTract	= FSLDirTract(strDirDTI,strNameTract);
 	if opt.force || ~FileExists(strPathSTL)
 		status('converting isosurface to STL','silent',opt.silent);
 		
-		NIfTI2STL(nii,opt.isoval,...
+		NIfTI.STL(nii,opt.isoval,...
 			'prefix'	, strNameTract	, ...
 			'mat'		, M				, ...
 			'save'		, true			, ...

@@ -60,7 +60,7 @@ end
 	bvecs	= hdr.imageinfo.diffusion(kVol,:);
 	%reorient bvecs
 		mOrientFrom	= PARRECDiffusionOrientation(hdr);
-		mOrientTo	= NIfTIImageGridOrientation(strPathNIfTI);
+		mOrientTo	= NIfTI.ImageGridOrientation(strPathNIfTI);
 		mTransform	= mOrientTo/mOrientFrom;
 		bvecs		= (mTransform*bvecs')';
 %get bvals

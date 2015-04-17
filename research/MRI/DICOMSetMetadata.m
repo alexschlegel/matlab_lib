@@ -18,8 +18,10 @@ function cPathDICOM = DICOMSetMetadata(cPathDICOM,cLabel,cValue,varargin)
 % Out:
 % 	cPathDICOM	- a cell of paths to DICOM files that were altered
 % 
-% Updated:	2010-09-13
-% Copyright 2010 Alex Schlegel (alex@roguecheddar.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'subdir'	, true	, ...
 		'warn'		, true	, ...
@@ -46,7 +48,7 @@ opt	= ParseArgs(varargin,...
 	end
 %update each DICOM file
 	if opt.progress
-		progress(nPathDICOM,'label','DICOM file');
+		progress('action','init','total',nPathDICOM,'label','DICOM file');
 	end
 	
 	for kD=1:nPathDICOM

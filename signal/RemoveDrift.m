@@ -20,8 +20,10 @@ function x = RemoveDrift(x,varargin)
 % Out:
 % 	x	- the signal with drift removed
 % 
-% Updated: 2010-07-26
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'win'			, []	, ...
 		'rate'			, 1		, ...
@@ -37,7 +39,7 @@ opt	= ParseArgs(varargin,...
 	[nSignal,nSample]	= size(x);
 
 if opt.sequential
-	progress(nSignal,'label','Removing Drift','silent',opt.silent);
+	progress('action','init','total',nSignal,'label','Removing Drift','silent',opt.silent);
 	for kS=1:nSignal
 		x(kS,:)	= RemoveDrift(x(kS,:),'win',opt.win,'rate',opt.rate);
 		

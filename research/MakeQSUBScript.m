@@ -36,8 +36,10 @@ function [strPathBatch,cPathJob,kJobBlock] = MakeQSUBScript(strPathTemplate,s,va
 %	cPathJob		- the path to each script file
 %	kJobBlock		- a cell of array of job indices included in each block
 % 
-% Updated: 2011-03-24
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 cSub	= fieldnames(s);
 sScript	= size(s.(cSub{1}));
 nScript	= prod(sScript);
@@ -75,7 +77,7 @@ CreateDirPath(strDirOut,'error',true);
 	cSub	= fieldnames(s);
 	nSub	= numel(cSub);
 
-	progress(nScript,'label','Making qsub scripts');
+	progress('action','init','total',nScript,'label','Making qsub scripts');
 	for kS=1:nScript
 		strScript	= strTemplate;
 		

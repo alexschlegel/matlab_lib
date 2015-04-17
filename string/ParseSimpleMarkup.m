@@ -79,5 +79,6 @@ nStr	= numel(str);
 	sMarkup(bDelete)	= [];
 %restructure the struct
 	sMarkup	= restruct(sMarkup);
+	sMarkup	= structfun2(@(x) conditional(ischar(x),{x},x),sMarkup);
 %get rid of the newline format
 	sMarkup	= RmFieldPath(sMarkup,'psmnewline');

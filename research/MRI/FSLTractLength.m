@@ -23,8 +23,10 @@ function tl = FSLTractLength(cDirDTI,cNameTract,varargin)
 % Out:
 % 	tl	- an array of tract lengths, or NaN if the required files don't exist
 % 
-% Updated: 2011-03-27
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'force'		, true	, ...
 		'forceprep'	, false	, ...
@@ -88,7 +90,7 @@ tl	= NaN(sTract);
 %------------------------------------------------------------------------------%
 function tl = CalcTractLength(strPathMask1,strPathMask2,strPathTract,strPathTractLC,strPathROI,strPathTL)
 	%load each
-		[dM1,dM2,dT,dTLC,dROI]	= varfun(@(f) getfield(NIfTIRead(f),'data'),strPathMask1,strPathMask2,strPathTract,strPathTractLC,strPathROI);
+		[dM1,dM2,dT,dTLC,dROI]	= varfun(@(f) double(NIfTI.Read(f,'return','data')),strPathMask1,strPathMask2,strPathTract,strPathTractLC,strPathROI);
 	%get the seed mask voxels included in the ROI
 		bMR	= (dM1 | dM2) & dROI>0;
 	%get the expected tract length at each voxel

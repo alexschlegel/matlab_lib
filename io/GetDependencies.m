@@ -25,8 +25,10 @@ function [cMFile,varargout] = GetDependencies(cMFile,varargin)
 % Note: At this point to fill cPathEval I only search for files that contain the
 %		string "eval".  This could return a lot of false alarms.
 % 
-% Updated:	2010-11-17
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'dir_exclude'		, {}	, ...
 		'exclude_matlab'	, true	  ...
@@ -44,7 +46,7 @@ nExclude		= numel(opt.dir_exclude);
 
 %find nested dependencies for each specified M file
 	kM	= 0;
-	progress(nMFileOrig,'label','Finding Dependencies');
+	progress('action','init','total',nMFileOrig,'label','Finding Dependencies');
 	while kM<numel(cMFile)
 		kM	= kM+1;
 		
@@ -72,7 +74,7 @@ nExclude		= numel(opt.dir_exclude);
 		%add the new dependencies
 			cMFile	= [cMFile; setdiff(cMFileCur,cMFile)];
 			
-		progress('n',numel(cMFile));
+		progress('total',numel(cMFile));
 	end
 %remove the input m files
 	cMFile	= cMFile(nMFileOrig+1:end);

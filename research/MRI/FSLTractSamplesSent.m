@@ -22,8 +22,10 @@ function nSent = FSLTractSamplesSent(cDirDTI,cNameTract,nSample,varargin)
 % 	nSent	- an array of the total number of samples sent for each tract, or
 %			  NaN if the required files don't exist
 % 
-% Updated: 2011-03-27
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'force'		, true	, ...
 		'silent'	, false	  ...
@@ -82,7 +84,7 @@ nSent	= NaN(sTract);
 %------------------------------------------------------------------------------%
 function nSent = CalcSent(strPathMask1,strPathMask2,strPathS)
 	%load each
-		[dM1,dM2]	= varfun(@(f) getfield(NIfTIRead(f),'data'),strPathMask1,strPathMask2);
+		[dM1,dM2]	= varfun(@(f) NIfTI.Read(f,'return','data'),strPathMask1,strPathMask2);
 	%get the number of voxels in the masks
 		nVoxel1	= sum(reshape(dM1~=0,[],1));
 		nVoxel2	= sum(reshape(dM2~=0,[],1));

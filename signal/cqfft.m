@@ -33,8 +33,8 @@ function [cqft,f,sk] = cqfft(x,rate,varargin)
 %	which is based on:
 %		Brown JC, and Puckette MS (1992). An efficient algorithm for the calculation of a constant Q transform. J. Acoust. Soc. Am., 92(5): 2698-2701.
 % 
-% Updated: 2012-09-23
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 s	= size(x);
@@ -112,7 +112,7 @@ function sk = SpectralKernel(fMin,fMax,nBin)
 			
 			sk	= [];
 			
-			progress(K,'label','Calculating spectral kernel','silent',opt.silent);
+			progress('action','init','total',K,'label','Calculating spectral kernel','silent',opt.silent);
 			for k=K:-1:1
 				tk(1:nWin(k))				= hamming(nWin(k))/nWin(k) .* exp(2*pi*i*Q*(0:nWin(k)-1)'/nWin(k));
 				pk							= fft(tk);

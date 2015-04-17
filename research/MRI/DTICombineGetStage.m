@@ -31,8 +31,10 @@ function kStage = DTICombineGetStage(cDirCombined,varargin)
 %							8:	dtifit has been run
 %							9:	bedpostx has been run
 % 
-% Updated: 2011-02-18
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt			= ParseArgs(varargin,...
 				'nfibres'	, 2		, ...
 				'offset'	, 0		, ...
@@ -46,7 +48,7 @@ sCombined		= size(cDirCombined);
 nCombined		= numel(cDirCombined);
 kStage			= zeros(sCombined);
 
-progress(nCombined,'label','Determining DTI Processing Stage','status',true,'silent',opt.silent)
+progress('action','init','total',nCombined,'label','Determining DTI Processing Stage','silent',opt.silent)
 for kC=1:nCombined
 	for kS=nStage:-1:1
 		[cPathCum,cPathExclude] = DTICombineStageFiles(cDirCombined{kC},kStageAll(kS),'nfibres',opt.nfibres);

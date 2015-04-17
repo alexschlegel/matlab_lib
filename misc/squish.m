@@ -13,8 +13,8 @@ function [y,k] = squish(x,varargin)
 % 	y	- the 2d squished array
 %	k	- the indices in x that were assigned to each element in y 
 % 
-% Updated: 2012-07-10
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 dim	= ParseArgs(varargin,1);
@@ -56,7 +56,7 @@ s	= size(x);
 	bAssigned	= false(sS);
 	k			= zeros(sS);
 	
-	progress(nSquish,'squishin''');
+	progress('action','init','total',nSquish,'squishin''');
 	for kS=1:nSquish
 		kUn		= find(~bAssigned);
 		dCur2	= (k1(kS) - yk1(kUn)).^2 + (k2(kS) - yk2(kUn)).^2;

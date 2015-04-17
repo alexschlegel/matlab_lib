@@ -57,7 +57,7 @@ opt	= ParseArgs(varargin,...
 function cDir = GetDirectories(cDir)
 	nDir	= numel(cDir);
 	
-	progress(nDir,'label','finding directories');
+	progress('action','init','total',nDir,'label','finding directories');
 	
 	kD	= 1;
 	while kD<=nDir
@@ -78,7 +78,7 @@ function cDir = GetDirectories(cDir)
 			cDir	= [cDir; cDirSub];
 			nDir	= numel(cDir);
 		
-		progress('n',nDir);
+		progress('total',nDir);
 		
 		kD	= kD+1;
 	end

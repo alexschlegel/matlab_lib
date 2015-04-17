@@ -18,8 +18,10 @@ function [cDirBackup,cDirBackupErr,cDirDelete,cDirDeleteErr] = BackupOldDirector
 %	cDirDelete		- a cell of directories successfully deleted
 %	cDirDeleteErr	- a cell of directories not successfully deleted
 % 
-% Updated: 2014-01-29
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 strDirOld	= '_old';
 
 opt	= ParseArgs(varargin,...
@@ -106,7 +108,7 @@ strDirDst	= DirAppend('/home/alex',strDirOld);
 		
 		if bDelete
 			%delete the files
-				bSuccess	= cellfunprogress(@(x) rmdir(x,'s'),cDirToDelete,'label','Deleteing source directories','status',true);
+				bSuccess	= cellfunprogress(@(x) rmdir(x,'s'),cDirToDelete,'label','Deleting source directories','status',true);
 			%which ones worked?
 				cDirDelete		= cDirToDelete(bSuccess);
 				cDirDeleteErr	= cDirToDelete(~bSuccess);

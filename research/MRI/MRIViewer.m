@@ -36,8 +36,10 @@ function varargout = MRIViewer(varargin)
 % Assumptions:	assumes the data file's transformation matrix transforms to
 %				[lr, pa, is] space, in mm
 %
-% Updated: 2011-03-11
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-04-13
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 gui_Singleton = 1;
 	gui_State = struct('gui_Name',       mfilename, ...
 					   'gui_Singleton',  gui_Singleton, ...
@@ -687,14 +689,14 @@ function d	= LoadData(dIn)
 				
 				switch lower(PathGetExt(dIn,'favor','nii.gz'))
 					case {'nii','nii.gz'}
-						d	= NIfTIRead(dIn);
+						d	= NIfTI.Read(dIn,'method','spm');
 					otherwise
 						error('Unsupported data file format.');
 				end
 				
 				d.path	= strPath;
 			case 'struct' %data struct already loaded
-				if isfield(dIn,'data') && isfield(dIn,'mat') %NIfTIRead
+				if isfield(dIn,'data') && isfield(dIn,'mat') %NIfTI.Read
 					d	= dIn;
 				else
 					error(['Unsupported data struct input.']);
@@ -713,6 +715,8 @@ function d	= LoadData(dIn)
 			otherwise
 				error('Unsupported data input.');
 		end
+		
+		d.data	= double(d.data);
 	%get derived properties
 		d.imat		= inv(d.mat);
 		
@@ -729,4 +733,3 @@ function d	= LoadData(dIn)
 		d.min	= nanmin(reshape(d.data,d.np,b));
 		d.max	= nanmax(reshape(d.data,d.np,b));
 		d.prc	= prctileQuick(d.data,[0.5 99.5]);
-		

@@ -25,8 +25,8 @@ function [im,h] = fractal(s, varargin)
 % 	im	- the fractal image
 %	h	- the handle to the image shown
 % 
-% Updated: 2014-01-07
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -87,7 +87,7 @@ opt.show_result	= unless(opt.show_result,~opt.silent);
 	
 	fLabelProgress = @(n) ['Points remaining (' num2str(n) ')'];
 	
-	progress(opt.iterations, 'label', fLabelProgress(prod(s)), 'silent', opt.silent);
+	progress('action','init','total',opt.iterations, 'label', fLabelProgress(prod(s)), 'silent', opt.silent);
 	for it=1:opt.iterations
 		z(bIn)	= opt.f(z(bIn), field(bIn));
 		
@@ -106,7 +106,7 @@ opt.show_result	= unless(opt.show_result,~opt.silent);
 		
 		progress('label', fLabelProgress(sum(bIn(:))));
 	end
-	progress('end');
+	progress('action','end');
 
 %construct the image
 	%map iterations to palette colors

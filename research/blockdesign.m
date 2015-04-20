@@ -26,7 +26,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 %	this will not complain if bad design parameters are entered (e.g. more runs
 %	than can be handled by a balanced Latin square)
 % 
-% Updated: 2015-04-16
+% Updated: 2015-04-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -63,7 +63,7 @@ function [C,param] = blockdesign(c,nRep,nRun,varargin)
 	
 	%attempt to add random permutations
 		nNeeded	= nRun - nRow;
-		C		= [C; genperm(nBlock,nNeeded,'exclude',C)];
+		C		= [C; genperm(nBlock,nNeeded,'exclude',C,'seed',false)];
 	
 	%add random duplicates if we still don't have enough
 		[nRow,nCol]	= size(C);

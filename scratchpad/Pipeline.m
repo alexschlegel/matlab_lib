@@ -1687,9 +1687,11 @@ methods (Static)
 		spec(1).varName		= {'WSum','CRecurY'};
 		spec(1).varValues	= {0:0.05:0.3,[0 0.35 0.7]};
 
-		spec(2).varName		= {'WSum','CRecurY'};
-		spec(2).varValues	= {0:0.05:0.3,[0 0.35 0.7]};
-		spec(2).transform	= @(WSum,CRecurY) deal(WSum * (1-CRecurY)/0.3,CRecurY);
+		spec(2).varName		= {'WSum','CRecurY','WSumFrac'};
+		spec(2).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
+		spec(2).pseudoVar	= 'WSumFrac';
+		spec(2).transform	= @(~,CRecurY,WSumFrac) deal(...
+								WSumFrac * (1-CRecurY),CRecurY,WSumFrac);
 
 		spec(3).varName		= {'WFullness','CRecurY'};
 		spec(3).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};

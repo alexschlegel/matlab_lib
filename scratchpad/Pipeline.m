@@ -169,7 +169,7 @@ methods
 		if ~iscell(opt.fudge)
 			error('Invalid fudge: must be a cell.');
 		end
-		invalidFudgeInd			= ~ismember(opt.fudge,{'fakecause','oldplot','stubsim'});
+		invalidFudgeInd			= ~ismember(opt.fudge,{'fakecause','stubsim'});
 		if any(invalidFudgeInd)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudgeInd}));
 		end
@@ -1045,11 +1045,7 @@ methods
 
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
-		if ~ismember('oldplot',obj.uopt.fudge)
-			capsule	= makePlotCapsuleNew(obj,plotSpec,varargin{:});
-		else
-			capsule	= makePlotCapsuleOld(obj,plotSpec,varargin{:});
-		end
+		capsule	= makePlotCapsuleNew(obj,plotSpec,varargin{:});
 	end
 
 	%TODO: comments
@@ -1121,79 +1117,6 @@ methods
 		end
 	end
 
-	%TODO: comments
-	function capsule = makePlotCapsuleOld(obj,plotSpec,varargin)
-		opt	= ParseArgs(varargin,...
-			'saveplot'		, obj.uopt.saveplot	  ...
-			);
-		plotSpec	= regularizePlotSpec(obj,plotSpec);
-
-		pause(1);
-		start_ms	= nowms;
-		varName		= ['kIteration' plotSpec.varName];
-		varValues	= [{num2cell(1:plotSpec.nIteration)} plotSpec.varValues];
-		valueGrid	= obj.computeLittleEndianCartesianProduct(varValues{:});
-		if isfield(plotSpec,'filter') && ~isempty(plotSpec.filter)
-			for kG=1:size(valueGrid,1)
-				[valueGrid{kG,2:end}]	= plotSpec.filter(obj.uopt,valueGrid{kG,2:end});
-			end
-		end
-
-		cValue		= num2cell(valueGrid,2);
-		nSim		= numel(cValue);
-
-		if obj.uopt.verbosity > 0
-			fprintf('Number of plot-variable combinations = %d (*)\n',nSim);
-		end
-
-		rng(obj.uopt.seed,'twister');
-
-		cSeed				= num2cell(randi(intmax,nSim,1));
-
-		vopt				= repmat(obj.uopt,nSim,1);
-		[vopt.seed]			= deal(cSeed{:});
-		[vopt.progress]		= deal(false);
-		for kV=1:numel(varName)
-			name			= varName{kV};
-			if ~isfield(obj.uopt,name)
-				continue;
-			end
-			vals			= valueGrid(:,kV);
-			[vopt.(name)]	= deal(vals{:});
-		end
-
-		cVopt				= num2cell(vopt);
-		parObj				= repmat(obj,nSim,1);
-		[parObj.uopt]		= deal(cVopt{:});
-		summary				= MultiTask(@simulateAllSubjects,...
-								{num2cell(parObj)},...
-								'nthread',obj.uopt.max_cores,...
-								'silent',(obj.uopt.max_cores<2));
-
-		result				= repmat(struct,nSim,1);
-		[result.keyTuple]	= deal(varName);
-		[result.valueTuple]	= deal(cValue{:});
-		[result.seed]		= deal(cSeed{:});
-		[result.summary]	= deal(summary{:});
-		cResult				= num2cell(reshape(result,...
-								cellfun(@numel,varValues)));
-
-		end_ms				= nowms;
-		capsule.begun		= FormatTime(start_ms);
-		capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
-		capsule.version		= obj.version;
-		capsule.plotSpec	= plotSpec;
-		capsule.uopt		= obj.uopt;
-		capsule.result		= cResult;
-		capsule.elapsed_ms	= end_ms - start_ms;
-		capsule.done		= FormatTime(end_ms);
-
-		if opt.saveplot
-			iflow_plot_capsule	= capsule; %#ok
-			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
-		end
-	end
-
 	function note = noteFixedVars(obj,fixedVars,fixedVarValues)
 		[~,ix]	= sort(lower(fixedVars));
 		cNote	= arrayfun(@(i)sprintf('%s=%s',fixedVars{i}, ...
@@ -1235,6 +1158,7 @@ methods
 		note		= strjoin(cNote,',');
 	end
 
+	%TODO: obsolete: remove after mining material for noteVaryingOpts, etc.
 	function note = noteVaryingOptsOldFormat(obj,capsule)
 		u			= obj.uopt; %#ok
 		spec		= capsule.plotSpec;
@@ -1500,81 +1424,6 @@ methods
 				end
 			end
 		end
-	end
-
-	function h = renderMultiLinePlotOldFormat(obj,cCapsule,capMeta,capIndices)
-		if nargin < 4
-			capIndices	= 1:numel(cCapsule);
-		end
-		szCapsule	= size(cCapsule);
-		if szCapsule(1) == 0 || any(szCapsule(2:end) > 1)
-			error('Invalid capsule cell dimensions.');
-		end
-		cap1		= cCapsule{1};
-		if ~isfield(cap1,'version') || ...
-				~isfield(cap1.version,'capsuleFormat') || ...
-				cap1.version.capsuleFormat ~= obj.version.capsuleFormat
-			error('Incompatible capsule format.');
-		end
-		spec1		= cap1.plotSpec;
-		result1		= cap1.result;
-		if numel(spec1.varName) > 1
-			error('Multiple variables per capsule not supported this version.');
-		end
-		varName1_1	= spec1.varName{1};
-		szResult	= size(result1);
-		if any(cellfun(@(c) any(size(c.result) ~= szResult),cCapsule))
-			error('Non-uniform capsule result sizes.');
-		end
-		if any(cellfun(@(c) ~strcmp(c.plotSpec.varName{1},varName1_1),cCapsule))
-			error('Inconsistent capsule variable names.');
-		end
-
-		lineLabels	= arrayfun(@(i) sprintf('%s=%.2f',...
-						capMeta.varName,capMeta.varValues(i)),...
-						capIndices,'uni',false);
-		xArray		= zeros([szResult(2) numel(capIndices)]);
-		meanAcc		= zeros([szResult(1) size(xArray)]);
-		stderrAcc	= zeros(size(meanAcc));
-
-		for kI=1:size(meanAcc,3)
-			result				= cCapsule{capIndices(kI)}.result;
-			xArray(:,kI)		= cellfun(@(r) r.valueTuple{2},squeeze(result(1,:)));
-			meanAcc(:,:,kI)		= cellfun(@(r) r.summary.alex.meanAccAllSubj,result);
-			stderrAcc(:,:,kI)	= cellfun(@(r) r.summary.alex.stderrAccAllSu,result);
-		end
-
-		meanMean	= mean(meanAcc,1); % explicit dim (in case nIteration == 1)
-		meanStderr	= mean(stderrAcc,1);
-		%stderrMean	= stderr(meanAcc,0,1);  %Conventional stat, but not desired.
-
-		parennote	= noteVaryingOptsOldFormat(obj,cap1);
-		if ~isempty(parennote)
-			parennote	= sprintf(' (%s)',parennote);
-		end
-		title		= sprintf('Accuracy as a function of %s%s',...
-						varName1_1,parennote);
-		xlabel		= getOptLabel(obj,varName1_1);
-		ylabel		= 'Accuracy (%)';
-		xvals		= num2cell(squeeze(xArray),1);
-		yvals		= num2cell(squeeze(100*meanMean),1);
-		errorvals	= num2cell(squeeze(100*meanStderr),1);
-		%{
-		fprintf('xvals has size%s\n',sprintf(' %d',size(xvals)));
-		fprintf('yvals has size%s\n',sprintf(' %d',size(yvals)));
-		for i=1:numel(xvals)
-			disp(xvals{i}');
-			disp(yvals{i}');
-		end
-		%}
-		h			= alexplot(xvals,yvals,...
-						'error'		, errorvals		, ...
-						'title'		, title			, ...
-						'xlabel'	, xlabel		, ...
-						'ylabel'	, ylabel		, ...
-						'legend'	, lineLabels	, ...
-						'errortype'	, 'bar'			  ...
-						);
 	end
 
 	function showBlockDesign(obj,block)

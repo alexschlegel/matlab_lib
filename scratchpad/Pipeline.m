@@ -6,10 +6,6 @@
 
 classdef Pipeline
 
-%cuts/pastes/modifications of Bennet's pipeline. trying to understand the
-%pipeline as a whole better, and a big long string of code works better for me
-%for that purpose.
-
 %here we will generate two W causality matrices, generate fMRI data for two
 %ROIS (X and Y) that represent a block design in which the two conditions (A
 %and B) differ only in the pattern of directed connectivity from X to Y.  Can we
@@ -28,8 +24,8 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150403,...
-							'capsuleFormat',20150331)
+	version				= struct('pipeline',20150423,...
+							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
@@ -44,7 +40,7 @@ methods
 	%
 	% In:
 	%	<options>:
-	%					-- Debugging/diagnostic options:
+	%					-- Debugging/diagnostic options
 	%
 	%		DEBUG:		(false) Display debugging information
 	%		fudge:		({}) Fudge specified details (e.g., {'stubsim'})
@@ -61,20 +57,20 @@ methods
 	%
 	%		nSubject:	(20) number of subjects
 	%
-	%					-- Size of the various spaces:
+	%					-- Size of the various spaces
 	%
 	%		nSig:		(10) total number of functional signals
 	%		nSigCause:	(10) number of functional signals of X that cause Y
 	%		nVoxel:		(100) number of voxels into which the functional components are mixed
 	%
-	%					-- Time:
+	%					-- Time
 	%
 	%		nTBlock:	(4) number of time points per block
 	%		nTRest:		(4) number of time points per rest periods
 	%		nRepBlock:	(12) number of repetitions of each block per run
 	%		nRun:		(10) number of runs
 	%
-	%					-- Signal characteristics:
+	%					-- Signal characteristics
 	%
 	%		CRecurX:	(0.1) recurrence coefficient (should be <= 1)
 	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
@@ -94,6 +90,11 @@ methods
 	%
 	%		doMixing:	(true) should we even mix into voxels?
 	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
+	%
+	%					-- Hemodynamic response
+	%
+	%		hrf:		(false) convolve signals with hemodynamic response function
+	%		hrfOptions:	({}) options to quasiHRF kernel generator
 	%
 	%					-- Analysis
 	%
@@ -146,6 +147,8 @@ methods
 			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
+			'hrf'			, false		, ...
+			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
 			'kraskov_k'		, 4			, ...
 			'loadJavaTE'	, false		, ...
@@ -568,7 +571,11 @@ methods
 		out				= weightedSum./sqrt(sumSqCoeffs);
 	end
 
-	% TODO: Clean up.  This method is an abject mess.
+	% TODO: Clean up.  This method's functionality should be made into
+	% a separate class, whose methods would include something like
+	% "getfield" (currently a return value), a label2index mapping method,
+	% and something like constrainData (currently an inner function in
+	% renderMultiLinePlot).
 	function [array,cLabel,label2index,getfield] = ...
 				convertPlotCapsuleResultToArray(obj,capsule)
 		u			= obj.uopt;
@@ -659,10 +666,7 @@ methods
 
 	function [block,target] = generateBlockDesign(obj,doDebug)
 		u			= obj.uopt;
-		designSeed	= randi(intmax('uint32'));
-		rngState	= rng;
-		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',designSeed);
-		rng(rngState);
+		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',false);
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
 
 		if doDebug
@@ -710,7 +714,7 @@ methods
 
 		if doDebug
 			showFunctionalSigStats(obj,X,Y);
-			showFunctionalSigPlot(obj,X,Y,block);
+			showSigPlot(obj,X,Y,block,'Functional');
 		end
 	end
 
@@ -723,6 +727,7 @@ methods
 		if ~u.doMixing
 			error('For snrMode ''%s'', doMixing must be true.',asString(obj,u.snrMode));
 		end
+		%TODO: Check no WSumTweak or other options not supported here
 
 		nTRun		= numel(target{1});	%number of time points per run
 		nVoxel		= u.nVoxel;
@@ -898,7 +903,7 @@ methods
 
 		if doDebug
 			showFunctionalSigStats(obj,X,Y);
-			showFunctionalSigPlot(obj,X,Y,block);
+			showSigPlot(obj,X,Y,block,'SNR-based');
 		end
 	end
 
@@ -915,9 +920,25 @@ methods
 				nT		= nTRun*u.nRun;		%total number of time points
 				X		= reshape(reshape(X,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
 				Y		= reshape(reshape(Y,nT,u.nSig)*randn(u.nSig,u.nVoxel),nTRun,u.nRun,u.nVoxel) + u.noiseMix*randn(nTRun,u.nRun,u.nVoxel);
+				if doDebug
+					showSigPlot(obj,X,Y,block,'Mixed Voxel');
+				end
 			end
 		else
 			[X,Y]	= generateSignalNoiseMixture(obj,block,target,sW,doDebug);
+		end
+
+		if u.hrf
+			kernel	= quasiHRF(u.hrfOptions{:});
+			for kCol=1:size(X,2)
+				X(:,kCol)	= conv(X(:,kCol),kernel,'same');
+			end
+			for kCol=1:size(Y,2)
+				Y(:,kCol)	= conv(Y(:,kCol),kernel,'same');
+			end
+			if doDebug
+				showSigPlot(obj,X,Y,block,'Post-HRF');
+			end
 		end
 	end
 
@@ -1040,11 +1061,10 @@ methods
 
 		pause(1);
 		start_ms			= nowms;
-		augSpec				= plotSpec;
-		augSpec.varName		= ['kIteration' plotSpec.varName];
-		augSpec.varValues	= [{num2cell(1:plotSpec.nIteration)} plotSpec.varValues];
-		augSpec.valuesShape	= cellfun(@numel,augSpec.varValues);
-		nSim				= prod(augSpec.valuesShape);
+		itVarName			= ['kIteration' plotSpec.varName];
+		itVarValues			= [{num2cell(1:plotSpec.nIteration)} plotSpec.varValues];
+		itValuesShape		= cellfun(@numel,itVarValues);
+		nSim				= prod(itValuesShape);
 
 		if obj.uopt.verbosity > 0
 			fprintf('Number of plot-variable combinations = %d\n',nSim);
@@ -1052,14 +1072,12 @@ methods
 
 		rng(obj.uopt.seed,'twister');
 
-		augSpec.seed		= randi(intmax,nSim,1);
-		wrapperInterface	= @(i) makePlotTaskWrapper(obj,augSpec,i);
-		cResult				= MultiTask(wrapperInterface, ...
+		seed				= randi(intmax,nSim,1);
+		cResult				= MultiTask(@taskWrapper, ...
 								{num2cell(1:nSim)}, ...
 								'njobmax',obj.uopt.njobmax, ...
 								'nthread',obj.uopt.max_cores, ...
 								'silent',(obj.uopt.max_cores<2));
-		cResult				= reshape(cResult,augSpec.valuesShape);
 		end_ms				= nowms;
 
 		capsule.begun		= FormatTime(start_ms);
@@ -1067,13 +1085,39 @@ methods
 		capsule.version		= obj.version;
 		capsule.plotSpec	= plotSpec;
 		capsule.uopt		= obj.uopt;
-		capsule.result		= cResult;
+		capsule.result		= reshape(cResult,itValuesShape);
 		capsule.elapsed_ms	= end_ms - start_ms;
 		capsule.done		= FormatTime(end_ms);
 
 		if opt.saveplot
 			iflow_plot_capsule	= capsule; %#ok
 			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
+		end
+
+		function result = taskWrapper(taskIndex)
+			vind		= cell(1,numel(itVarName));
+			[vind{:}]	= ind2sub(itValuesShape,taskIndex);
+			valueTuple	= arrayfun(@(j) itVarValues{j}{vind{j}}, ...
+							1:numel(vind),'uni',false);
+			if isfield(plotSpec,'transform') && ~isempty(plotSpec.transform)
+				[valueTuple{2:end}]	= plotSpec.transform(valueTuple{2:end});
+			end
+
+			vopt				= obj.uopt;
+			vopt.seed			= seed(taskIndex);
+			vopt.progress		= false;
+			for kV=1:numel(itVarName)
+				name			= itVarName{kV};
+				if isfield(vopt,name)
+					vopt.(name)	= valueTuple{kV};
+				end
+			end
+			vobj				= obj;
+			vobj.uopt			= vopt;
+			result.keyTuple		= itVarName;
+			result.valueTuple	= valueTuple;
+			result.seed			= vopt.seed;
+			result.summary		= simulateAllSubjects(vobj);
 		end
 	end
 
@@ -1148,32 +1192,6 @@ methods
 			iflow_plot_capsule	= capsule; %#ok
 			save([capsule.id '_iflow_plot_capsule.mat'],'iflow_plot_capsule');
 		end
-	end
-
-	function result = makePlotTaskWrapper(obj,augSpec,taskIndex)
-		vind		= cell(1,numel(augSpec.varName));
-		[vind{:}]	= ind2sub(augSpec.valuesShape,taskIndex);
-		valueTuple	= arrayfun(@(j) augSpec.varValues{j}{vind{j}}, ...
-						1:numel(vind),'uni',false);
-		if isfield(augSpec,'filter') && ~isempty(augSpec.filter)
-			[valueTuple{2:end}]	= augSpec.filter(obj.uopt,valueTuple{2:end});
-		end
-
-		vopt				= obj.uopt;
-		vopt.seed			= augSpec.seed(taskIndex);
-		vopt.progress		= false;
-		for kV=1:numel(augSpec.varName)
-			name			= augSpec.varName{kV};
-			if isfield(vopt,name)
-				vopt.(name)	= valueTuple{kV};
-			end
-		end
-		vobj				= obj;
-		vobj.uopt			= vopt;
-		result.keyTuple		= augSpec.varName;
-		result.valueTuple	= valueTuple;
-		result.seed			= vopt.seed;
-		result.summary		= simulateAllSubjects(vobj);
 	end
 
 	function note = noteFixedVars(obj,fixedVars,fixedVarValues)
@@ -1430,6 +1448,7 @@ methods
 			end
 		end
 
+		% constrainData: See also comments at convertPlotCapsuleResultToArray.
 		function subdata = constrainData(data,varName,varValue)
 			varIdx		= label2index(varName);
 			lastDim		= numel(size(data));
@@ -1570,7 +1589,8 @@ methods
 		ylabel('run');
 	end
 
-	function showFunctionalSigPlot(obj,X,Y,block)
+	% TODO: Move this method to correct alphabetic position
+	function showSigPlot(obj,X,Y,block,kindOfSig)
 		if obj.uopt.nofigures
 			return;
 		end
@@ -1581,8 +1601,9 @@ methods
 		xPlot	= X(:,1,1);
 		yPlot	= Y(:,1,1);
 
+		title	= [kindOfSig ' (Run 1, Signal 1)'];
 		h		= alexplot(tPlot,{xPlot yPlot},...
-			'title'		, 'Run 1'		, ...
+			'title'		, title			, ...
 			'xlabel'	, 't'			, ...
 			'ylabel'	, 'Amplitude'	, ...
 			'legend'	, {'X','Y'}		  ...
@@ -1714,10 +1735,15 @@ methods
 		% it does NOT suffice to suppress the progress reports below
 		% through the 'silent' option:  instead we must avoid the
 		% calls to 'progress' altogether.
+		% TODO:  With the recent changes to progress.m, the 'log'
+		% option is no longer supported.  If support is not restored
+		% with future changes to progress.m, should remove 'log' from
+		% call below.
 		if u.progress
 			progresstypes	= {'figure','commandline'};
-			progress(u.nSubject,'label','simulating each subject',...
-					'type',progresstypes{1+u.nofigures},...
+			progress('action','init','total',u.nSubject, ...
+					'label','simulating each subject', ...
+					'type',progresstypes{1+u.nofigures}, ...
 					'log',false);
 		end
 		for kS=1:u.nSubject
@@ -1796,6 +1822,10 @@ end
 
 methods (Static)
 	% constructTestPlotData
+	%
+	% Quick test:
+	%  pd=Pipeline.constructTestPlotData('fudge',{'stubsim'})
+	%  cH=Pipeline.constructTestPlotsFromData(pd)
 	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchProcessing;
@@ -1805,55 +1835,45 @@ methods (Static)
 
 		spec				= repmat(struct,4,1);
 
-		spec(1).varName		= 'WSum';
-		spec(1).varValues	= 0:0.05:0.3;
+		spec(1).varName		= {'WSum','CRecurY'};
+		spec(1).varValues	= {0:0.05:0.3,[0 0.35 0.7]};
 
-		spec(2).varName		= 'WSum';
-		spec(2).varValues	= 0:0.05:0.3;
-		spec(2).filter		= @(u,WSum) deal(WSum * (1-u.CRecurY)/0.3);
+		spec(2).varName		= {'WSum','CRecurY'};
+		spec(2).varValues	= {0:0.05:0.3,[0 0.35 0.7]};
+		spec(2).transform	= @(WSum,CRecurY) deal(WSum * (1-CRecurY)/0.3,CRecurY);
 
-		spec(3).varName		= 'WFullness';
-		spec(3).varValues	= 0.1:0.2:0.9;
+		spec(3).varName		= {'WFullness','CRecurY'};
+		spec(3).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};
 
-		spec(4).varName		= 'nTBlock';
-		spec(4).varValues	= 1:5;
-
-		capMeta.varName		= 'CRecurY';
-		capMeta.varValues	= [0 0.35 0.7];
-
-		rng(pipeline.uopt.seed,'twister');
+		spec(4).varName		= {'nTBlock','CRecurY'};
+		spec(4).varValues	= {1:5,[0 0.35 0.7]};
 
 		nSpec				= numel(spec);
-		nCapvar				= numel(capMeta.varValues);
-		capsule				= cell(nCapvar,nSpec);
-		capseeds			= randi(intmax,1,nCapvar);
+		capsule				= cell(1,nSpec);
 
 		for kSpec=1:nSpec
-			for kCapvar=1:nCapvar
-				p2							= pipeline;
-				p2.uopt.(capMeta.varName)	= capMeta.varValues(kCapvar);
-				p2.uopt.seed				= capseeds(kCapvar);
-				capsule{kCapvar,kSpec}		= p2.makePlotCapsule(spec(kSpec));
-			end
+			capsule{kSpec}	= pipeline.makePlotCapsule(spec(kSpec));
 		end
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS'); %#ok
 		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
-									nCapvar,nSpec,pipeline.uopt.nSubject);
-		plot_data.capMeta		= capMeta;
+									1,nSpec,pipeline.uopt.nSubject);
 		plot_data.cCapsule		= capsule;
 		%save([filename_prefix '_recurY_plot_data.mat'],'plot_data');
 	end
 
 	function cH = constructTestPlotsFromData(plot_data)
 		pipeline	= Pipeline;
-		meta		= plot_data.capMeta;
 		cap			= plot_data.cCapsule;
-		nFig		= size(cap,2);
+		nFig		= numel(cap);
 		cH			= cell(1,nFig);
 		for kF=1:nFig
-			cH{kF}	= pipeline.renderMultiLinePlotOldFormat(cap(:,kF),meta);
+			spec	= cap{kF}.plotSpec;
+			cH{kF}	= pipeline.renderMultiLinePlot(cap{kF},spec.varName{1}, ...
+						'lineVarName'	, spec.varName{2}	, ...
+						'lineVarValues'	, spec.varValues{2}	  ...
+						);
 		end
 	end
 

@@ -24,7 +24,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150423,...
+	version				= struct('pipeline',20150424,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -93,7 +93,7 @@ methods
 	%
 	%					-- Hemodynamic response
 	%
-	%		hrf:		(true) convolve signals with hemodynamic response function
+	%		hrf:		(false) convolve signals with hemodynamic response function
 	%		hrfOptions:	({}) options to quasiHRF kernel generator
 	%
 	%					-- Analysis
@@ -147,7 +147,7 @@ methods
 			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
-			'hrf'			, true		, ...
+			'hrf'			, false		, ...
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
 			'kraskov_k'		, 4			, ...
@@ -991,14 +991,20 @@ methods
 
 		if u.hrf
 			kernel	= quasiHRF(u.hrfOptions{:});
-			for kCol=1:size(X,2)
-				X(:,kCol)	= conv(X(:,kCol),kernel,'same');
-			end
-			for kCol=1:size(Y,2)
-				Y(:,kCol)	= conv(Y(:,kCol),kernel,'same');
-			end
+			X		= convCols(X,kernel);
+			Y		= convCols(Y,kernel);
+
 			if doDebug
 				showSigPlot(obj,X,Y,block,'Post-HRF');
+			end
+		end
+
+		function C = convCols(C,kernel)
+			nT				= size(C,1);
+			nCol			= numel(C)/nT;
+			for kCol=1:nCol
+				C_hat		= conv(C(:,kCol),kernel);
+				C(:,kCol)	= C_hat(1:nT);
 			end
 		end
 	end

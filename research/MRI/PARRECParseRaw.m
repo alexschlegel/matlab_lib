@@ -27,11 +27,11 @@ function ifo = PARRECParseRaw(cDirRaw,varargin)
 %					run 5 is treated as run 1, 4 as 2, and 3 is kept as 3.
 %				date:<ddmmmyy> --> specify an alternate date
 %				file_ignore:<f1> <f2> ... <fN> --> ignore the specified
-%					files.  NOTE: don't use this for functional scans.  use
-%					'run'
+%					files (e.g. '29mar15jp_04_1-DwiSE').  NOTE: don't use this
+%					for functional scans.  use 'run'.
 % 
-% Updated: 2014-03-14
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-04-24
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -117,8 +117,8 @@ function ifo = ReadConfig(strDir)
 								
 								status(['reassigning date for ' ifo.code ' to ' FormatTime(ifo.t)],'silent',opt.silent);
 							case 'file_ignore'
-								cFileIgnore			= split(s.val,'\s+');
-								cFile				= cellfun(@PathGetFileName,ifo.files,'UniformOutput',false);
+								cFileIgnore			= cellfun(@PathGetFilePre,split(s.val,'\s+'),'uni',false);
+								cFile				= cellfun(@PathGetFilePre,ifo.files,'uni',false);
 								[bIgnore,kIgnore]	= ismember(cFileIgnore,cFile);
 								
 								ifo.files(kIgnore)		= [];

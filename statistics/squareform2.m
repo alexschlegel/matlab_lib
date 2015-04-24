@@ -19,7 +19,7 @@ function y = squareform2(x,varargin)
 % Out:
 % 	y	- see squareform
 % 
-% Updated: 2015-04-15
+% Updated: 2015-04-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -63,7 +63,17 @@ switch strTo
 			b	= ~logical(eye(sz));
 			y	= x(b);
 		else
-			y	= squareform(x,'tovector');
+			switch class(x)
+				case 'cell'
+					sz		= size(x,1);
+					k		= triu(reshape(1:numel(x),[sz sz]),1);
+					k		= k + k';
+					k		= squareform(k,'tovector');
+					
+					y	= x(k);
+				otherwise
+					y	= squareform(x,'tovector');
+			end
 		end
 	case 'tomatrix'
 		bRow	= sz(2)~=1;
@@ -94,6 +104,17 @@ switch strTo
 			end
 			y(b)	= x;
 		else
-			y	= squareform(x,'tomatrix');
+			switch class(x)
+				case 'cell'
+					k	= 1:numel(x);
+					k	= squareform(k,'tomatrix');
+					
+					m		= size(k,1);
+					y		= cell(m);
+					b		= k~=0;
+					y(b)	= x(k(b));
+				otherwise
+					y	= squareform(x,'tomatrix');
+			end
 		end
 end

@@ -170,7 +170,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 % 	res	- if <combine> is selected, then a structtree of analysis results.
 %		  otherwise, a cell of result structs.
 % 
-% Updated: 2015-04-13
+% Updated: 2015-04-20
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -578,6 +578,8 @@ function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
 				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
 			%calculate a t-test across subjects
 				nd			= unless(find(size(stat.r)>1,1,'last'),1);
+				stat.mr		= nanmean(stat.r,nd);
+				stat.ser	= nanstderrJK(stat.r,[],nd);
 				stat.mz		= nanmean(stat.z,nd);
 				stat.sez	= nanstderr(stat.z,[],nd);
 				
@@ -601,6 +603,8 @@ function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
 				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
 			%calculate a jackknife t-test across subjects
 				nd			= unless(find(size(stat.r)>1,1,'last'),1);
+				stat.mr		= nanmean(stat.r,nd);
+				stat.ser	= nanstderrJK(stat.r,[],nd);
 				stat.mz		= nanmean(stat.z,nd);
 				stat.sez	= nanstderrJK(stat.z,[],nd);
 				

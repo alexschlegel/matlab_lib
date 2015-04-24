@@ -93,7 +93,7 @@ methods
 	%
 	%					-- Hemodynamic response
 	%
-	%		hrf:		(false) convolve signals with hemodynamic response function
+	%		hrf:		(true) convolve signals with hemodynamic response function
 	%		hrfOptions:	({}) options to quasiHRF kernel generator
 	%
 	%					-- Analysis
@@ -147,7 +147,7 @@ methods
 			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
 			'noiseMix'		, 0.1		, ...
-			'hrf'			, false		, ...
+			'hrf'			, true		, ...
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
 			'kraskov_k'		, 4			, ...
@@ -596,11 +596,19 @@ methods
 		end
 		maps		= [keymaps datamaps stubmaps];
 		cLabel		= cellfun(@(m)m{1},maps,'uni',false);
-		cArray		= cellfun(@(m)cellfun(@(r)m{2}(r),result), ...
+		cArray		= cellfun(@(m)cellfun(@(r)appsafe(m{2},r),result), ...
 						maps,'uni',false);
 		array		= cat(1+numel(keys),cArray{:});
 		label2index	= @getLabelIndex;
 		getfield	= @getSubarrayForLabel;
+
+		function v = appsafe(fn,arg)
+			try
+				v	= fn(arg);
+			catch ME
+				v	= -Inf;
+			end
+		end
 
 		function n = fetchopt(summary,optname)
 			if isfield(summary,'uopt') && isfield(summary.uopt,optname)
@@ -662,6 +670,59 @@ methods
 			sigs.YFudge	= Y(kFudge,kR,:);
 			signals{kR}	= sigs;
 		end
+	end
+
+	%Find min v in varDomain such that fn(v) <= goal
+	%It is assumed that varDomain is monotonically increasing
+	%It is assumed that fn is monotonically nonincreasing
+	%
+	% Sample quick test:
+	%>> p=Pipeline('nSubject',2,'nRun',5,'nTBlock',2);
+	%>> d=p.findThreshold
+	function domainValue = findThreshold(obj,varargin)
+		opt	= ParseArgs(varargin, ...
+				'varName'		, 'nRepBlock'	, ...
+				'varDomain'		, 1:24			, ...
+				'fn'			, @get_p_value	, ...
+				'projection'	, @project_p	, ...
+				'goal'			, 0				  ...
+				);
+		minidx				= 1;
+		maxidx				= numel(opt.varDomain);
+		best_d				= NaN;
+		while minidx <= maxidx
+			idx				= floor((minidx+maxidx)/2);
+			d				= opt.varDomain(idx);
+			p				= opt.fn(d);
+			%fprintf('f(%d)=%g\n',d,p);
+			if p <= opt.goal
+				best_d		= d;
+				maxidx		= idx-1;
+			else
+				minidx		= idx+1;
+			end
+		end
+		domainValue			= best_d;
+
+		function p = get_p_value(d)
+			pobj					= obj;
+			pobj.uopt.(opt.varName)	= d;
+			pobj.uopt.nofigures		= true;
+			pobj.uopt.progress		= false;
+			summary					= simulateAllSubjects(pobj);
+			p						= opt.projection(summary);
+		end
+
+		function p = project_p(summary)
+			p						= summary.alex.p;
+		end
+
+		% For testing
+		%{
+		function p = hyperbola(d)
+			p			= 1/d;
+		end
+		%}
 	end
 
 	function [block,target] = generateBlockDesign(obj,doDebug)
@@ -1045,11 +1106,6 @@ methods
 
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
-		capsule	= makePlotCapsuleNew(obj,plotSpec,varargin{:});
-	end
-
-	%TODO: comments
-	function capsule = makePlotCapsuleNew(obj,plotSpec,varargin)
 		opt					= ParseArgs(varargin,...
 			'saveplot'		, obj.uopt.saveplot	  ...
 			);
@@ -1066,7 +1122,9 @@ methods
 			fprintf('Number of plot-variable combinations = %d\n',nSim);
 		end
 
-		rng(obj.uopt.seed,'twister');
+		if notfalse(obj.uopt.seed)
+			rng(obj.uopt.seed,'twister');
+		end
 
 		seed				= randi(intmax,nSim,1);
 		cResult				= MultiTask(@taskWrapper, ...
@@ -1101,6 +1159,7 @@ methods
 
 			vopt				= obj.uopt;
 			vopt.seed			= seed(taskIndex);
+			vopt.nofigures		= true;
 			vopt.progress		= false;
 			for kV=1:numel(itVarName)
 				name			= itVarName{kV};
@@ -1290,9 +1349,16 @@ methods
 		nLineVarValue	= numel(opt.lineVarValues);
 		nLineLabel		= numel(opt.lineLabels);
 		nPlotLine		= max([1 nLineVarValue]);
-		if nLineLabel > 0 && nLineLabel ~= nPlotLine
-			error('Inconsistent number of lineLabels.');
-		elseif nLineLabel == 0
+		if nLineLabel > 0
+			if nLineLabel ~= nPlotLine
+				error('Inconsistent number of lineLabels.');
+			end
+			if obj.uopt.verbosity > 0
+				fprintf('%s %s\n', ...
+					'Use of ''lineLabels'' option is error-prone', ...
+					'and is not recommended.');
+			end
+		else
 			if isempty(opt.lineVarName)
 				opt.lineLabels	= {yVarName};
 			else
@@ -1438,7 +1504,31 @@ methods
 		ylabel('run');
 	end
 
-	% TODO: Move this method to correct alphabetic position
+	function showFunctionalSigStats(obj,X,Y)
+		u		= obj.uopt;
+		nTRun	= size(X,1);	%number of time points per run
+
+		XCause	= X(:,:,1:u.nSigCause);
+		YCause	= Y(:,:,1:u.nSigCause);
+
+		%cMeasure	= {'mean','range','std','std(d/dx)'};
+		cFMeasure	= {@mean,@range,@std,@(x) std(diff(x))};
+
+		cXMeasure	= cellfun(@(f) f(reshape(permute(XCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
+		cYMeasure	= cellfun(@(f) f(reshape(permute(YCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
+
+		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
+		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
+
+		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
+		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
+
+		fprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cXMMeasure{:});
+		fprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cYMMeasure{:});
+		fprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',p{:});
+		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
+	end
+
 	function showSigPlot(obj,X,Y,block,kindOfSig)
 		if obj.uopt.nofigures
 			return;
@@ -1480,31 +1570,6 @@ methods
 		end
 	end
 
-	function showFunctionalSigStats(obj,X,Y)
-		u		= obj.uopt;
-		nTRun	= size(X,1);	%number of time points per run
-
-		XCause	= X(:,:,1:u.nSigCause);
-		YCause	= Y(:,:,1:u.nSigCause);
-
-		%cMeasure	= {'mean','range','std','std(d/dx)'};
-		cFMeasure	= {@mean,@range,@std,@(x) std(diff(x))};
-
-		cXMeasure	= cellfun(@(f) f(reshape(permute(XCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
-		cYMeasure	= cellfun(@(f) f(reshape(permute(YCause,[1 3 2]),nTRun*u.nSigCause,u.nRun)),cFMeasure,'uni',false);
-
-		cXMMeasure	= cellfun(@mean,cXMeasure,'uni',false);
-		cYMMeasure	= cellfun(@mean,cYMeasure,'uni',false);
-
-		[~,p,~,kstats]	= cellfun(@ttest2,cXMeasure,cYMeasure,'uni',false);
-		tstat			= cellfun(@(s) s.tstat,kstats,'uni',false);
-
-		fprintf('XCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cXMMeasure{:});
-		fprintf('YCause mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',cYMMeasure{:});
-		fprintf('p      mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',p{:});
-		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
-	end
-
 	function showTwoWs(obj,W1,W2,figTitle)
 		if obj.uopt.nofigures
 			return;
@@ -1540,7 +1605,9 @@ methods
 		u								= obj.uopt;
 
 		%initialize pseudo-random-number generator
-		rng(u.seed,'twister');
+		if notfalse(u.seed)
+			rng(u.seed,'twister');
+		end
 
 		%perform simulations, or substitute stub if applicable;
 		%in case of NaN params, set answers to NaN
@@ -1691,7 +1758,7 @@ methods (Static)
 		spec(2).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
 		spec(2).pseudoVar	= 'WSumFrac';
 		spec(2).transform	= @(~,CRecurY,WSumFrac) deal(...
-								WSumFrac * (1-CRecurY),CRecurY,WSumFrac);
+								WSumFrac*(1-CRecurY),CRecurY,WSumFrac);
 
 		spec(3).varName		= {'WFullness','CRecurY'};
 		spec(3).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};

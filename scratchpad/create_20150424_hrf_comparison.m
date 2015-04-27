@@ -29,7 +29,9 @@ function cCapsule = create_20150424_hrf_comparison(varargin)
 	spec.transform	= @filterNoiseYParams;
 	cCapsule{end+1}	= pipeline.makePlotCapsule(spec);
 
-	save('../data_store/20150424_hrf_comparison.mat','cCapsule');
+	path			= ['../data_store/' FormatTime(nowms,'yyyymmdd') ...
+						'_hrf_comparison.mat'];
+	save(path,'cCapsule');
 
 end
 

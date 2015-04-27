@@ -29,6 +29,8 @@ properties (SetAccess = private)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
+	notableOptionNames
+	unlikelyOptionNames
 	analyses			= {'alex','lizier','seth'}
 	infodyn_teCalc
 end
@@ -162,6 +164,16 @@ methods
 		opt						= ParseArgs(varargin,obj.defaultOptions{:});
 		obj.implicitOptionNames	= obj.defaultOptions(1:2:end);
 		obj.explicitOptionNames	= varargin(1:2:end);
+		obj.notableOptionNames	= { 'nSubject', 'nSig', 'nSigCause', ...
+									'nVoxel', 'nTBlock', 'nTRest', ...
+									'nRepBlock', 'nRun', 'CRecurX', ...
+									'CRecurY', 'CRecurZ', 'WFullness', ...
+									'WSum', 'noiseMix', 'hrf'  ...
+								  };
+		obj.unlikelyOptionNames	= { 'normVar', 'preSource', 'snr', ...
+									'snrMode', 'WSmooth', 'WSquash', ...
+									'WSumTweak', 'xCausAlpha', 'doMixing'  ...
+								  };
 		unknownOptInd			= ~ismember(obj.explicitOptionNames,obj.implicitOptionNames);
 		if any(unknownOptInd)
 			error('Unrecognized option(s):%s',sprintf(' ''%s''',obj.explicitOptionNames{unknownOptInd}));
@@ -404,6 +416,8 @@ methods
 				s	= strjoin(cellfun(@toString,value(:).','uni',false));
 			elseif ischar(value)
 				s	= value(:).'; % TODO: maybe improve?
+			elseif islogical(value)
+				s	=  sprintf('%d',value);
 			elseif ~isnumeric(value)
 				s	= '??'; % TODO: improve
 			elseif ~isscalar(value)
@@ -605,7 +619,7 @@ methods
 		function v = appsafe(fn,arg)
 			try
 				v	= fn(arg);
-			catch ME
+			catch ME %#ok
 				v	= -Inf;
 			end
 		end
@@ -1184,77 +1198,36 @@ methods
 
 	function note = noteFixedVars(obj,fixedVars,fixedVarValues)
 		[~,ix]	= sort(lower(fixedVars));
-		cNote	= arrayfun(@(i)sprintf('%s=%s',fixedVars{i}, ...
+		binding	= arrayfun(@(i)sprintf('%s=%s',fixedVars{i}, ...
 						asString(obj,fixedVarValues{i})), ...
 						ix,'uni',false);
-		note	= strjoin(cNote,',');
+		note	= strjoin(binding,',');
 	end
 
-	function note = noteVaryingOpts(obj,capsule)
-		u			= obj.uopt; %#ok
-		spec		= capsule.plotSpec;
-		opt			= capsule.uopt;
-		cNote		= {};
+	function note = noteMiscOpts(obj,nuopt,exclude)
+		binding		= {};
+		names		= [obj.notableOptionNames obj.unlikelyOptionNames];
 
-		%{
-		if ~strcmp(spec.varName,'nSubject')
-			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
+		for kName=1:numel(names)
+			name		= names{kName};
+			val			= nuopt.(name);
+			defval		= obj.uopt.(name);
+			include		= ismember(name,obj.notableOptionNames);
+			if ~include && ~isempty(val)
+				include	= ~(ischar(val) && strcmp(val,defval) || ...
+							islogical(val) && val == defval || ...
+							isnumeric(val) && val == defval);
+			end
+			if include && ~ismember(name,exclude)
+				binding{end+1}	= sprintf('%s=%s',name,asString(obj,val)); %#ok
+			end
 		end
-		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
-			cNote{end+1}	= 'recur=0';
-		elseif opt.CRecurX == u.CRecurX && opt.CRecurY ~= u.CRecurY && opt.CRecurZ == u.CRecurZ
-			cNote{end+1}	= sprintf('recurY=%.2f',opt.CRecurY);
-		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
-			cNote{end+1}	= 'recur=?';
+		note		= {};
+		while numel(binding) > 0
+			idx			= min(8,numel(binding));
+			note{end+1}	= strjoin(binding(1:idx),', '); %#ok
+			binding		= binding(idx+1:end);
 		end
-		if isfield(opt,'WSquash') && opt.WSquash
-			cNote{end+1}	= 'wsqsh';
-		end
-		if isfield(opt,'WSumTweak') && opt.WSumTweak
-			cNote{end+1}	= 'wstwk';
-		end
-		if isfield(opt,'normVar') && opt.normVar ~= 0
-			cNote{end+1}	= sprintf('normVar=%d',opt.normVar);
-		end
-		if isfield(opt,'preSource') && opt.preSource == 0
-			cNote{end+1}	= '~preSrc';
-		end
-		%}
-		note		= strjoin(cNote,',');
-	end
-
-	%TODO: obsolete: remove after mining material for noteVaryingOpts, etc.
-	function note = noteVaryingOptsOldFormat(obj,capsule)
-		u			= obj.uopt; %#ok
-		spec		= capsule.plotSpec;
-		opt			= capsule.uopt;
-		cNote		= {};
-
-		if ~strcmp(spec.varName,'nSubject')
-			cNote{end+1}	= sprintf('nSubject=%d',opt.nSubject);
-		end
-		%{
-		if opt.CRecurX == 0 && opt.CRecurY == 0 && opt.CRecurZ == 0
-			cNote{end+1}	= 'recur=0';
-		elseif opt.CRecurX == u.CRecurX && opt.CRecurY ~= u.CRecurY && opt.CRecurZ == u.CRecurZ
-			cNote{end+1}	= sprintf('recurY=%.2f',opt.CRecurY);
-		elseif opt.CRecurX ~= u.CRecurX || opt.CRecurY ~= u.CRecurY || opt.CRecurZ ~= u.CRecurZ
-			cNote{end+1}	= 'recur=?';
-		end
-		%}
-		if isfield(opt,'WSquash') && opt.WSquash
-			cNote{end+1}	= 'wsqsh';
-		end
-		if isfield(opt,'WSumTweak') && opt.WSumTweak
-			cNote{end+1}	= 'wstwk';
-		end
-		if isfield(opt,'normVar') && opt.normVar ~= 0
-			cNote{end+1}	= sprintf('normVar=%d',opt.normVar);
-		end
-		if isfield(opt,'preSource') && opt.preSource == 0
-			cNote{end+1}	= '~preSrc';
-		end
-		note		= strjoin(cNote,',');
 	end
 
 	function plotSpec = regularizePlotSpec(obj,plotSpec)
@@ -1434,6 +1407,12 @@ methods
 						'errortype'	, 'bar'				  ...
 						);
 		set(h.hTitle,'FontSize',12);
+		pos			= get(h.hA,'Position');
+		pos([2 4])	= pos([2 4]) + [0.07 -0.07];
+		set(h.hA,'Position',pos);
+		axes('Position',[0 0 1 1],'Visible','off');
+		text(0.02,0.07,noteMiscOpts(obj,capsule.uopt, ...
+						[xVarName opt.lineVarName fixedVars]));
 
 		function checkBothOrNeither(prefix)
 			name	= [prefix 'VarName'];

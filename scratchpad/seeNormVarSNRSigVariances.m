@@ -8,7 +8,7 @@ snr=snrVals(snrIdx);
 %pp=Pipeline('nRun',100,'normVar',normVar);
 nVoxel=100; % (The default)
 nVoxel=20;  % (Override the default)
-pp=Pipeline('nRun',100,'snrMode','norm','snr',snr,'nVoxel',nVoxel);
+pp=Pipeline('nRun',100,'snr',snr,'normVar',true,'nVoxel',nVoxel);
 rng(seed,'twister');
 doDebug=false;
 sW=generateStructOfWs(pp,doDebug);
@@ -16,7 +16,7 @@ sW=generateStructOfWs(pp,doDebug);
 %block=ones(size(block));
 t1=repmat({'A'},size(target{1}));
 target=repmat({t1},size(target));
-[sigs{1},sigs{2}]=generateSignalNoiseMixture(pp,[],target,sW,doDebug);
+[sigs{1},sigs{2}]=generateSignalNoiseMixtureWithNormVar(pp,[],target,sW,doDebug);
 signame={'X','Y'};
 
 for kS=1:2

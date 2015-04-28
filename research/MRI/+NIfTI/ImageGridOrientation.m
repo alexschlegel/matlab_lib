@@ -20,26 +20,17 @@ function varargout = ImageGridOrientation(nii)
 % 
 % Side-effects:	if no output is specified, the results are displayed
 % 
-% Assumptions:	assumes SPM8 is installed and the NIfTI data are not aligned
-%				obliquely
+% Assumptions:	assumes the NIfTI data are not aligned obliquely
 % 
-% Updated: 2015-04-13
+% Updated: 2015-04-28
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-%get a NIfTI object
+%get a NIfTI object with .mat
 	switch class(nii)
 		case 'char'
-			bGZip	= isequal(lower(PathGetExt(nii,'favor','nii.gz')),'nii.gz');
-			if isunix && bGZip
-				nii		= FSLReadHeader(nii);
-				nii.mat	= nii.qto_xyz;
-			elseif ~bGZip
-				nii	= nifti(nii);
-			else
-				nii	= NIfTI.Read(nii,'method','spm');
-			end
+			nii	= NIfTI.ReadHeader(nii);
 		case {'nifti','struct'}
 		otherwise
 			error('What is this?');

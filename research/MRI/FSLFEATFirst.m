@@ -53,7 +53,7 @@ function [bSuccess,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %				  analyzed
 %	cDirOut		- a cell of output directories
 % 
-% Updated: 2015-04-13
+% Updated: 2015-04-28
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -148,7 +148,10 @@ function b = AnalyzeOne(strPathData,d,strDirOut)
 
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
 	
-	[tr,sNIfTI]	= NIfTI.GetTiming(strPathData);
+	hdr	= NIfTI.ReadHeader(strPathData);
+	
+	tr		= hdr.pixdim(5);
+	nvol	= hdr.dim(5);
 	
 	%make sure strDirOut exists
 		b	= CreateDirPath(strDirOut);
@@ -323,7 +326,7 @@ function b = AnalyzeOne(strPathData,d,strDirOut)
 						'functional_path'	, strPathData			, ...
 						'output_dir'		, strDirTemp			, ...
 						'tr'				, tr					, ...
-						'volumes'			, sNIfTI.nvol			, ...
+						'volumes'			, nvol					, ...
 						'delete_volumes'	, opt.delete_volumes	, ...
 						'bb_thresh'			, opt.bb_thresh			, ...
 						'noise_level'		, opt.noise_level		, ...

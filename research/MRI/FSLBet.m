@@ -28,7 +28,7 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 % 	b			- true if the bet and fslview ran successfully
 %	strPathOut	- the path to the output volume
 % 
-% Updated: 2015-04-15
+% Updated: 2015-04-28
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -96,8 +96,8 @@ function b = BetOne(strPathIn,strPathOut,opt)
 	end
 	
 	%get the mean of the absolute value if we have a 4D data set
-		hdr		= FSLReadHeader(strPathIn);
-		bMean	= hdr.dim4>1;
+		sz		= NIfTI.GetSize(strPathIn);
+		bMean	= numel(sz)>=4 && sz(4)>1;
 		if bMean
 			status('calculating mean(|d|)','silent',opt.silent);
 			

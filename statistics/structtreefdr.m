@@ -18,7 +18,7 @@ function s = structtreefdr(s,varargin)
 % Out:
 % 	s	- the structtree with fdr-corrected p-values added
 % 
-% Updated: 2015-03-31
+% Updated: 2015-04-29
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -46,9 +46,13 @@ opt	= ParseArgs(varargin,...
 	end
 	nPath	= numel(cPath);
 
+%for each path, factor in the size of the last struct
+	nStruct	= cellfun(@(p) numel(GetFieldPath(s,p{1:end-1})),cPath,'uni',false);
+
 %get the p-values
-	p		= cellfun(@(p) GetFieldPath(s,p{:}),cPath,'uni',false);
-	pFlat	= cellfun(@(p) reshape(p,[],1),p,'uni',false);
+	p		= cellfun(@(p,n) arrayfun(@(k) GetFieldPath(s,[ones(1,numel(p)-1) k],p{:}),(1:n)','uni',false),cPath,nStruct,'uni',false);
+	pFlat	= cellfun(@(cp) cellfun(@(x) reshape(x,[],1),cp,'uni',false),p,'uni',false);
+	pFlat	= cellfun(@(cp) cat(1,cp{:}),pFlat,'uni',false);
 	pFlat	= cat(1,pFlat{:});
 %fdr correct
 	[pThresh,pfdr]	= fdr(pFlat,opt.q);
@@ -57,15 +61,19 @@ opt	= ParseArgs(varargin,...
 	
 	kFDR	= 1;
 	for kP=1:nPath
-		n		= numel(p{kP});
-		sz		= size(p{kP});
-		kFDREnd	= kFDR+n-1;
+		nStructCur	= nStruct{kP};
 		
-		pFDRCur	= reshape(pfdr(kFDR:kFDREnd),sz);
-		
-		s	= SetFieldPath(s,cPathFDR{kP}{:},pFDRCur);
-		
-		kFDR	= kFDREnd+1;
+		for kS=1:nStructCur
+			n		= numel(p{kP}{kS});
+			sz		= size(p{kP}{kS});
+			kFDREnd	= kFDR+n-1;
+			
+			pFDRCur	= reshape(pfdr(kFDR:kFDREnd),sz);
+			
+			s	= SetFieldPath(s,[ones(1,numel(cPathFDR{kP})-1) kS],cPathFDR{kP}{:},pFDRCur);
+			
+			kFDR	= kFDREnd+1;
+		end
 	end
 
 %------------------------------------------------------------------------------%

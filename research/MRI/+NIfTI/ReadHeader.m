@@ -114,7 +114,7 @@ persistent hDef fRead;
 							);
 	end
 
-%read the header depending on the file type
+%read the header
 	hdr	= struct;
 	
 	%get the file type
@@ -182,10 +182,10 @@ persistent hDef fRead;
 			origin	= (hdr.dim(2:4)+1)/2;
 			off		= -vox.*origin;
 			hdr.mat	=	[
-							vox(1) 0 0 off(1)
-							0 vox(2) 0 off(2)
-							0 0 vox(3) off(3)
-							0 0 0 1
+							vox(1)	0		0		off(1)
+							0		vox(2)	0		off(2)
+							0		0		vox(3)	off(3)
+							0		0		0		1
 						];
 		end
 
@@ -249,8 +249,8 @@ function x = niigzRead(nii,dType,dLen)
 end
 %------------------------------------------------------------------------------%
 function niigzClose(nii)
-	nii.file.close;
 	nii.gz.close;
+	nii.file.close;
 end
 %------------------------------------------------------------------------------%
 function x = fixChar(x)

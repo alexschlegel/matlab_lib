@@ -16,7 +16,7 @@ function sPath = structtreepath(s,varargin)
 % Out:
 % 	sPath	- see <output> above
 % 
-% Updated: 2015-03-31
+% Updated: 2015-04-29
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -58,8 +58,8 @@ function cPath = PathAsCell(s,cPathParent)
 		strField	= cField{kF};
 		cPathField	= [cPathParent; strField];
 		
-		if isstruct(s.(strField))
-			cPath	= [cPath; PathAsCell(s.(strField),cPathField)];
+		if isstruct(s(1).(strField))
+			cPath	= [cPath; PathAsCell(s(1).(strField),cPathField)];
 		else
 			cPath	= [cPath; {cPathField}];
 		end

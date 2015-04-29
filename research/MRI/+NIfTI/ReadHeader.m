@@ -5,7 +5,7 @@ function hdr = ReadHeader(strPathNII)
 % 
 % Syntax:	hdr = NIfTI.ReadHeader(strPathNII)
 % 
-% Updated: 2015-04-28
+% Updated: 2015-04-29
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -129,11 +129,11 @@ persistent hDef fRead;
 	
 	%read the size of the header to figure out the file version
 		hdr.sizeof_hdr	= f.read(nii,'int32',1);
-		kVersion		= find(hdr.sizeof_hdr==hDef.size,1);
+		hdr.version		= find(hdr.sizeof_hdr==hDef.size,1);
 		
-		assert(~isempty(kVersion),'%d byte headers are unsupported',hdr.sizeof_hdr);
+		assert(~isempty(hdr.version),'%d byte headers are unsupported',hdr.sizeof_hdr);
 		
-		cField	= hDef.field{kVersion};
+		cField	= hDef.field{hdr.version};
 		
 		%already read the first field
 			cField	= cField(2:end,:);
@@ -176,7 +176,17 @@ persistent hDef fRead;
 		
 			hdr.mat	= T*R*Z * [eye(4,3) [-1 -1 -1 1]'];
 		else
-			warning('no mat could be computed.');
+			n	= min(hdr.dim(1),3);
+			vox	= [hdr.pixdim(2:(n+1)) ones(1,3-n)];
+			
+			origin	= (hdr.dim(2:4)+1)/2;
+			off		= -vox.*origin;
+			hdr.mat	=	[
+							vox(1) 0 0 off(1)
+							0 vox(2) 0 off(2)
+							0 0 vox(3) off(3)
+							0 0 0 1
+						];
 		end
 
 %------------------------------------------------------------------------------%
@@ -188,12 +198,7 @@ function x = niiRead(nii,dType,dLen)
 	x	= reshape(fread(nii,dLen,dType),1,dLen);
 	
 	if strcmp(dType,'char')
-		x	= char(x);
-		x	= x(1:find(x~=0,1,'last'));
-		
-		if isempty(x)
-			x	= '';
-		end
+		x	= fixChar(x);
 	end
 end
 %------------------------------------------------------------------------------%
@@ -233,12 +238,7 @@ function x = niigzRead(nii,dType,dLen)
 	
 	%convert to the output data type
 		if strcmp(dType,'char')
-			x	= char(xb);
-			x	= x(1:find(x~=0,1,'last'));
-		
-			if isempty(x)
-				x	= '';
-			end
+			x	= fixChar(xb);
 		else
 			x	= zeros(1,dLen);
 			
@@ -251,6 +251,21 @@ end
 function niigzClose(nii)
 	nii.file.close;
 	nii.gz.close;
+end
+%------------------------------------------------------------------------------%
+function x = fixChar(x)
+	x	= char(x);
+	
+	kZero	= find(x==0,1,'first');
+	if isempty(kZero)
+		kZero	= numel(x)+1;
+	end
+	
+	x	= x(1:kZero-1);
+
+	if isempty(x)
+		x	= '';
+	end
 end
 %------------------------------------------------------------------------------%
 

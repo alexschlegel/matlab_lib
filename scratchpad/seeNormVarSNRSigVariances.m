@@ -8,7 +8,7 @@ snr=snrVals(snrIdx);
 %pp=Pipeline('nRun',100,'normVar',normVar);
 nVoxel=100; % (The default)
 nVoxel=20;  % (Override the default)
-pp=Pipeline('nRun',100,'snr',snr,'normVar',true,'nVoxel',nVoxel);
+pp=Pipeline('nRun',100,'SNR',snr,'normVar',true,'nVoxel',nVoxel);
 rng(seed,'twister');
 doDebug=false;
 sW=generateStructOfWs(pp,doDebug);

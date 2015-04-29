@@ -24,7 +24,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150428,...
+	version				= struct('pipeline',20150429,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -79,7 +79,7 @@ methods
 	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
 	%		normVar:	(false) normalize signal variances (approximately)
 	%		preSource:	(false) include pre-source causal effects
-	%		snr:		(false) signal-to-noise ratio (nonnegative real, or false if N/A)
+	%		SNR:		(false) signal-to-noise ratio (positive real, or false if N/A)
 	%		WFullness:	(0.1) fullness of W matrices
 	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
 	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
@@ -138,7 +138,7 @@ methods
 			'CRecurZ'		, 0.5		, ...
 			'normVar'		, false		, ...
 			'preSource'		, false		, ...
-			'snr'			, false		, ...
+			'SNR'			, false		, ...
 			'WFullness'		, 0.1		, ...
 			'WSmooth'		, false		, ...
 			'WSquash'		, false		, ...
@@ -165,7 +165,7 @@ methods
 		obj.notableOptionNames	= { 'nSubject', 'nSig', 'nSigCause', ...
 									'nVoxel', 'nTBlock', 'nTRest', ...
 									'nRepBlock', 'nRun', 'CRecurX', ...
-									'CRecurY', 'CRecurZ', 'snr', ...
+									'CRecurY', 'CRecurZ', 'SNR', ...
 									'WFullness', 'WSum', 'noiseMix', ...
 									'hrf'  ...
 								  };
@@ -335,7 +335,7 @@ methods
 			switch u.normVar
 				case 0
 					sourceNoise		= (1-sum(WZ,1).'-u.CRecurX).*randn(u.nSig,1);
-					if ~notfalse(u.snr)
+					if ~notfalse(u.SNR)
 						destNoise	= (1-sum(W,1).'-u.CRecurY).*randn(u.nSig,1);
 					else
 						destNoise	= 0;
@@ -377,8 +377,8 @@ methods
 
 	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug) %#ok
 		u				= obj.uopt;
-		if u.WSumTweak || u.normVar ~= 0 || u.preSource || notfalse(u.snr)
-			error('WSumTweak, normVar, preSource, and snr not supported for nonempty xCausAlpha.');
+		if u.WSumTweak || u.normVar ~= 0 || u.preSource || notfalse(u.SNR)
+			error('WSumTweak, normVar, preSource, and SNR not supported for nonempty xCausAlpha.');
 		end
 		sourceOut		= sW.WXX.' * sourceIn + (1-sum(sW.WXX,1).').*randn(u.nSig,1);
 		destOut			= sW.W.' * sourceIn + sW.WYY.' * destIn + (1-sum(sW.W).'-sum(sW.WYY).').*randn(u.nSig,1);
@@ -477,13 +477,18 @@ methods
 
 	function obj = changeDefaultsToDebug(obj)
 		obj	= obj.changeOptionDefault('DEBUG',true);
-		obj	= obj.changeOptionDefault('seed',0);
+		obj	= obj.changeSeedDefaultAndConsume(0);
 	end
 
 	function obj = changeOptionDefault(obj,optionName,newDefault)
 		if ~ismember(optionName,obj.explicitOptionNames)
 			obj.uopt.(optionName)	= newDefault;
 		end
+	end
+
+	function obj = changeSeedDefaultAndConsume(obj,seed)
+		obj	= obj.changeOptionDefault('seed',seed);
+		obj	= obj.consumeRandomizationSeed;
 	end
 
 	function [acc,p_binom] = classifyBetweenWs(obj,WAs,WBs)
@@ -588,6 +593,13 @@ methods
 			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
 		end
 		out				= weightedSum./sqrt(sumSqCoeffs);
+	end
+
+	function obj = consumeRandomizationSeed(obj)
+		if notfalse(obj.uopt.seed)
+			rng(obj.uopt.seed,'twister');
+		end
+		obj.uopt.seed	= false;
 	end
 
 	% TODO: Clean up.  This method's functionality should be made into
@@ -802,13 +814,13 @@ methods
 		u			= obj.uopt;
 
 		if u.nSig ~= u.nSigCause
-			error('For snr with normVar, nSig must equal nSigCause.');
+			error('For SNR with normVar, nSig must equal nSigCause.');
 		end
 		if ~u.doMixing
-			error('For snr with normVar, doMixing must be true.');
+			error('For SNR with normVar, doMixing must be true.');
 		end
 		if u.WSmooth || u.WSquash || u.WSumTweak || ~isempty(u.xCausAlpha)
-			error('For snr with normVar, cannot have WSmooth, WSquash, WSumTweak, or xCausAlpha.');
+			error('For SNR with normVar, cannot have WSmooth, WSquash, WSumTweak, or xCausAlpha.');
 		end
 
 		nTRun		= numel(target{1});	%number of time points per run
@@ -899,7 +911,7 @@ methods
 		sumSqXSig	= sum(MixXSig.^2,2);
 		sumSqXNoise	= sum(MixXNoise.^2,2);
 		scaleXSig	= sqrt(0.5./sumSqXSig);
-		scaleXNoise	= sqrt((0.5*u.snr*nNoise/nSig)./sumSqXNoise);
+		scaleXNoise	= sqrt((0.5*u.SNR*nNoise/nSig)./sumSqXNoise);
 		MixXSig		= repmat(scaleXSig,1,nSig).*MixXSig;
 		MixXNoise	= repmat(scaleXNoise,1,nNoise).*MixXNoise;
 		MixX		= [MixXSig MixXNoise];
@@ -909,7 +921,7 @@ methods
 		sumSqYSig	= sum(MixYSig.^2,2);
 		sumSqYNoise	= sum(MixYNoise.^2,2);
 		scaleYSig	= sqrt(0.5./sumSqYSig);
-		scaleYNoise	= sqrt((0.5*u.snr*nNoise/nSig)./sumSqYNoise);
+		scaleYNoise	= sqrt((0.5*u.SNR*nNoise/nSig)./sumSqYNoise);
 		MixYSig		= repmat(scaleYSig,1,nSig).*MixYSig;
 		MixYNoise	= repmat(scaleYNoise,1,nNoise).*MixYNoise;
 		MixY		= [MixYSig MixYNoise];
@@ -980,7 +992,7 @@ methods
 	function [X,Y] = generateSignalsWithOptions(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 
-		if notfalse(u.snr) && u.normVar
+		if notfalse(u.SNR) && u.normVar
 			[X,Y]	= generateSignalNoiseMixtureWithNormVar(obj,block,target,sW,doDebug);
 		else
 			%generate the functional signals
@@ -988,7 +1000,7 @@ methods
 
 			%mix between voxels (if applicable)
 			if u.doMixing
-				if ~notfalse(u.snr)
+				if ~notfalse(u.SNR)
 					X		= mapToVoxels(X,0,true);
 					Y		= mapToVoxels(Y,0,true);
 				else
@@ -1033,7 +1045,7 @@ methods
 			if preextension_width > sigwid
 				noisewid	= preextension_width - sigwid;
 				sigvar		= var(S(:));
-				noisecoeff	= sqrt((sigwid/noisewid)*(sigvar/u.snr));
+				noisecoeff	= sqrt((sigwid/noisewid)*(sigvar/u.SNR));
 				noise		= noisecoeff*randn(nT,noisewid);
 				S			= [S noise];
 				if doDebug
@@ -1137,16 +1149,20 @@ methods
 		switch optName
 			case 'acc'
 				label	= 'Accuracy (%)';
+			case 'nRepBlock'
+				label	= 'Number of blocks per run';
+			case 'nRun'
+				label	= 'Number of runs';
+			case 'nSubject'
+				label	= 'Number of subjects';
+			case 'nTBlock'
+				label	= 'Number of TRs per block';
+			case 'SNR'
+				label	= 'Signal-to-noise ratio';
 			case 'WFullness'
 				label	= 'W fullness';
 			case 'WSum'
 				label	= 'W column sum';
-			case 'nTBlock'
-				label	= 'Number of TRs per block';
-			case 'nSubject'
-				label	= 'Number of subjects';
-			case 'nRun'
-				label	= 'Number of runs';
 			otherwise
 				label	= optName;
 		end
@@ -1154,6 +1170,7 @@ methods
 
 	%TODO: comments
 	function capsule = makePlotCapsule(obj,plotSpec,varargin)
+		obj					= consumeRandomizationSeed(obj);
 		opt					= ParseArgs(varargin,...
 			'saveplot'		, obj.uopt.saveplot	  ...
 			);
@@ -1170,16 +1187,14 @@ methods
 			fprintf('Number of plot-variable combinations = %d\n',nSim);
 		end
 
-		if notfalse(obj.uopt.seed)
-			rng(obj.uopt.seed,'twister');
-		end
-
-		seed				= randi(intmax,nSim,1);
+		seed				= randperm(intmax('uint32'),nSim).';
+		rngState			= rng;
 		cResult				= MultiTask(@taskWrapper, ...
 								{num2cell(1:nSim)}, ...
 								'njobmax',obj.uopt.njobmax, ...
 								'nthread',obj.uopt.max_cores, ...
 								'silent',(obj.uopt.max_cores<2));
+		rng(rngState);
 		end_ms				= nowms;
 
 		capsule.begun		= FormatTime(start_ms);
@@ -1232,13 +1247,14 @@ methods
 		note	= strjoin(binding,',');
 	end
 
-	function note = noteMiscOpts(obj,nuopt,exclude)
+	function note = noteMiscOpts(obj,capsule,optsToExclude)
 		binding		= {};
 		names		= [obj.notableOptionNames obj.unlikelyOptionNames];
+		[~,ix]		= sort(lower(names));
 
 		for kName=1:numel(names)
-			name		= names{kName};
-			val			= nuopt.(name);
+			name		= names{ix(kName)};
+			val			= capsule.uopt.(name);
 			defval		= obj.uopt.(name);
 			include		= ismember(name,obj.notableOptionNames);
 			if ~include && ~isempty(val)
@@ -1246,11 +1262,14 @@ methods
 							islogical(val) && val == defval || ...
 							isnumeric(val) && val == defval);
 			end
-			if include && ~ismember(name,exclude)
+			if include && ~ismember(name,optsToExclude)
 				binding{end+1}	= sprintf('%s=%s',name,asString(obj,val)); %#ok
 			end
 		end
-		note		= {};
+		binding{end+1}	= sprintf('vcap=%.1f',capsule.version.pipeline);
+		binding{end+1}	= sprintf('vplot=%.1f',obj.version.pipeline);
+
+		note			= {};
 		while numel(binding) > 0
 			idx			= min(8,numel(binding));
 			note{end+1}	= strjoin(binding(1:idx),', '); %#ok
@@ -1439,7 +1458,7 @@ methods
 		pos([2 4])	= pos([2 4]) + [0.07 -0.07];
 		set(h.hA,'Position',pos);
 		axes('Position',[0 0 1 1],'Visible','off');
-		text(0.02,0.07,noteMiscOpts(obj,capsule.uopt, ...
+		text(0.02,0.07,noteMiscOpts(obj,capsule, ...
 						[xVarName opt.lineVarName fixedVars]));
 
 		function checkBothOrNeither(prefix)
@@ -1614,13 +1633,9 @@ methods
 	end
 
 	function summary = simulateAllSubjectsCheckNaNOrStub(obj)
-		summary.start_ms				= nowms;
+		obj								= consumeRandomizationSeed(obj);
 		u								= obj.uopt;
-
-		%initialize pseudo-random-number generator
-		if notfalse(u.seed)
-			rng(u.seed,'twister');
-		end
+		summary.start_ms				= nowms;
 
 		%perform simulations, or substitute stub if applicable;
 		%in case of NaN params, set answers to NaN
@@ -1759,25 +1774,22 @@ methods (Static)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchProcessing;
 		pipeline	= pipeline.changeOptionDefault('nSubject',10);
-		pipeline	= pipeline.changeOptionDefault('seed',0);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
+		pipeline	= pipeline.changeSeedDefaultAndConsume(0);
 
-		spec				= repmat(struct,4,1);
+		spec				= repmat(struct,3,1);
 
-		spec(1).varName		= {'WSum','CRecurY'};
-		spec(1).varValues	= {0:0.05:0.3,[0 0.35 0.7]};
-
-		spec(2).varName		= {'WSum','CRecurY','WSumFrac'};
-		spec(2).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
-		spec(2).pseudoVar	= 'WSumFrac';
-		spec(2).transform	= @(~,CRecurY,WSumFrac) deal(...
+		spec(1).varName		= {'WSum','CRecurY','WSumFrac'};
+		spec(1).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
+		spec(1).pseudoVar	= 'WSumFrac';
+		spec(1).transform	= @(~,CRecurY,WSumFrac) deal(...
 								WSumFrac*(1-CRecurY),CRecurY,WSumFrac);
 
-		spec(3).varName		= {'WFullness','CRecurY'};
-		spec(3).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};
+		spec(2).varName		= {'WFullness','CRecurY'};
+		spec(2).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};
 
-		spec(4).varName		= {'nTBlock','CRecurY'};
-		spec(4).varValues	= {1:5,[0 0.35 0.7]};
+		spec(3).varName		= {'nTBlock','CRecurY'};
+		spec(3).varValues	= {1:5,[0 0.35 0.7]};
 
 		nSpec				= numel(spec);
 		capsule				= cell(1,nSpec);

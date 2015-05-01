@@ -24,7 +24,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150429,...
+	version				= struct('pipeline',20150501,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -49,7 +49,7 @@ methods
 	%		nofigures:	(false) Suppress figures
 	%		nowarnings:	(false) Suppress warnings
 	%		progress:	(true) Show progress
-	%		seed:		(randseed2) Seed to use for randomizing
+	%		seed:		(randseed2) Seed to use for randomizing (false for none)
 	%		subSilent:	(true) Suppress status messages from TE, etc.
 	%		szIm:		(200) Pixel height of debug images
 	%		verbosData:	(true) Preserve extra data in simulation summary
@@ -1040,8 +1040,8 @@ methods
 			if sz(1) ~= nTRun || sz(2) ~= u.nRun
 				error('Unexpected dimensions.');
 			end
-			S				= reshape(S,nT,sz(3));
-			sigwid			= size(S,2);
+			sigwid			= sz(3);
+			S				= reshape(S,nT,sigwid);
 			if preextension_width > sigwid
 				noisewid	= preextension_width - sigwid;
 				sigvar		= var(S(:));
@@ -1247,14 +1247,14 @@ methods
 		note	= strjoin(binding,',');
 	end
 
-	function note = noteMiscOpts(obj,capsule,optsToExclude)
+	function note = noteMiscOpts(obj,capsule,getConstVarVal,optsToExclude)
 		binding		= {};
 		names		= [obj.notableOptionNames obj.unlikelyOptionNames];
 		[~,ix]		= sort(lower(names));
 
 		for kName=1:numel(names)
 			name		= names{ix(kName)};
-			val			= capsule.uopt.(name);
+			val			= getConstVarVal(name);
 			defval		= obj.uopt.(name);
 			include		= ismember(name,obj.notableOptionNames);
 			if ~include && ~isempty(val)
@@ -1262,13 +1262,13 @@ methods
 							islogical(val) && val == defval || ...
 							isnumeric(val) && val == defval);
 			end
-			if include && ~ismember(name,optsToExclude)
+			if include && ~isempty(val) && ~ismember(name,optsToExclude)
 				binding{end+1}	= sprintf('%s=%s',name,asString(obj,val)); %#ok
 			end
 		end
-		binding{end+1}	= sprintf('vcap=%.1f',capsule.version.pipeline);
-		binding{end+1}	= sprintf('vplot=%.1f',obj.version.pipeline);
-
+		binding{end+1}	= sprintf('vcap-vplot=%.2f-%07.2f', ...
+							capsule.version.pipeline, ...
+							mod(obj.version.pipeline,10000));
 		note			= {};
 		while numel(binding) > 0
 			idx			= min(8,numel(binding));
@@ -1401,7 +1401,7 @@ methods
 			error('Ill-formed fixedVarValuePairs.');
 		end
 
-		[data,~,label2index,getfield]	= ...
+		[data,cLabel,label2index,getfield]	= ...
 				convertPlotCapsuleResultToArray(obj,capsule);
 		for kFV=1:numel(fixedVars)
 			data	= constrainData(data,fixedVars{kFV},fixedVarValues{kFV});
@@ -1420,8 +1420,7 @@ methods
 			end
 			if numel(plData) == 0
 				error('Variables overconstrained.');
-			end
-			if numel(size(squeeze(plData))) > 3
+			elseif numel(size(squeeze(plData))) > 3
 				error('Variables underconstrained.');
 			end
 			% The aggregates below (min, max, mean) explicitly specify
@@ -1458,8 +1457,7 @@ methods
 		pos([2 4])	= pos([2 4]) + [0.07 -0.07];
 		set(h.hA,'Position',pos);
 		axes('Position',[0 0 1 1],'Visible','off');
-		text(0.02,0.07,noteMiscOpts(obj,capsule, ...
-						[xVarName opt.lineVarName fixedVars]));
+		text(0.02,0.07,noteMiscOpts(obj,capsule,@getConstVarVal,fixedVars));
 
 		function checkBothOrNeither(prefix)
 			name	= [prefix 'VarName'];
@@ -1483,6 +1481,22 @@ methods
 			pdata		= pdata(varEq,:);
 			pdata		= reshape(pdata,[numel(varEq) sz_pdata(2:end)]);
 			subdata		= ipermute(pdata,perm);
+		end
+
+		function val = getConstVarVal(varName)
+			if ~ismember(varName,cLabel)
+				if isfield(capsule.uopt,varName)
+					val	= capsule.uopt.(varName);
+				else
+					val	= [];
+				end
+			else
+				allv	= getfield(varName,data);
+				val		= min(allv(:));
+				if val ~= max(allv(:))
+					val	= [];
+				end
+			end
 		end
 
 		function mp = makeMultiplot
@@ -1777,7 +1791,7 @@ methods (Static)
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 		pipeline	= pipeline.changeSeedDefaultAndConsume(0);
 
-		spec				= repmat(struct,3,1);
+		spec				= repmat(struct,4,1);
 
 		spec(1).varName		= {'WSum','CRecurY','WSumFrac'};
 		spec(1).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
@@ -1790,6 +1804,9 @@ methods (Static)
 
 		spec(3).varName		= {'nTBlock','CRecurY'};
 		spec(3).varValues	= {1:5,[0 0.35 0.7]};
+
+		spec(4).varName		= {'SNR','CRecurY'};
+		spec(4).varValues	= {0.1*(1:5),[0 0.35 0.7]};
 
 		nSpec				= numel(spec);
 		capsule				= cell(1,nSpec);

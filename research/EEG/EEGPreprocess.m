@@ -39,7 +39,7 @@ function hdr = EEGPreprocess(strPathEEG,varargin)
 %		rate:				(<input rate>) the output sampling rate, in Hz
 %		close:				(true) true to close the output data file (fid is in
 %							hdr.fid)
-%		nthread:			(1) number of threads to use
+%		cores:				(1) the number of processor cores to use
 %		force:				(false) true to force preprocessing again if
 %							preprocessed data already exists
 %		silent:				(false) true to suppress status output
@@ -55,7 +55,7 @@ function hdr = EEGPreprocess(strPathEEG,varargin)
 %			preprocessed data.  if events are processed the status channel is
 %			also deleted from the preprocessed data
 % 
-% Updated: 2015-04-08
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -78,7 +78,7 @@ function hdr = EEGPreprocess(strPathEEG,varargin)
 							'session_date'		, []		, ...
 							'rate'				, []		, ...
 							'close'				, true		, ...
-							'nthread'			, 1			, ...
+							'cores'				, 1			, ...
 							'force'				, false		, ...
 							'silent'			, false		  ...
 							);
@@ -88,13 +88,13 @@ end
 
 %process each file if a cell of paths was passed
 	if iscell(strPathEEG)
-		hdr	= MultiTask(@(x) EEGPreprocess(x,varargin{:}),{strPathEEG},'description','Preprocessing cell of files','nthread',opt.nthread,'silent',opt.silent);
+		hdr	= MultiTask(@(x) EEGPreprocess(x,varargin{:}),{strPathEEG},'description','Preprocessing cell of files','cores',opt.cores,'silent',opt.silent);
 		return;
 	end
 %process each file in the directory if a directory was passed
 	if isdir(strPathEEG)
 		strPathEEG	= FindFilesByExtension(strPathEEG,'bdf'); 
-		hdr			= MultiTask(@(x) EEGPreprocess(x,varargin{:}),{strPathEEG},'description','Preprocessing directory','nthread',opt.nthread,'silent',opt.silent);
+		hdr			= MultiTask(@(x) EEGPreprocess(x,varargin{:}),{strPathEEG},'description','Preprocessing directory','cores',opt.cores,'silent',opt.silent);
 		return;
 	end
 
@@ -144,7 +144,7 @@ status(['Preprocessing EEG file ' strFile],'silent',opt.silent);
 		hdr.channel.status	= hdr.channel.status([]);
 	%if we already preprocessed,  did we use the same parameters?
 		if FileExists(strPathHeader) && FileExists(strPathData)
-			cFieldIgnore	= {'close','nthread','force','silent'};
+			cFieldIgnore	= {'close','cores','force','silent'};
 			
 			hdrProc		= load(strPathHeader,'-mat');
 			optProc		= rmfield(hdrProc.opt_input,cFieldIgnore);

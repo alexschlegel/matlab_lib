@@ -11,7 +11,7 @@ function [bSuccess,cPathZScore] = ZScore(cPathNII,varargin)
 %		nonzero:	(true) true to only calculate Z-scores based on non-zero,
 %					non-NaN values
 %		output:		(<auto>) path/cell of paths to the output files
-%		nthread:	(1) number of threads to use for processing
+%		cores:		(1) the number of processor cores to use
 %		force:		(true) true to force calculation even if the output file
 %					already exists
 %		silent:		(false) true to suppress status messages
@@ -21,14 +21,14 @@ function [bSuccess,cPathZScore] = ZScore(cPathNII,varargin)
 %				  successfully computed
 %	cPathZScore	- the output Z-score path or cell of paths
 % 
-% Updated: 2015-04-13
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
 		'nonzero'	, true	, ...
 		'output'	, []	, ...
-		'nthread'	, 1		, ...
+		'cores'		, 1		, ...
 		'force'		, true	, ...
 		'silent'	, false	  ...
 		);
@@ -51,7 +51,7 @@ bSuccess	= false(nPath,1);
 	bSuccess(~bDo)								= true;
 %calculate each ZScore volume
 	if any(bDo(:))
-		bSuccess(bDo)	= MultiTask(@NII2ZScore,{cPathNII(bDo),cPathZScore(bDo),opt.nonzero},'uniformoutput',true,'nthread',opt.nthread,'silent',opt.silent);
+		bSuccess(bDo)	= MultiTask(@NII2ZScore,{cPathNII(bDo),cPathZScore(bDo),opt.nonzero},'uniformoutput',true,'cores',opt.cores,'silent',opt.silent);
 	end
 
 if bToChar

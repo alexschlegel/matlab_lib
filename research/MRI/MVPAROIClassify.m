@@ -18,7 +18,7 @@ function res = MVPAROIClassify(varargin)
 %					or a cell of cells (one for each dataset)
 %		chunks:		(<required>) an array specifying the chunks for each sample,
 %					or a cell of arrays (one for each dataset)
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		force:		(true) true to force classification if the outputs already
 %					exist
 %		force_pre:	(false) true to force preprocessing steps if the output
@@ -39,10 +39,10 @@ function res = MVPAROIClassify(varargin)
 %			'spatiotemporal'	, true			, ...
 %			'target_blank'		, 'Blank'		, ...
 %			'dir_out'			, strDirOut		, ...
-%			'nthread'			, 11			  ...
+%			'cores'				, 11			  ...
 %			);
 % 
-% Updated: 2015-04-02
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

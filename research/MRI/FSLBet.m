@@ -15,11 +15,11 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 %		thresh:		(<0.5 or last>) the fractional intensity threshold
 %		prompt:		(<true if <thresh> is not specified> true to display the
 %					results of brain extraction and prompt for a new f value. if
-%					this is true, only one thread is used.
+%					this is true, only one core is used.
 %		binarize:	(false) true to binarize the image after extraction
 %		propagate:	(true) true to propagate thresholds to subsequent calls to
 %					FSLBet
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		force:		(true) true to force bet to run even if the output already
 %					exists
 %		silent:		(false) true to suppress status messages
@@ -28,7 +28,7 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 % 	b			- true if the bet and fslview ran successfully
 %	strPathOut	- the path to the output volume
 % 
-% Updated: 2015-04-28
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -40,7 +40,7 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 			'prompt'	, []	, ...
 			'binarize'	, false	, ...
 			'propagate'	, true	, ...
-			'nthread'	, 1		, ...
+			'cores'		, 1		, ...
 			'force'		, true	, ...
 			'silent'	, false	  ...
 			);
@@ -49,7 +49,7 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 	opt.thresh	= unless(opt.thresh,0.5);
 	
 	if opt.prompt
-		opt.nthread	= 1;
+		opt.cores	= 1;
 	end
 	
 	[cPathIn,opt.output,bNoCell,dummy]	= ForceCell(cPathIn,opt.output);
@@ -74,7 +74,7 @@ function [b,cPathOut] = FSLBet(cPathIn,varargin)
 	b(bDo)	= MultiTask(@BetOne,{cPathIn(bDo) cPathOut(bDo) opt},...
 				'description'	, 'betting data'	, ...
 				'uniformoutput'	, true				, ...
-				'nthread'		, opt.nthread		, ...
+				'cores'			, opt.cores			, ...
 				'silent'		, opt.silent		  ...
 				);
 

@@ -45,7 +45,7 @@ function [b,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %		bb_thresh:		(10) the brain/background threshold percentage
 %		noise_level:	(0.66) the noise level parameter in the feat design
 %		noise_ar:		(0.34) the noise AR parameter in the feat design
-%		nthread:		(1) number of threads to use
+%		cores:			(1) the number of processor cores to use
 %		force:			(true) true to reanalyze files that already contain
 %						feat outputs
 %		silent:			(false) true to suppress status messages
@@ -55,7 +55,7 @@ function [b,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %			  analyzed
 %	cDirOut	- a cell of output directories
 % 
-% Updated: 2015-04-30
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -76,7 +76,7 @@ function [b,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 			'bb_thresh'			, 10	, ...
 			'noise_level'		, 0.66	, ...
 			'noise_ar'			, 0.34	, ...
-			'nthread'			, 1		, ...
+			'cores'				, 1		, ...
 			'force'				, true	, ...
 			'silent'			, false	  ...
 			);
@@ -133,7 +133,7 @@ function [b,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 %analyze each
 	b	= true(sz);
 	
-	param	= rmfield(opt,{'output','nthread','force','opt_extra'});
+	param	= rmfield(opt,{'output','cores','force','opt_extra'});
 	
 	cInput	=	{
 					cPathData(bProcess)
@@ -144,7 +144,7 @@ function [b,cDirOut] = FSLFEATFirst(cPathData,d,varargin)
 	
 	out	= MultiTask(@AnalyzeOne,cInput,...
 			'description'	, 'performing first-level FEAT analysis'	, ...
-			'nthread'		, opt.nthread								, ...
+			'cores'			, opt.cores									, ...
 			'silent'		, opt.silent								  ...
 			);
 	

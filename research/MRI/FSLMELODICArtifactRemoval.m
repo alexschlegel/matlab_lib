@@ -11,7 +11,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 % 	cPathData	- a path or cell of paths to preprocessed fMRI data
 %	TR			- the TR duration, in seconds, or an array of TR durations
 %	<options>:
-%		nthread:	(1) the number of threads to use for ICA calculation
+%		cores:		(1) the number of processor cores to use for ICA calculation
 %		force_pre:	(false) true to force ICA calculation if results already
 %					exist
 %		force:		(true) true to force if output data already exist
@@ -21,7 +21,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 %	kRemove		- an array/cell of array of the ICA components that were marked
 %				  for removal
 % 
-% Updated: 2015-04-08
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -29,7 +29,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 %format the input
 	opt	= ParseArgs(varargin,...
 			'remove'	, true	, ...
-			'nthread'	, 1		, ...
+			'cores'		, 1		, ...
 			'force_pre'	, false	, ...
 			'force'		, true	  ...
 			);
@@ -92,12 +92,12 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 	start(tMark);
 	start(tAR);
 %start ICA computation
-	nThreadICA	= max(1,opt.nthread-1);
+	nCoreICA	= max(1,opt.cores-1);
 	
 	if any(bICA)
 		MultiTask(@DoICA,{num2cell(kData(bICA))},...
 			'description'	, 'Performing ICA'	, ...
-			'nthread'		, nThreadICA		  ...
+			'cores'			, nCoreICA			  ...
 			);
 	end
 %do the rest of the artifact marking
@@ -107,7 +107,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 	while ~all(bDoneMark)
 		StepMark;
 	end
-%do the rest of the artifact removals multi-threaded
+%do the rest of the artifact removals in parallel
 	stop(tAR);
 	delete(tAR);
 	
@@ -116,7 +116,7 @@ function [cPathOut,kRemove] = FSLMELODICArtifactRemoval(cPathData,TR,varargin)
 	if ~all(bDoneAR)
 		MultiTask(@DoAR,{num2cell(kData(~bDoneAR))},...
 			'description'	, 'removing artifacts'	, ...
-			'nthread'		, opt.nthread			  ...
+			'cores'			, opt.cores				  ...
 			);
 	end
 %format the output

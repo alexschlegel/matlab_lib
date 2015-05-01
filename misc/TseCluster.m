@@ -5,13 +5,13 @@ classdef TseCluster < handle
 % Description: class to manage Tse lab analysis cluster via Matlab's job scheduler and 
 %			   distributed computing engine / toolbox
 %
-% Syntax: tc = TseCluster(nThread,[cHost] = {},[nWorker] = [],<options>)
+% Syntax: tc = TseCluster(nCore,[cHost] = {},[nWorker] = [],<options>)
 %
 % In: 
-%		nThread   - the total number of matlab workers to use for processing this job 
-%		[cHost]   - a cell of analysis computer names to use for processing this job
-%		[nWorker] - an array the same size as cHost that indicates the number of workers
-%					to use on the corresponding host
+%		nCore		- the total number of matlab workers to use for processing this job 
+%		[cHost]		- a cell of analysis computer names to use for processing this job
+%		[nWorker]	- an array the same size as cHost that indicates the number of workers
+%					  to use on the corresponding host
 %	options:
 %		manager   - (<hostname>) the analysis computer to use as the manager for this job
 %		jobname   - (<auto>) a descriptive, short name for this job (e.g gridop-te)
@@ -26,14 +26,14 @@ classdef TseCluster < handle
 %		Close  	   - stop all servers, the manager, and all workers for this job
 %		Run 	   - run a task on the cluster (this is really just for testing purposes)
 %
-% Updated: 2014-03-29
-% Scottie Alexander
+% Updated: 2015-05-01
+% Alex Schlegel, Scottie Alexander
 %
 % Please report bugs to: scottiealexander11@gmail.com
 
 %PRIVATE PROPERTIES------------------------------------------------------------%
 properties (SetAccess=private)
-	nThread = [];
+	nCore   = [];
 	debug   = 0;
 	silent  = false;
 	cluster = [];
@@ -51,7 +51,7 @@ end
 %METHODS-----------------------------------------------------------------------%
 methods
 	%--------------------------------------------------------------------------%
-	function tc = TseCluster(nThread,varargin)
+	function tc = TseCluster(nCore,varargin)
 		if ~isunix
 			error('Sorry, but this code only works on *nix systems...');
 		end
@@ -64,7 +64,7 @@ methods
 		
 		tc.bin = fullfile(matlabroot,'toolbox','distcomp','bin');		
 
-		tc.nThread = nThread;		
+		tc.nCore = nCore;
 
 		tc.ValidateInput(varargin{:});
 		tc.ServerStatus;
@@ -502,8 +502,8 @@ methods %(Access=private)
 			error(msg);
 		end
 
-		if tc.nThread > sum(nTotal)
-			error('Requested resources cannot run %d workers!',tc.nThread);
+		if tc.nCore > sum(nTotal)
+			error('Requested resources cannot run %d workers!',tc.nCore);
 		end
 
 		if auto
@@ -517,19 +517,19 @@ methods %(Access=private)
 		bNan = isnan(nWorker);
 		[hosts,nWorker,nFree,nTotal] = varfun(@(x) [x(~bNan);x(bNan)],hosts,nWorker,nFree,nTotal);
 
-		%fill in NaN entries in workers so that sum(nWorker) == tc.nThread
+		%fill in NaN entries in workers so that sum(nWorker) == tc.nCore
 		nUse = 0;
 		for k = 1:numel(nWorker)
-			nNeed = tc.nThread - nUse;
+			nNeed = tc.nCore - nUse;
 			if ~isnan(nWorker(k))
 				%only use as many workers per host as needed
 				nWorker(k) = min([nWorker(k) nNeed]);
 			else
 				%peek ahead and see how many free workers we have available in total
 				est = sum(nFree(k:end));
-				if (nUse + est) < tc.nThread
+				if (nUse + est) < tc.nCore
 					%not enough free so take as many as we need from each host
-					nNeed = tc.nThread - (nUse + est);
+					nNeed = tc.nCore - (nUse + est);
 					nNeed = nFree(k) + nNeed;
 					nWorker(k) = min([nTotal(k) nNeed]);
 				else
@@ -539,13 +539,13 @@ methods %(Access=private)
 			nUse = nUse+nWorker(k);
 		end
 
-		if tc.nThread > nUse
-			error('Requested resources cannot run %d workers!',tc.nThread);
+		if tc.nCore > nUse
+			error('Requested resources cannot run %d workers!',tc.nCore);
 		end
 
 		nUse = 0;
 		for k = 1:numel(hosts)
-			nNeed = tc.nThread - nUse;
+			nNeed = tc.nCore - nUse;
 			tc.servers.(hosts{k}).free   = nFree(k);
 			tc.servers.(hosts{k}).ask    = nWorker(k);
 			tc.servers.(hosts{k}).total  = nTotal(k);
@@ -554,19 +554,19 @@ methods %(Access=private)
 			
 			nUse = nUse + tc.servers.(hosts{k}).use;
 
-			if nUse == tc.nThread
+			if nUse == tc.nCore
 				break;
 			end
 		end
 
-		if tc.nThread > nUse
-			error('Requested resources cannot run %d workers!\n',tc.nThread);
+		if tc.nCore > nUse
+			error('Requested resources cannot run %d workers!\n',tc.nCore);
 		end
 	end
 	%--------------------------------------------------------------------------%
 	function ValidateInput(tc,varargin)
 		%GOAL: fill out hosts is not specified and fill out NaN entries in workers
-		% if cHosts/workers cannot run nThread raise an error
+		% if cHosts/workers cannot run nCore raise an error
 
 		[hosts,nWorker,opt] = ParseArgs(varargin,'auto',NaN,...
 				'silent'  , false		,...
@@ -594,13 +594,13 @@ methods %(Access=private)
 			error('Invalid input for options workers');
 		end
 
-		nthread = numel(nWorker);
+		nCore   = numel(nWorker);
 		nhost   = numel(hosts);
 
-		if nthread > nhost
+		if nCore > nhost
 			nWorker = nWorker(1:nhost);
-		elseif nthread < nhost
-			nWorker = [reshape(nWorker,[],1); nan(nhost-nthread,1)];
+		elseif nCore < nhost
+			nWorker = [reshape(nWorker,[],1); nan(nhost-nCore,1)];
 		end
 
 		nWorker = reshape(nWorker,[],1);

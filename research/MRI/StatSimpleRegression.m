@@ -15,17 +15,17 @@ function varargout = StatSimpleRegression(x,cPathNII,varargin)
 %	[cDirOut]	- an output directory or cell of directories.  defaults to the
 %				  base directory of the inputs
 %	<options>:
-%		output:		({'r','p','m','b'}) the regression parameter brains to save:
-%						r:	the correlation coefficient
-%						p:	the significance value of r
-%						m:	the best-fit slope
-%						b:	the best-fit y-intercept
-%		prefix:		('corr') the prefix for output files
-%		mask:		(<none>) a path/cell of paths to mask files
-%		force:		(true) true to force regression calculation if output files
-%					already exist
-%		nthread:	(1) number of threads to use
-%		silent:		(false) true to suppress output messages
+%		output:	({'r','p','m','b'}) the regression parameter brains to save:
+%					r:	the correlation coefficient
+%					p:	the significance value of r
+%					m:	the best-fit slope
+%					b:	the best-fit y-intercept
+%		prefix:	('corr') the prefix for output files
+%		mask:	(<none>) a path/cell of paths to mask files
+%		force:	(true) true to force regression calculation if output files
+%				already exist
+%		cores:	(1) the number of processor cores to use
+%		silent:	(false) true to suppress output messages
 % 
 % Out:
 % 	cPathK	- the path/cell of paths to the Kth best-fit parameter output
@@ -34,7 +34,7 @@ function varargout = StatSimpleRegression(x,cPathNII,varargin)
 % Notes:	files are only saved if the corresponding output argument is
 %			specified
 % 
-% Updated: 2015-04-13
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -43,7 +43,7 @@ function varargout = StatSimpleRegression(x,cPathNII,varargin)
 					'prefix'	, 'corr'			, ...
 					'mask'		, []				, ...
 					'force'		, true				, ...
-					'nthread'	, 1					, ...
+					'cores'		, 1					, ...
 					'silent'	, false				  ...
 					);
 
@@ -75,7 +75,7 @@ function varargout = StatSimpleRegression(x,cPathNII,varargin)
 		return;
 	end
 	
-	[varargout{:}]	= MultiTask(@RegressOne,cPathNII,cDirOut,opt.mask,'description','Calculating simple regressions','nthread',opt.nthread,'silent',opt.silent);
+	[varargout{:}]	= MultiTask(@RegressOne,cPathNII,cDirOut,opt.mask,'description','Calculating simple regressions','cores',opt.cores,'silent',opt.silent);
 %uncellify
 	if bNoCell
 		varargout	= cellfun(@(x) x{1},varargout,'UniformOutput',false);

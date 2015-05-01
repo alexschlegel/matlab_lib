@@ -32,7 +32,7 @@ function [vExitCode,cOutput] = RunBashScript(cScript,varargin)
 %						before returning.  note that logs won't be deleted
 %						properly and no status will be returned if this is false
 %		debug:			(false) true to display the script
-%		nthread:		(1) number of threads to use for processing
+%		cores:			(1) the number of processor cores to use
 %		silent:			(false) true to suppress the script output from the
 %						MATLAB window
 % 
@@ -41,7 +41,7 @@ function [vExitCode,cOutput] = RunBashScript(cScript,varargin)
 % 	cOutput		- the stdout and stderr output from the script execution (or a
 %				  cell of outputs)
 % 
-% Updated: 2015-04-08
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -56,7 +56,7 @@ opt	= ParseArgs(varargin,...
 		'run'			, true					, ...
 		'wait'			, true					, ...
 		'debug'			, false					, ...
-		'nthread'		, 1						, ...
+		'cores'			, 1						, ...
 		'silent'		, false					  ...
 		);
 
@@ -137,7 +137,7 @@ nScript					= numel(cScript);
 	end
 %execute the scripts
 	if opt.run
-		if opt.nthread==1
+		if opt.cores==1
 			vExitCode	= NaN(sScript);
 			cOutput		= cell(sScript);
 			
@@ -153,7 +153,7 @@ nScript					= numel(cScript);
 			end
 		else
 			[vExitCode,cOutput]	= MultiTask(@RunOne,{cPathMetaScript, cPathLogTemp, opt},...
-									'nthread'		, opt.nthread		, ...
+									'cores'			, opt.cores			, ...
 									'description'	, opt.description	, ...
 									'silent'		, opt.silent		  ...
 									);

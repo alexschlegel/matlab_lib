@@ -15,7 +15,7 @@ function [kRM,kCM,x,kRN,kCN,bTimedOut] = MatrixMatch(m,varargin)
 %		timeout:	(60000) the maximum time, in milliseconds, after which the
 %					function will return its best result if no exact solution
 %					has been found
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status messages
 % 
 % Out:
@@ -25,7 +25,7 @@ function [kRM,kCM,x,kRN,kCN,bTimedOut] = MatrixMatch(m,varargin)
 %	kRN	- an N x 1 array of the rows that went unmatched
 %	kCN	- an N x 1 array of the columns that went unmatched
 % 
-% Updated: 2015-04-08
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -42,14 +42,14 @@ kC	= (1:C)';
 				'start'		, nowms	, ...
 				'depth'		, R*C	, ...
 				'timeout'	, 60000	, ...
-				'nthread'	, 1		, ...
+				'cores'		, 1		, ...
 				'silent'	, false	  ...
 				);
 		
 		%condition m
 			m(isnan(m) | m<0)	= 0;
 		
-		bMulti		= opt.nthread>1;
+		bMulti		= opt.cores>1;
 		nMultiMax	= 100;
 	else
 	%recursive call
@@ -103,8 +103,8 @@ kC	= (1:C)';
 		opt.name	= sProgress.name;
 		
 		if bMulti
-		%prepare the multi-threaded search
-			[bMulti,opt.nthread]	= MATLABPoolOpen(opt.nthread,'silent',opt.silent);
+		%prepare the multicore search
+			[bMulti,opt.cores]	= MATLABPoolOpen(opt.cores,'silent',opt.silent);
 			
 			[coptSub,cx1,ckRSub2,ckCSub2,cmSub2,ckRM1,ckCM1]	= deal(cell(nMultiMax,1));
 			[ckRM,ckCM,cx,ckRN,ckCN]							= deal(cell(nMultiMax,1));
@@ -195,7 +195,7 @@ kC	= (1:C)';
 					
 					bDidSomething	= true;
 					
-					if opt.nthread==1 || bFirst
+					if opt.cores==1 || bFirst
 						t	= nowms-opt.start;
 						progress('current',min(opt.timeout-1,round(t)),'name',opt.name);
 					end

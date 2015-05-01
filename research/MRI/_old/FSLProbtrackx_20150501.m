@@ -1,84 +1,90 @@
-function [b,cPathTract] = FSLProbtrackx(cDirSubject,cPathSeed,varargin)
+function [bSuccess,strNameTract] = FSLProbtrackx(strDirSubject,cPathSeed,varargin)
 % FSLProbtrackx
 % 
-% Description:	call probtrackx. see FSL's probtrackx help for details about the
+% Description:	call probtrackx.  see FSL's probtrackx help for details about the
 %				optional parameters.
 % 
-% Syntax:	[bSuccess,cPathTract] = FSLProbtrackx(cDirSubject,cPathSeed,<options>)
+% Syntax:	[bSuccess,strNameTract] = FSLProbtrackx(strDirSubject,cPathSeed,<options>) OR
+%			strScript = FSLProbtrackx(strDirSubject,cPathSeed,'dotract',false,<options>)
 % 
 % In:
-%	cDirSubject	- the subject's FSL DTI directory, or a cell of directories to
-%				  run probtracx for multiple subjects.
-%	cPathSeed	- the path to a binary NIfTI seed volume for single mask
-%				  tractography, a cell of paths for multiple mask tractography,
-%				  or a cell of cells of paths for multiple probtrackx runs.
-%				  seeds must be in diffusion space. can also be label files if
-%				  you are following the procedure here:
-%				  http://fsl.fmrib.ox.ac.uk/fsl/fsl-4.1.9/fdt/fdt_surface.html.
+%	strDirSubject	- the subject's FSL DTI directory
+%	cPathSeed		- the path/cell of paths to binary NIfTI seed volumes
 %	<options>:
-%		name:				(<auto>) the name to use for the output directory,
-%							or a cell of names
-%		dir_out:			(<input>.probtrackX/<name>/) the output directory
-%							path, or a cell of paths. overrides <name>.
-%		mesh:				(<none>) for label-based tractography, the path/cell
-%							of paths to the ascii-formatted surface mesh on
-%							which the labels are based
-%		seedref:			(<none>) the path/cell of paths to the reference
-%							volume for the seeds. required if seeds are not in
-%							diffusion space.
-%		xfm:				(<none>) the path/cell of paths to FLIRT/FNIRT
-%							transforms from seed space to diffusion space.
-%							required if seeds are not in diffusion space.
-%		invxfm:				(<none>) the path/cell of paths to FLIRT/FNIRT
-%							inverse transforms from diffusion space to seed
-%							space. required if seeds are not in diffusion space
-%							and FNIRT transforms are used.
-%		waypoint:			(<none>) the path/cell of paths/cell of cells of
-%							paths to binary NIfTI volumes to use as waypoint
-%							masks (i.e. tracts must pass through all of these
-%							masks to be kept)
-%		exclusion:			(<none>) the path/cell of paths/cell of cells of
-%							paths to binary NIfTI volumes to use as exclusion
-%							masks (i.e. any tract passing through any of these
-%							masks will be rejected). note that these are ORed
-%							into a single mask saved in the output directory
-%							since probtrackx only takes one exclusion mask.
-%		termination:		(<none>) the path/cell of paths/cell of cells of
-%							paths to binary NIfTI volumes to use as termination
-%							masks (i.e. any tract hitting any of these masks
-%							will be stopped). note that these are ORed into a
-%							single mask saved in the output directory since
-%							probtrackx only takes one termination mask.
-%		classification:		(<none>) the path/cell of paths/cell of cells of
-%							paths to binary NIfTI volumes to use as
-%							classification masks (i.e. seeds_to_<name> volumes
-%							are created for each mask specified here). this only
-%							works if a single seed is specified.
-%		lengthcorrect:		(false) true to multiply each voxel's output value
-%							by the expected length of tracts that cross it.
-%							somewhere on the FSL mailing list it is mentioned
-%							that this isn't recommended for quantitative
-%							studies, only for classification. (note this is
-%							probtrackx's pd option).
+%		name:				(<unique id from date>) the name to use for the
+%							output directory
+%		dirout:				(<FSLdir>.probtrackX/<name>) the output directory.
+%							overrides <name>.
+%		seedspace:			([]) a string specifying the space of the seed,
+%							waypoint, exclusion, termination, and classification
+%							masks.  this must be either 'freesurfer' or
+%							'diffusion' if the wmstopmask is used.
+%		ref:				(<none/auto>) the path to the seed reference volume.
+%							required if <seedspace> isn't 'freesurfer' or
+%							'diffusion'.
+%		xfm:				(<none/auto>) the path to the seed->diffusion space
+%							transformation matrix or warp file.  required if
+%							<seedspace> isn't 'freesurfer' or 'diffusion'.
+%		xfminv:				(<none/auto>) the path to the diffusion->seed space
+%							transformation matrix or warp file.  required if
+%							<seedspace> isn't 'freesurfer' or 'diffusion'.
+%		wmstopmask:			(true) true to use the inverse of the FreeSurfer
+%							white matter mask as a termination mask.  Matt
+%							Glasser recommends this in the FSL mailing list.
+%		wm_grow:			(-1) the number of pixels by which to grow the
+%							inverse stop mask.  e.g. with a value of -1, the
+%							mask will include one layer of gray matter pixels
+%							past the white matter boundary.
+%		dir_fs:				(<none>) the subject's FreeSurfer directory.  must be
+%							specified if <wmstopmask>==true or seedspace is
+%							'freesurfer'
+%		waypoint:			(<none>) the path/cell of paths to binary NIfTI
+%							volumes to use as waypoint masks (i.e. tracts must
+%							pass through all of these masks to be kept)
+%		exclusion:			(<none>) the path/cell of paths to binary NIfTI
+%							volumes to use as exclusion masks (i.e. any tract
+%							passing through any of these masks will be rejected).
+%							note that these are ORed and the resulting mask
+%							saved in the output directory since probtrackx only
+%							takes one exclusion mask.
+%		termination:		(<none>) the path/cell of paths to binary NIfTI
+%							volumes to use as termination masks (i.e. any tract
+%							hitting any of these masks will be stopped).  note
+%							that these are ORed and the resulting mask saved in
+%							the output directory since probtrackx only takes one
+%							termination mask.  note also that the inverse white
+%							matter mask (see the <wmstopmask>) is also ORed into
+%							this unless the option is set to false.
+%		classification:		(<none>) the path/cell of paths to binary NIfTI
+%							volumes to use as classification masks (i.e.
+%							seeds_to_<name> volumes are created for each mask
+%							specified here).  this only works if a single seed
+%							is specified
 %		nsample:			(5000) the number of samples to send out from each
 %							voxel in each seed
 %		nstep:				(2000) the number of steps per sample
-%		threshdistance:		(0) reject tracts that are below this length, in mm
-%		threshcurvature:	(0.2) the curvature threshold for choosing each
-%							sample's next position at each step
-%		threshfiber:		(0.01) probtrackx's fibthresh option (not sure what
-%							this is)
 %		steplength:			(0.5) the length of each sample step, in mm
+%		threshcurvature:	(0.2) the curvature threshold for choosing each
+%							samples next position at each step
+%		threshdistance:		(0) reject tracts that are below this length, in mm
+%		lengthcorrect:		(false) set to true to multiply each voxel's output
+%							value by the expected length of tracts that cross it.
+%							somewhere on the FSL mailing list it is mentioned
+%							that this isn't recommended for quantitative studies,
+%							only for classification
 %		loopcheck:			(true) true to check for and terminate looping paths
 %		usef:				(false) use anisotropy to constrain tracking
-%		modeuler:			(false) true to use modified euler streaming. this
-%							is apparently more accurate but takes longer.
+%		modeuler:			(false) true to use modified euler streaming.  this
+%							is apparently more accurate but takes longer
 %		rseed:				(<none>) the random seed value for tracking
-%		cores:				(1) the number of processor cores to use
 %		force:				(true) true to force probtrackx to run even if the
 %							output files already exist
-%		force_pre:			(false) true to force preprocessing (e.g.
+%		forceprep:			(false) true to force preprocessing (e.g.
 %							calculation of transforms, etc.)
+%		dotract:			(true) true to actually perform the tractography
+%							after preparing the files.  if false then every
+%							preparation step will be performed and the script to
+%							call probtrackx will be returned
 %		silent:				(false) true to suppress status messages
 % 
 % Out:
@@ -86,10 +92,8 @@ function [b,cPathTract] = FSLProbtrackx(cDirSubject,cPathSeed,varargin)
 %	strNameTract	- the tract name
 %	strScript		- the script for the call to probtrackx
 % 
-% Updated: 2015-05-01
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
-% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
-% License.
+% Updated: 2011-03-20
+% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
 bSuccess	= false;
 
 opt	= ParseArgs(varargin,...

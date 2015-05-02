@@ -12,63 +12,62 @@ function [bvecs,bvals] = PARRECGetDiffusion(strPathPAR,varargin)
 %					  been converted (to determine the correct orientation for
 %					  the bvecs coordinates)
 %	<options>:
-%		'b0first':				(false) true to reorder bvecs and bvals so the
-%								first b=0 volume is at the start (dcm2nii does
-%								this)
-%		'save':					(true) true to save the bvecs/bvals files to the
-%								same folder as the NIfTI file
+%		b0first:	(false) true to reorder bvecs and bvals so the first b=0
+%					volume is at the start (dcm2nii does this)
+%		save:		(true) true to save the bvecs/bvals files to the same folder
+%					as the NIfTI file
 % 
 % Out:
 % 	bvecs	- an Nx3 array of the diffusion directions, oriented the same as the
 %			  NIfTI image grid
 %	bvals	- an Nx1 array of the diffusion magnitudes
 % 
-% Side-effects: if specified, saves the bvecs and bvals files to the same
-%				directory as the NIfTI file
-% 
-% 
-% Updated: 2011-11-12
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-[strPathNIfTI,opt]	= ParseArgs(varargin,[],...
-						'b0first'	, false	, ...
-						'save'		, true	  ...
-						);
-if isempty(strPathNIfTI)
-	strPathNIfTI	= PathUnsplit(PathGetDir(strPathPAR),'data','nii');
-	if ~FileExists(strPathNIfTI)
-		strPathNIfTI	= PathUnsplit(PathGetDir(strPathPAR),'data','nii.gz');
+% Updated: 2015-04-28
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
+%parse the input
+	[strPathNIfTI,opt]	= ParseArgs(varargin,[],...
+							'b0first'	, false	, ...
+							'save'		, true	  ...
+							);
+	
+	if isempty(strPathNIfTI)
+		strDirPAR		= PathGetDir(strPathPAR);
+		strPathNIfTI	= PathUnsplit(strDirPAR,'data','nii');
+		
+		if ~FileExists(strPathNIfTI)
+			strPathNIfTI	= PathUnsplit(strDirPAR,'data','nii.gz');
+		end
 	end
-end
 
 %check for files
-	if ~exist(strPathPAR)
-		error(['PAR file ' strPathPAR ' doesn''t exist.']);
-	end
-	if ~exist(strPathNIfTI)
-		error(['NIfTI file ' strPathNIfTI ' doesn''t exist.']);
-	end
+	assert(FileExists(strPathPAR),'PAR file %s does not exist.',strPathPAR);
+	assert(FileExists(strPathNIfTI),'NIfTI file %s does not exist.',strPathNIfTI);
 
 %get the PAR header
 	hdr		= PARRECReadHeader(strPathPAR);
 	
-	if ~isequal(hdr.version,'4.2')
-		error(['Only v4.2 PAR files are supported.  Input file is v' hdr.version '.']);
-	end
+	assert(isequal(hdr.version,'4.2'),'only v4.2 PAR files are supported. input file is v%s.',hdr.version);
 	
 	kVol	= find(hdr.imageinfo.slice_number==1);
+
 %get the gradient table
 	bvecs	= hdr.imageinfo.diffusion(kVol,:);
+	
 	%reorient bvecs
 		mOrientFrom	= PARRECDiffusionOrientation(hdr);
 		mOrientTo	= NIfTI.ImageGridOrientation(strPathNIfTI);
 		mTransform	= mOrientTo/mOrientFrom;
 		bvecs		= (mTransform*bvecs')';
+
 %get bvals
 	bvals	= hdr.imageinfo.diffusion_b_factor(kVol);
 	
 %reorder
 	if opt.b0first
-		kB0			= find(hdr.imageinfo.diffusion_b_factor(kVol)==0,1,'first');
+		kB0	= find(hdr.imageinfo.diffusion_b_factor(kVol)==0,1,'first');
 		
 		bvecs	= bvecs([kB0 1:kB0-1 kB0+1:end],:);
 		bvals	= bvals([kB0 1:kB0-1 kB0+1:end]);

@@ -11,17 +11,17 @@ function [b,cPathOut] = MRIMaskDisjoint(cPathMask,varargin)
 %				  sets of disjoint masks. in cases where a voxel exists in
 %				  multiple masks, the earlier mask in the array wins
 %	<options>:
-%		output:		(<same name in 'disjoint' subdirectory>) a cell/cell of
-%					cells of output mask paths
-%		nthread:	(1) the number of threads to use
-%		force:		(true) true to force reconstruction of existing masks
-%		silent:		(false) true to suppress status messages
+%		output:	(<same name in 'disjoint' subdirectory>) a cell/cell of cells of
+%				output mask paths
+%		cores:	(1) the number of processor cores to use
+%		force:	(true) true to force reconstruction of existing masks
+%		silent:	(false) true to suppress status messages
 % 
 % Out:
 % 	b			- an array indicating which sets were successfully created
 %	cPathOut	- a cell/cell of cells of output file paths
 % 
-% Updated: 2015-04-13
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -34,7 +34,7 @@ end
 %parse the inputs
 	opt	= ParseArgs(varargin,...
 			'output'	, []	, ...
-			'nthread'	, 1		, ...
+			'cores'		, 1		, ...
 			'force'		, true	, ...
 			'silent'	, false	  ...
 			);
@@ -71,7 +71,7 @@ end
 		b(bDo)	= MultiTask(@DisjointOne,{cPathMask(bDo) cPathOut(bDo)},...
 					'description'	, 'computing disjoint mask sets'	, ...
 					'uniformoutput'	, true								, ...
-					'nthread'		, opt.nthread						, ...
+					'cores'			, opt.cores							, ...
 					'silent'		, opt.silent						  ...
 					);
 	end

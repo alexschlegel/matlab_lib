@@ -706,7 +706,9 @@ while isempty(cmd)
     end
 end
 
-pth = tempdir; % unzip into temp dir
+%modified by alex so multiple unzips can happen at once
+%pth = tempdir; % unzip into temp dir
+pth = GetTempDir;
 
 if islogical(cmd)
     if cmd, outName = gunzip(fname, pth); end
@@ -899,7 +901,10 @@ function closeFile(fid, isGz)
 if isGz % close fid then delete tmp
     fname = fopen(fid); % ungzipped file
     fclose(fid);
+    
     delete(fname);
+    %modified by alex to delete temporary directory
+    rmdir(PathGetDir(fname));
 else % only close fid
     fclose(fid);
 end

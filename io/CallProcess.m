@@ -39,7 +39,7 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 %						before returning.  note that logs won't be deleted
 %						properly and no status will be returned if this is false
 %		debug:			(false) true to display the commands that are called
-%		nthread:		(1) number of threads to use for processing
+%		cores:			(1) the number of processor cores to use
 %		silent:			(false) true to suppress the script output from the
 %						MATLAB window
 % 
@@ -48,8 +48,10 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 %	cOutput		- a cell of the command outputs
 %	cScript		- a cell of scripts that would have been called
 % 
-% Updated: 2012-03-17
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 [cIn,opt]	= ParseArgs(varargin,[],...
 				'description'		, ['Calling ' strCommand]		, ...
 				'file_prefix'		, [strCommand '-callprocess']	, ...
@@ -61,7 +63,7 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 				'run'				, true							, ...
 				'wait'				, true							, ...
 				'debug'				, false							, ...
-				'nthread'			, 1								, ...
+				'cores'				, 1								, ...
 				'silent'			, false							  ...
 				);
 

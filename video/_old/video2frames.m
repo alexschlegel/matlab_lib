@@ -11,7 +11,7 @@ function x = video2frames(cPathVideo,varargin)
 %		outdir:		(<load>) to save the frames to files, specify the output
 %					directory
 %		outformat:	('jpg') the output file format
-%		nthread:	(1) the number of video files to process simultaneously
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status messages
 % 
 % Out:

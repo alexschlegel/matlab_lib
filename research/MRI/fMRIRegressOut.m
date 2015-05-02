@@ -18,21 +18,21 @@ function nii = fMRIRegressOut(nii,R,varargin)
 %		demean:		(true) true to demean everything
 %		output:		(<none>) a file path to which to save the regressed data.
 %					only applicable if nii is a NIfTI file path or NIfTI struct.
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		force:		(true) true to force processing if the output already exists
 % 
 % Out:
 % 	nii	- if the 'output' was not specified, nii with the specified timecourses
 %		  regressed out.  otherwise, the path to the output file.
 % 
-% Updated: 2015-04-13
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
 		'demean'	, true	, ...
 		'output'	, []	, ...
-		'nthread'	, 1		, ...
+		'cores'		, 1		, ...
 		'force'		, true	  ...
 		);
 
@@ -113,7 +113,7 @@ function t = GetTimecourse(R)
 end
 %------------------------------------------------------------------------------%
 function d = DoRegress(d,R)
-	[b,bint,d]	= regressMulti(d,R,'nthread',opt.nthread);
+	[b,bint,d]	= regressMulti(d,R,'cores',opt.cores);
 end
 %------------------------------------------------------------------------------%
 

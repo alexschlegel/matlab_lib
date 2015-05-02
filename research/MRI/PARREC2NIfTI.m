@@ -16,10 +16,13 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 %		b0first:		(false) true if dcm2nii moved diffusion b0 images to the
 %						the front of the file (I'm confused since it used to but
 %						now looks like it isn't)
+%		remove_adc:		(true) true to remove the ADC volume from diffusion data
+%						(if dcm2nii doesn't already do it). this is only
+%						processed if savediffusion==true.
 %		gzip:			(true) true to save the output as .nii.gz
 %		orthogonalize:	(true) true to reorient images to the nearest orthogonal
 %		reorientcrop:	(true) true to reorient and crop 3D data sets
-%		nthread:		(1) the number of threads to use
+%		cores:			(1) the number of processor cores to use
 %		force:			(true) true to force conversion even if the output
 %						already exists
 %		silent:			(false) true to suppress status messages
@@ -29,7 +32,7 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 %				  converted
 % 	cPathNII	- the path to the output NIfTI file, or a cell of paths
 % 
-% Updated: 2015-04-13
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -37,10 +40,11 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 					'copyhdr'		, true	, ...
 					'savediffusion'	, true	, ...
 					'b0first'		, false	, ...
+					'remove_adc'	, true	, ...
 					'gzip'			, true	, ...
 					'orthogonalize'	, true	, ...
 					'reorientcrop'	, true	, ...
-					'nthread'		, 1		, ...
+					'cores'			, 1		, ...
 					'force'			, true	, ...
 					'silent'		, false	  ...
 					);
@@ -74,7 +78,7 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 	bSuccess			= ~bConvert;
 	bSuccess(bConvert)	= MultiTask(@ConvertOne,{cPathPAR,cPathNII},...
 							'description'	, 'Converting PAR/REC to NIfTI'	, ...
-							'nthread'		, opt.nthread					, ...
+							'cores'			, opt.cores						, ...
 							'uniformoutput'	, true							, ...
 							'silent'		, opt.silent					  ...
 							);
@@ -133,11 +137,6 @@ function b = ConvertOne(strPathPAR,strPathNII)
 			strPathMAT	= PathAddSuffix(strPathNII,'','mat','favor','nii.gz');
 			save(strPathMAT,'-struct','hdr');
 		end
-	%save diffusion parameters
-		if opt.savediffusion && isequal(strType,'diffusion')
-			%save bvecs/bvals
-				[bvecs,bvals]	= PARRECGetDiffusion(strPathPAR,strPathNII,'b0first',opt.b0first);
-		end
 	%the scanner has been randomly saving functional scans with a weird slice
 	%order (all slice 1, then all slice 2, etc.). fix this.
 		if ismember(strType,{'functional','diffusion'})
@@ -163,6 +162,46 @@ function b = ConvertOne(strPathPAR,strPathNII)
 					nii.data	= permute(nii.data,[1:dimSlice-1 nd dimSlice:nd-2 nd-1]);
 				%save the NIfTI file
 					NIfTI.Write(nii,strPathNII);
+			end
+		end
+	%process diffusion data
+		if strcmp(strType,'diffusion')
+			if opt.savediffusion
+				[bvecs,bvals]	= PARRECGetDiffusion(strPathPAR,strPathNII,'b0first',opt.b0first);
+				
+				if opt.remove_adc
+					%do we have an adc volume?
+						kADC	= find(bvals~=0 & all(bvecs==0,2));
+						bADC	= numel(kADC)==1;
+					
+					if bADC
+						strDirNII	= PathGetDir(strPathNII);
+						
+						%should we remove it from the NIfTI file?
+							hdr		= NIfTI.ReadHeader(strPathNII);
+							nVol	= hdr.dim(5);
+							
+							switch numel(bvals) - nVol
+								case 0 %yes
+									nii	= NIfTI.Read(strPathNII);
+									nii.data(:,:,:,kADC)	= [];
+									NIfTI.Write(nii,strPathNII);
+								case 1 %dcm2nii must have already done it
+								otherwise %dunno
+									error('wtf?');
+							end
+						
+						%remove it from bvecs and bvals
+							bvecs(kADC,:)	= [];
+							strPathBVecs	= PathUnsplit(strDirNII,'bvecs','');
+							fput(array2str(bvecs'),strPathBVecs);
+							
+							
+							bvals(kADC)		= [];
+							strPathBVals	= PathUnsplit(strDirNII,'bvals','');
+							fput(array2str(bvals'),strPathBVals);
+					end
+				end
 			end
 		end
 	

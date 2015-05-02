@@ -31,7 +31,7 @@ function [c,t,D,f,sk] = MFCC(x,rate,varargin)
 %					which data are set to zero.
 %		sk:			(<see cqfft>) for the cqfft transform, the spectral kernel
 %					to use
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status messages
 % 
 % Out:
@@ -41,8 +41,8 @@ function [c,t,D,f,sk] = MFCC(x,rate,varargin)
 %	f	- the frequencies associated with the CQFT
 %	sk	- the cqfft transform, the spectral kernel used
 % 
-% Updated: 2012-09-30
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [varargout{1:nargout}]	= CQFCC(x,rate,varargin{:});

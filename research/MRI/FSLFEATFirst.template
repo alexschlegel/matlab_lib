@@ -1,7 +1,8 @@
 <!--main----------------------------------------------------------------------->
 
+
 # FEAT version number
-set fmri(version) 5.98
+set fmri(version) 6.00
 
 # Are we in MELODIC?
 set fmri(inmelodic) 0
@@ -14,12 +15,9 @@ set fmri(level) 1
 # Which stages to run
 # 0 : No first-level analysis (registration and/or group stats only)
 # 7 : Full first-level analysis
-# 1 : Pre-Stats
-# 3 : Pre-Stats + Stats
-# 2 :             Stats
-# 6 :             Stats + Post-stats
-# 4 :                     Post-stats
-set fmri(analysis) 6
+# 1 : Pre-processing
+# 2 : Statistics
+set fmri(analysis) 2
 
 # Use relative filenames
 set fmri(relative_yn) 0
@@ -54,7 +52,7 @@ set fmri(multiple) 1
 # Higher-level input type
 # 1 : Inputs are lower-level FEAT directories
 # 2 : Inputs are cope images from FEAT directories
-set fmri(inputtype) 1
+set fmri(inputtype) 2
 
 # Carry out pre-stats processing?
 set fmri(filtering_yn) 0
@@ -70,11 +68,6 @@ set fmri(noise) <noise_level>
 
 # Noise AR(1)
 set fmri(noisear) <noise_ar>
-
-# Post-stats-only directory copying
-# 0 : Overwrite original post-stats results
-# 1 : Copy original FEAT directory for new Contrasts, Thresholding, Rendering
-set fmri(newdir_yn) 0
 
 # Motion correction
 # 0 : None
@@ -142,6 +135,8 @@ set fmri(prewhiten_yn) 1
 # 0 : No
 # 1 : Yes
 set fmri(motionevs) 0
+set fmri(motionevsbeta) ""
+set fmri(scriptevsbeta) ""
 
 # Robust outlier detection in FLAME?
 set fmri(robust_yn) 0
@@ -170,7 +165,7 @@ set fmri(nftests_real) <num_ftest>
 set fmri(constcol) 0
 
 # Carry out post-stats steps?
-set fmri(poststats_yn) 1
+set fmri(poststats_yn) 0
 
 # Pre-threshold masking?
 set fmri(threshmask) ""
@@ -215,9 +210,6 @@ set fmri(bgimage) 1
 # Create time series plots
 set fmri(tsplot_yn) 1
 
-# Registration?
-set fmri(reg_yn) 0
-
 # Registration to initial structural
 set fmri(reginitial_highres_yn) 0
 
@@ -240,13 +232,16 @@ set fmri(reghighres_yn) 0
 set fmri(reghighres_search) 90
 
 # Degrees of Freedom for registration to main structural
-set fmri(reghighres_dof) 6
+set fmri(reghighres_dof) BBR
 
 # Registration to standard image?
 set fmri(regstandard_yn) 0
 
+# Use alternate reference images?
+set fmri(alternateReference_yn) 0
+
 # Standard image
-set fmri(regstandard) "/usr/share/fsl/4.1/data/standard/MNI152_T1_2mm_brain"
+set fmri(regstandard) "/usr/share/fsl/5.0/data/standard/MNI152_T1_2mm_brain"
 
 # Search space for registration to standard space
 # 0   : No search
@@ -266,6 +261,10 @@ set fmri(regstandard_nonlinear_warpres) 10
 # High pass filter cutoff
 set fmri(paradigm_hp) <highpass_cutoff>
 
+# Total voxels
+set fmri(totalVoxels) 551040000
+
+
 # Number of lower-level copes feeding into higher-level analysis
 set fmri(ncopeinputs) 0
 
@@ -281,9 +280,6 @@ set fmri(confoundevs) 0
 
 ##########################################################
 # Now options that don't appear in the GUI
-
-# Alternative example_func image (not derived from input 4D dataset)
-set fmri(alternative_example_func) ""
 
 # Alternative (to BETting) mask image
 set fmri(alternative_mask) ""
@@ -340,6 +336,7 @@ set fmri(custom<n>) "<ev_path>"
 <!--ev_orthogonalise----------------------------------------------------------->
 # Orthogonalise EV <n_ev> wrt EV <n_other>
 set fmri(ortho<n_ev>.<n_other>) 0
+
 
 <!--contrast------------------------------------------------------------------->
 # Contrast & F-tests mode

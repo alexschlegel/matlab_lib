@@ -34,7 +34,7 @@ function [ft,f,t,sk] = STFT(x,rate,varargin)
 %					this is the cut-off value below which data are set to zero.
 %		sk:			(<see cqfft>) for the cqfft transform, the spectral kernel
 %					to use
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status messages
 % 
 % Out:
@@ -43,8 +43,8 @@ function [ft,f,t,sk] = STFT(x,rate,varargin)
 %	t	- an nT x 1 array of the time point at each column of ft
 %	sk	- the cqfft transform, the spectral kernel used
 %
-% Updated: 2012-09-30
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 sk	= [];
@@ -66,7 +66,7 @@ nSample	= numel(x);
 			'mem'			, []			, ...
 			'tsparse'		, []			, ...
 			'sk'			, []			, ...
-			'nthread'		, 1				, ...
+			'cores'			, 1				, ...
 			'silent'		, false			  ...
 			);
 	opt.pad		= CheckInput(opt.pad,'pad',{'symmetric','replicate','zeros'});
@@ -118,14 +118,14 @@ nSample	= numel(x);
 			sk	= opt.sk;
 		end
 	
-	if opt.nthread>1
+	if opt.cores>1
 		%break the signal up into even pieces
-			kBreak	= splitup(1:nSTFT,opt.nthread);
+			kBreak	= splitup(1:nSTFT,opt.cores);
 			xWin	= cellfun(@(k) xWin(:,k),kBreak,'UniformOutput',false);
 		%calculate each piece
 			[ft,f]	= MultiTask(@DoFFT,{xWin rate sk opt},...
 						'description'	, 'Calculating FFTs'	, ...
-						'nthread'		, opt.nthread			, ...
+						'cores'			, opt.cores				, ...
 						'twait'			, 500					, ...
 						'silent'		, opt.silent			  ...
 						);

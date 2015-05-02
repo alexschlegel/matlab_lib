@@ -42,7 +42,7 @@ function [b,cPathRawAll,cPathOutAll] = PARRECOrganize(strDirRaw,varargin)
 %		minfile:	(1) the minimum number of files in the data set for it to
 %					be considered
 %		outbase:	(<auto>) the base output directory
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		force:		(false) true to force construction of output files that
 %					already exist
 %		silent:		(false) true to suppress status messages
@@ -53,8 +53,8 @@ function [b,cPathRawAll,cPathOutAll] = PARRECOrganize(strDirRaw,varargin)
 %	cPathRaw	- an Nx1 array of raw input data set file paths
 %	cPathOut	- an Nx1 array of converted NIfTI file paths
 %
-% Updated: 2012-12-09
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
@@ -67,7 +67,7 @@ opt	= ParseArgs(varargin,...
 		'tsession'		, []			, ...
 		'minfile'		, 1				, ...
 		'outbase'		, []			, ...
-		'nthread'		, 1				, ...
+		'cores'			, 1				, ...
 		'force'			, false			, ...
 		'silent'		, false			  ...
 		);
@@ -219,7 +219,7 @@ nDirRaw	= numel(ifo);
 		bConvertAll	= [bConvertAll; bConvert];
 	end
 %convert!
-	b	= PARREC2NIfTI(cPathRawAll(bConvertAll),cPathOutAll(bConvertAll),'b0first',opt.b0first,'nthread',opt.nthread,'silent',opt.silent);
+	b	= PARREC2NIfTI(cPathRawAll(bConvertAll),cPathOutAll(bConvertAll),'b0first',opt.b0first,'cores',opt.cores,'silent',opt.silent);
 
 
 %------------------------------------------------------------------------------%

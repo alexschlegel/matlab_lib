@@ -16,7 +16,7 @@ function varargout = MultiTask(f,cIn,varargin)
 %		description:		('running tasks') a description of the job
 %		uniformoutput:		(false) true if outputs are all scalar (like
 %							cellfun)
-%		nthread:			(<num cores - 1>) number of tasks to execute
+%		cores:				(<num cores - 1>) number of tasks to execute
 %							simultaneously
 %		njobmax:			(1000) the maximum number of jobs to run in any
 %							single batch (large numbers of jobs may cripple
@@ -42,7 +42,7 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK	- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-04-08
+% Updated: 2015-05-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -51,7 +51,7 @@ function varargout = MultiTask(f,cIn,varargin)
 	opt	= ParseArgs(varargin,...
 			'description'			, 'running tasks'	, ...
 			'uniformoutput'			, false				, ...
-			'nthread'				, []				, ...
+			'cores'					, []				, ...
 			'njobmax'				, 1000				, ...
 			'bytesmax'				, 100000000			, ...
 			'distributed'			, []				, ...
@@ -65,8 +65,8 @@ function varargout = MultiTask(f,cIn,varargin)
 			'silent'				, false				  ...
 			);
 	
-	if isempty(opt.nthread)
-		opt.nthread	= GetNumCores-1;
+	if isempty(opt.cores)
+		opt.cores	= GetNumCores-1;
 	end
 
 %start the log
@@ -91,7 +91,7 @@ function varargout = MultiTask(f,cIn,varargin)
 		cIn	= cellfun(@(varargin) varargin,cIn{:},'uni',false);
 
 %prepare the progress bar
-	strLabel	= sprintf('%s (%d thread%s)',opt.description,opt.nthread,plural(opt.nthread));
+	strLabel	= sprintf('%s (%d core%s)',opt.description,opt.cores,plural(opt.cores));
 	sProgress	= progress('action','init','total',nTask,'label',strLabel,'silent',opt.silent);
 	pName		= sProgress.name;
 
@@ -102,7 +102,7 @@ function varargout = MultiTask(f,cIn,varargin)
 		opt.nout			= nOut;
 		opt.ntaskfinished	= 0;
 	
-	bMulti	= opt.nthread>1;
+	bMulti	= opt.cores>1;
 	
 	if bMulti
 	%use the distributed computing toolbox
@@ -298,7 +298,7 @@ function nPool = Pool(strCmd)
 		case 'open'
 			bSilent	= param.silent || ~param.log.TestLevel('info');
 			
-			[b,nPool,pool]	= MATLABPoolOpen(param.nthread,...
+			[b,nPool,pool]	= MATLABPoolOpen(param.cores,...
 								'ntask'			, nTask				, ...
 								'distributed'	, param.distributed	, ...
 								'hosts'			, param.hosts		, ...

@@ -1,31 +1,33 @@
-function [b,nThread,pool] = MATLABPoolOpen(nThread,varargin)
+function [b,nCore,pool] = MATLABPoolOpen(nCore,varargin)
 % MATLABPoolOpen
 % 
 % Description:	open a matlab pool for parallel processing
 % 
-% Syntax:	[b,nThread,pool] = MATLABPoolOpen(nThread,<options>)
+% Syntax:	[b,nCore,pool] = MATLABPoolOpen(nCore,<options>)
 % 
 % In:
-% 	nThread	- the number of threads to use
+% 	nCore	- the number of processor cores to use
 %	<options>:
 %		ntask:			([]) the number of tasks that the pool will perform. if
 %						1, then the pool won't be opened.
 %		distributed:	(<auto>) true to use the distributed computing engine
 %		hosts:			([]) a cell of hosts to use for distributed computing
 %		workers:		([]) an array the same size as <hosts> specifying the
-%						number of threads to use on each host. NaNs specify that
-%						the number of threads on that host should be chosen
+%						number of cores to use on each host. NaNs specify that
+%						the number of cores on that host should be chosen
 %						automatically.
 %		silent:			(false) true to suppress status messages
 % 
 % Out:
 % 	b		- true if the pool was successfully opened or the pool was already
 %			  open
-%	nThread	- the number of threads in the pool
+%	nCore	- the number of cores in the pool
 %	pool	- a struct of info about the pool
 % 
-% Updated: 2014-03-28
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'ntask'			, []	, ...
 		'distributed'	, []	, ...
@@ -39,20 +41,20 @@ opt	= ParseArgs(varargin,...
 	pool	= struct('cluster',[],'opened',false);
 
 %should we use the distributed computing engine?
-	nCore			= GetNumCores;
-	opt.distributed	= unless(opt.distributed,nThread>nCore);
+	nCoreMax		= GetNumCores;
+	opt.distributed	= unless(opt.distributed,nCore>nCoreMax);
 
 %how many cores do we actually need?
 	if ~isempty(opt.ntask)
-		nThread	= min(nThread,opt.ntask);
+		nCore	= min(nCore,opt.ntask);
 	end
 
-if nThread>1
+if nCore>1
 	%get the cluster object
 		if opt.distributed
 		%TseCluster!
 			try
-				pool.cluster	= TseCluster(nThread,opt.hosts,opt.workers,...
+				pool.cluster	= TseCluster(nCore,opt.hosts,opt.workers,...
 									'silent'	, opt.silent	  ...
 									);
 				
@@ -68,16 +70,16 @@ if nThread>1
 			
 			%is it the right size?
 				nWorkers		= get(pool.cluster,'NumWorkers');
-				bClusterOpened	= nWorkers~=nThread;
+				bClusterOpened	= nWorkers~=nCore;
 				
 				if bClusterOpened
 				%set the new cluster size
-					set(pool.cluster,'NumWorkers',nThread)
+					set(pool.cluster,'NumWorkers',nCore);
 				end
 		end
 	
 	%close the current pool if we need to
-		bClosePool	= bClusterOpened || matlabpool('size')~=nThread;
+		bClosePool	= bClusterOpened || matlabpool('size')~=nCore;
 		
 		if bClosePool
 			if opt.silent
@@ -88,7 +90,7 @@ if nThread>1
 		end
 	
 	%open the pool if we need to
-		pool.opened	= matlabpool('size')~=nThread;
+		pool.opened	= matlabpool('size')~=nCore;
 		
 		if pool.opened
 			try
@@ -102,7 +104,7 @@ if nThread>1
 			end
 		end
 	
-	nThread	= matlabpool('size');
+	nCore	= matlabpool('size');
 end
 
 %success!

@@ -15,7 +15,7 @@ function [bSuccess,cPathXFM,cPathXFMInv] = FreeSurfer2FA(cDirFS,cDirFA,varargin)
 %		force:		(true) true to calculate transforms even if output files
 %					already exist
 %		log:		(true) true to save logs
-%		nthread:	(1) number of threads to use for computations
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status output
 % 
 % Out:
@@ -25,8 +25,10 @@ function [bSuccess,cPathXFM,cPathXFMInv] = FreeSurfer2FA(cDirFS,cDirFA,varargin)
 %	cPathXFMInv	- path/cell of paths to the FA-->FreeSurfer transform matrices
 %				  or warp files
 % 
-% Updated: 2011-02-25
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 bSuccess				= false;
 [cPathXFM,cPathXFMInv]	= deal([]);
 
@@ -34,7 +36,7 @@ opt	= ParseArgs(varargin,...
 		'method'	, 'flirt'	, ...
 		'force'		, true		, ...
 		'log'		, true		, ...
-		'nthread'	, 1			, ...
+		'cores'		, 1			, ...
 		'silent'	, false		  ...
 		);
 
@@ -44,11 +46,11 @@ end
 
 %calculate multiple transforms
 	if iscell(cDirFS)
-		cOpt	= opt2cell(rmfield(opt,'nthread'));
+		cOpt	= opt2cell(rmfield(opt,'cores'));
 		
 		[bSuccess,cPathXFM,cPathXFMInv]	= MultiTask(@FreeSurfer2FA,{cDirFS cDirFA cOpt{:}},...
 												'description'	, 'Calculating FreeSurfer<-->FA transforms'	, ...
-												'nthread'		, opt.nthread								, ...
+												'cores'			, opt.cores									, ...
 												'silent'		, opt.silent								  ...
 												);
 		bSuccess							= cell2mat(bSuccess);

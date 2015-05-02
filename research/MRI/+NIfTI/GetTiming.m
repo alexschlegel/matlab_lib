@@ -1,25 +1,20 @@
-function [tr,s] = GetTiming(strPathData)
+function tr = GetTiming(strPathData)
 % NIfTI.GetTiming
 % 
 % Description:	get timing info from a NIfTI functional data file
 % 
-% Syntax:	[tr,s] = NIfTI.GetTiming(strPathData)
+% Syntax:	tr = NIfTI.GetTiming(strPathData)
 % 
 % In:
 % 	strPathData	- the path to a NIfTI functional data set
 % 
 % Out:
-% 	tr		- the TR duration, in seconds
-%	s		- a struct of other potentially useful information:
-%				nvol:	number of volumes in the data set
-%				nslice:	number of slices in each volume
+% 	tr	- the TR duration, in seconds
 % 
-% Updated: 2015-04-13
+% Updated: 2015-04-28
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-
-s	= struct;
 
 %first check for a PARREC2NIfTI .mat file
 	strPathMAT	= NIfTI.PathMAT(strPathData);
@@ -28,14 +23,10 @@ s	= struct;
 		hdr	= load(strPathMAT,'general');
 		
 		tr			= round(hdr.general.repetition_time)/1000;
-		s.nvol		= hdr.general.max_number_of_dynamics;
-		s.nslice	= hdr.general.max_number_of_slices;
 		
-		return
+		return;
 	end
-%now try FSLReadHeader
-	hdr	= FSLReadHeader(strPathData);
-	
-	tr			= hdr.pixdim4;
-	s.nvol		= hdr.dim4;
-	s.nslice	= hdr.dim3;
+
+%just read the NIfTI header
+	hdr	= NIfTI.ReadHeader(strPathData);
+	tr	= hdr.pixdim(5);

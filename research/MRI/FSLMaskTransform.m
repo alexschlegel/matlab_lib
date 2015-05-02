@@ -21,7 +21,7 @@ function [b,cPathMaskOut] = FSLMaskTransform(cDirFunctional,cPathMaskIn,cFrom,cT
 %					  of cells of destination spaces for each mask.
 %	<options>:
 %		force:		(true) true to retransform masks whose output exists
-%		nthread:	(1) the number of threads to use
+%		cores:		(1) the number of processor cores to use
 %		silent:		(false) true to suppress status messages
 % 
 % Out:
@@ -34,8 +34,8 @@ function [b,cPathMaskOut] = FSLMaskTransform(cDirFunctional,cPathMaskIn,cFrom,cT
 %		directories.  if this is not the case make sure cPathMaskIn is wrapped
 %		in another cell.
 % 
-% Updated: 2012-04-12
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 cPathMaskOut	= [];
@@ -44,7 +44,7 @@ cSpace			= [{'standard','highres','functional','cat'} num2cell(1:50)];
 %parse the input
 	opt	= ParseArgs(varargin,...
 			'force'		, true	, ...
-			'nthread'	, 1		, ...
+			'cores'		, 1		, ...
 			'silent'	, false	  ...
 			);
 	
@@ -86,7 +86,7 @@ cSpace			= [{'standard','highres','functional','cat'} num2cell(1:50)];
 			'xfm'		, cPathXFMAll			, ...
 			'interp'	, 'nearestneighbour'	, ...
 			'force'		, opt.force				, ...
-			'nthread'	, opt.nthread			, ...
+			'cores'		, opt.cores				, ...
 			'silent'	, opt.silent			  ...
 			));
 %format the output

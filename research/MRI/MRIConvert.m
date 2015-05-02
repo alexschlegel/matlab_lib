@@ -9,24 +9,26 @@ function bSuccess = MRIConvert(cPathIn,cPathOut,varargin)
 % 	cPathIn		- an input path or cell of inputs paths
 %	cPathOut	- an output path or cell of output paths
 %	<options>:
-%		log:		(true) true/false to specify whether logs should be saved
-%					to the default location, or the path/cell of paths to a log
-%					file to save
-%		force:		(true) reconvert if the output path already exists.  can be
-%					a logical array, one for each input path
-%		nthread:	(1) the number of threads to use
-%		silent:		(false) true to suppress status messages
+%		log:	(true) true/false to specify whether logs should be saved to the
+%				default location, or the path/cell of paths to a log file to
+%				save
+%		force:	(true) reconvert if the output path already exists.  can be
+%				a logical array, one for each input path
+%		cores:	(1) the number of processor cores to use
+%		silent:	(false) true to suppress status messages
 % 
 % Out:
 % 	bSuccess	- a logical array indicating which files were successfully
 %				  converted
 % 
-% Updated: 2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-05-01
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'log'		, true	, ...
 		'force'		, true	, ...
-		'nthread'	, 1		, ...
+		'cores'		, 1		, ...
 		'silent'	, false	  ...
 		);
 
@@ -53,7 +55,7 @@ nConvert						= numel(cPathIn);
 							'description'	, 'Converting MRI Data'	, ...
 							'script_path'	, cPathScript			, ...
 							'log_path'		, cPathLog				, ...
-							'nthread'		, opt.nthread			, ...
+							'cores'			, opt.cores				, ...
 							'silent'		, opt.silent			  ...
 							);
 	end

@@ -24,7 +24,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150501.2114,...
+	version				= struct('pipeline',20150502,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -614,10 +614,12 @@ methods
 		keys		= result{1}.keyTuple;
 		keymaps		= arrayfun(@(k) {keys{k},@(r)forcenum(r.valueTuple{k})}, ...
 						1:numel(keys),'uni',false);
-		datamaps	= {	{'seed',	@(r)r.seed}, ...
-						{'acc',		@(r)r.summary.alex.meanAccAllSubj}, ...
-						{'stderr',	@(r)r.summary.alex.stderrAccAllSu}, ...
-						{'alex_p',	@(r)r.summary.alex.p} ...
+		datamaps	= {	{'seed',		@(r)r.seed}, ...
+						{'acc',			@(r)r.summary.alex.meanAccAllSubj}, ...
+						{'stderr',		@(r)r.summary.alex.stderrAccAllSu}, ...
+						{'alex_p',		@(r)r.summary.alex.p}, ...
+						{'alex_ci',		@get_alex_ci}, ...
+						{'alex_ci_err',	@get_alex_ci_err} ...
 					  };
 		stubmaps	= {};
 		if ismember('stubsim',u.fudge)
@@ -641,6 +643,10 @@ methods
 			end
 		end
 
+		function x = bound_to_unit_interval(x)
+			x	= min(max(0,x),1); % Note: maps NaN to zero
+		end
+
 		function n = fetchopt(summary,optname)
 			if isfield(summary,'uopt') && isfield(summary.uopt,optname)
 				n	= forcenum(summary.uopt.(optname));
@@ -657,6 +663,16 @@ methods
 			end
 		end
 
+		function val = get_alex_ci(r)
+			ci	= bound_to_unit_interval(r.summary.alex.ci);
+			val	= mean(ci);
+		end
+
+		function err = get_alex_ci_err(r)
+			ci	= bound_to_unit_interval(r.summary.alex.ci);
+			err	= sqrt(0.5)*std(ci);
+		end
+
 		function index = getLabelIndex(label)
 			index	= find(strcmp(label,cLabel));
 			if ~isscalar(index)
@@ -665,10 +681,15 @@ methods
 		end
 
 		function values = getSubarrayForLabel(label,data)
-			shape	= size(data);
-			index	= getLabelIndex(label);
-			data	= shiftdim(data,numel(keys));
-			values	= reshape(data(index,:),shape(1:end-1));
+			shape		= size(data);
+			subshape	= shape(1:end-1);
+			if strcmp(label,'zeros')
+				values	= zeros(subshape);
+			else
+				index	= getLabelIndex(label);
+				data	= shiftdim(data,numel(keys));
+				values	= reshape(data(index,:),subshape);
+			end
 		end
 	end
 
@@ -1149,6 +1170,10 @@ methods
 		switch optName
 			case 'acc'
 				label	= 'Accuracy (%)';
+			case 'alex_ci'
+				label	= 'Alex t-test CI';
+			case 'alex_p'
+				label	= 'Classification p-value';
 			case 'nRepBlock'
 				label	= 'Number of blocks per run';
 			case 'nRun'
@@ -1266,7 +1291,7 @@ methods
 				binding{end+1}	= sprintf('%s=%s',name,asString(obj,val)); %#ok
 			end
 		end
-		binding{end+1}	= sprintf('vcap-vplot=%.2f-%07.2f', ...
+		binding{end+1}	= sprintf('vdata-vplot=%.2f-%07.2f', ...
 							capsule.version.pipeline, ...
 							mod(obj.version.pipeline,10000));
 		note			= {};
@@ -1406,10 +1431,13 @@ methods
 		for kFV=1:numel(fixedVars)
 			data	= constrainData(data,fixedVars{kFV},fixedVarValues{kFV});
 		end
+		getyval		= @(d)getfield(yVarName,d);
+		geterror	= @(d)getfield('zeros',d);
 		if strcmp(yVarName,'acc')
-			[facY,facE]	= deal(100); % Percentages
-		else
-			[facY,facE]	= deal(1,0);
+			getyval		= @(d)100*getfield(yVarName,d); % Percentage
+			geterror	= @(d)100*getfield('stderr',d); % Percentage
+		elseif strcmp(yVarName,'alex_ci')
+			geterror	= @(d)getfield('alex_ci_err',d);
 		end
 		[xvals,yvals,errorvals]	= deal(cell(1,nPlotLine));
 		for kPL=1:nPlotLine
@@ -1433,8 +1461,8 @@ methods
 				error('Inconsistent x values.');
 			end
 			xvals{kPL}		= squeeze(maxx);
-			yvals{kPL}		= squeeze(facY*mean(getfield(yVarName,plData),1));
-			errorvals{kPL}	= squeeze(facE*mean(getfield('stderr',plData),1));
+			yvals{kPL}		= squeeze(mean(getyval(plData),1));
+			errorvals{kPL}	= squeeze(mean(geterror(plData),1));
 		end
 
 		parennote	= noteFixedVars(obj,fixedVars,fixedVarValues);

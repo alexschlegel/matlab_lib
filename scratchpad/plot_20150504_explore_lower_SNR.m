@@ -1,0 +1,46 @@
+% For old plotting scripts, see scratchpad/archived/plotting-scripts/*
+
+% Script to plot data from ../data_store/20150505_0030_explore_lower_SNR.mat
+
+
+function hF = plot_20150504_explore_lower_SNR(varargin)
+opt				= ParseArgs(varargin, ...
+					'yVarName'		, 'alex_p'	  ...
+					);
+
+hF				= zeros(1,0);
+stem			= '20150505_0030_explore_lower_SNR';
+
+load(['../data_store/' stem '.mat']);
+
+
+% Capsule 1 multiplots
+
+vertVar			= {								  ...
+					'nDataPerRun'	, {24 96}	  ...
+				  };
+fixedPairs		= {};
+hF				= plot_quad_nTBlock_SNR(hF,cCapsule{1},opt.yVarName,vertVar,fixedPairs);
+
+
+figfilepath		= sprintf('scratchpad/figfiles/%s-%s-%s.fig',stem, ...
+					opt.yVarName,FormatTime(nowms,'mmdd'));
+savefig(hF(end:-1:1),figfilepath);
+fprintf('Plots saved to %s\n',figfilepath);
+
+end
+
+function hF = plot_quad_nTBlock_SNR(hF,capsule,yVarName,vertVar,fixedPairs)
+	p			= Pipeline;
+	ha			= p.renderMultiLinePlot(capsule,'ln(SNR)'		, ...
+					'yVarName'				, yVarName			, ...
+					'lineVarName'			, 'nTBlock'			, ...
+					'lineVarValues'			, {1 3 8}			, ...
+					'horizVarName'			, 'hrf'				, ...
+					'horizVarValues'		, {0 1}				, ...
+					'vertVarName'			, vertVar{1}		, ...
+					'vertVarValues'			, vertVar{2}		, ...
+					'fixedVarValuePairs'	, fixedPairs		  ...
+					);
+	hF(end+1)	= ha.hF;
+end

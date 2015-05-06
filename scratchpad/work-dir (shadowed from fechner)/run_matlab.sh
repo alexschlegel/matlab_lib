@@ -14,6 +14,6 @@ else
     exit 1
   }
   TS=$(date +%Y%m%d_%H%M%S)
-  OBASE="$TS-$MBASE"
-  nohup matlab $OPTS -r "$MBASE" > "$OBASE.out" 2> "$OBASE.err" &
+  O_PREFIX="bg-output/$TS-$MBASE"
+  nohup matlab $OPTS -r "$MBASE" > "$O_PREFIX.out" 2> "$O_PREFIX.err" &
 fi

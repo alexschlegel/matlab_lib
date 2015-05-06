@@ -48,7 +48,7 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 %	cOutput		- a cell of the command outputs
 %	cScript		- a cell of scripts that would have been called
 % 
-% Updated: 2015-05-01
+% Updated: 2015-05-06
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -84,10 +84,9 @@ function [vExitCode,cOutput] = CallProcess(strCommand,varargin)
 %construct each script
 	cScript	= cellfun(@(varargin) join([strCommand cellfun(@(v) tostring(v),varargin,'UniformOutput',false)],' '),cIn{:},'UniformOutput',false);
 %run each script
-	if opt.run
-		cOpt				= opt2cell(opt);
-		[vExitCode,cOutput]	= RunBashScript(cScript,cOpt{:});
-	else
+	cOpt				= opt2cell(opt);
+	[vExitCode,cOutput]	= RunBashScript(cScript,cOpt{:});
+	
+	if ~opt.run
 		vExitCode	= cScript;
-		cOutput		= [];
 	end

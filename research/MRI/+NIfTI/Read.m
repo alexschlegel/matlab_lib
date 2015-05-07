@@ -25,7 +25,7 @@ function nii = Read(strPathNII,varargin)
 % Out:
 % 	nii	- the NIfTI struct
 % 
-% Updated: 2015-04-28
+% Updated: 2015-05-07
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -93,12 +93,12 @@ function nii = Read(strPathNII,varargin)
 			nii			= rmfield(nii,'img');
 	end
 
+%keep track of which method we used to load the data
+	nii.method	= opt.method;
+
 %return the specified data
 	switch opt.return
 		case 'struct'
 		case 'data'
 			nii	= nii.data;
 	end
-
-%keep track of which method we used to load the data
-	nii.method	= opt.method;

@@ -307,7 +307,7 @@ function b = RandomiseOne(strPathData,d,strPathOut,strPathMask,tContrast,fTest,e
 			
 			cPathP	= FindFiles(strDirOut,[strFileOutRE '.*_p_']);
 			
-			cPathPFDR	= StatFDRCorrect(cPathP,'mask',strPathMask);
+			cPathPFDR	= cellfun(@(f) StatFDRCorrect(f,'mask',strPathMask,'silent',param.silent),cPathP,'uni',false);
 		end
 	
 	b	= true;

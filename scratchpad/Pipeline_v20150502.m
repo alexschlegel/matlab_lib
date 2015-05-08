@@ -1,6 +1,7 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-% 
-% Cleanup and revision of Pipeline.m
+%
+% This class is a reworking of Alex's script 20150116_alex_tests.m
+% and now incorporates the changes from 20150123_alex_tests.m
 % --------------------------------------------------------------------
 
 classdef Pipeline
@@ -23,7 +24,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150507,...
+	version				= struct('pipeline',20150502,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -35,7 +36,6 @@ properties (SetAccess = private)
 end
 
 methods
-	function obj = Pipeline(varargin)
 	% Pipeline - constructor for Pipeline class
 	%
 	% Syntax:	pipeline = Pipeline(<options>)
@@ -57,28 +57,40 @@ methods
 	%
 	%					-- Subjects
 	%
-	%		nSubject:	(15) number of subjects
+	%		nSubject:	(20) number of subjects
 	%
-	%					-- Signal characteristics
+	%					-- Size of the various spaces
 	%
+	%		nSig:		(10) total number of functional signals
 	%		nSigCause:	(10) number of functional signals of X that cause Y
-	%		nSig:		(100) total number of functional signals
-	%		nVoxel:		(<nSig>) number of voxels into which the functional signals are mixed
-	%		SNR:		(0.2) the ratio of total variances of the causal to non-causal functional signals
-	%		WStrength:	(0.5) sum of W columns (|WStrength|+|CRecur| must be <=1)
-	%		WFullness:	(0.25) fullness of W matrices
-	%		CRecur:		(0) recurrence coefficient (|WStrength|+|CRecur| must be <=1)
+	%		nVoxel:		(100) number of voxels into which the functional components are mixed
 	%
 	%					-- Time
 	%
-	%		nTBlock:	(10) number of time points per block
+	%		nTBlock:	(4) number of time points per block
 	%		nTRest:		(4) number of time points per rest periods
-	%		nRepBlock:	(5) number of repetitions of each block per run
-	%		nRun:		(15) number of runs
+	%		nRepBlock:	(12) number of repetitions of each block per run
+	%		nRun:		(10) number of runs
+	%
+	%					-- Signal characteristics
+	%
+	%		CRecurX:	(0.1) recurrence coefficient (should be <= 1)
+	%		CRecurY:	(0.7) recurrence coefficient (should be <= 1)
+	%		CRecurZ:	(0.5) recurrence coefficient (should be <= 1)
+	%		normVar:	(false) normalize signal variances (approximately)
+	%		preSource:	(false) include pre-source causal effects
+	%		SNR:		(false) signal-to-noise ratio (positive real, or false if N/A)
+	%		WFullness:	(0.1) fullness of W matrices
+	%		WSmooth:	(false) omit W fullness filter, instead using WFullness for "pseudo-sparsity"
+	%		WSquash:	(false) flip the W fullness filter, making nonzero elements nearly equal
+	%		WSum:		(0.2) sum of W columns (sum(W)+CRecurY/X must be <=1)
+	%		WSumTweak:	(false) use altered recurrence with tweaked W column sums
+	%		xCausAlpha:	([]) inter-region causal weight (empty, or 0 <= alpha <= 1)
 	%
 	%					-- Mixing
 	%
 	%		doMixing:	(true) should we even mix into voxels?
+	%		noiseMix:	(0.1) magnitude of noise introduced in the voxel mixing
 	%
 	%					-- Hemodynamic response
 	%
@@ -99,7 +111,8 @@ methods
 	%		njobmax:	(1000) Maximum number of jobs per batch within MultiTask
 	%		nIteration:	(10) Number of simulations per point in plot-data generation
 	%		saveplot:	(false) Save individual plot capsules to mat files on generation
-	
+	%
+	function obj = Pipeline(varargin)
 		%user-defined parameters (with defaults)
 		obj.defaultOptions	= { ...
 			'DEBUG'			, false		, ...
@@ -112,19 +125,28 @@ methods
 			'szIm'			, 200		, ...
 			'verbosData'	, true		, ...
 			'verbosity'		, 1			, ...
-			'nSubject'		, 15		, ...
+			'nSubject'		, 20		, ...
+			'nSig'			, 10		, ...
 			'nSigCause'		, 10		, ...
-			'nSig'			, 100		, ...
-			'nVoxel'		, []		, ...
-			'SNR'			, 0.2		, ...
-			'WStrength'		, 0.5		, ...
-			'WFullness'		, 0.25		, ...
-			'nTBlock'		, 10		, ...
+			'nVoxel'		, 100		, ...
+			'nTBlock'		, 4			, ...
 			'nTRest'		, 4			, ...
-			'nRepBlock'		, 5			, ...
-			'nRun'			, 15		, ...
-			'CRecur'		, 0			, ...
+			'nRepBlock'		, 12		, ...
+			'nRun'			, 10		, ...
+			'CRecurX'		, 0.1		, ...
+			'CRecurY'		, 0.7		, ...
+			'CRecurZ'		, 0.5		, ...
+			'normVar'		, false		, ...
+			'preSource'		, false		, ...
+			'SNR'			, false		, ...
+			'WFullness'		, 0.1		, ...
+			'WSmooth'		, false		, ...
+			'WSquash'		, false		, ...
+			'WSum'			, 0.2		, ...
+			'WSumTweak'		, false		, ...
+			'xCausAlpha'	, []		, ...
 			'doMixing'		, true		, ...
+			'noiseMix'		, 0.1		, ...
 			'hrf'			, false		, ...
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
@@ -140,24 +162,17 @@ methods
 		opt						= ParseArgs(varargin,obj.defaultOptions{:});
 		obj.implicitOptionNames	= obj.defaultOptions(1:2:end);
 		obj.explicitOptionNames	= varargin(1:2:end);
-		obj.notableOptionNames	=	{
-										'nSubject'
-										'nSig'
-										'nSigCause'
-										'nVoxel'
-										'SNR'
-										'WStrength'
-										'WFullness'
-										'nTBlock'
-										'nTRest'
-										'nRepBlock'
-										'nRun'
-										'CRecur'
-										'hrf'
-									};
-		obj.unlikelyOptionNames	=	{
-										'doMixing'
-									};
+		obj.notableOptionNames	= { 'nSubject', 'nSig', 'nSigCause', ...
+									'nVoxel', 'nTBlock', 'nTRest', ...
+									'nRepBlock', 'nRun', 'CRecurX', ...
+									'CRecurY', 'CRecurZ', 'SNR', ...
+									'WFullness', 'WSum', 'noiseMix', ...
+									'hrf'  ...
+								  };
+		obj.unlikelyOptionNames	= { 'normVar', 'preSource', 'WSmooth', ...
+									'WSquash', 'WSumTweak', 'xCausAlpha', ...
+									'doMixing'  ...
+								  };
 		unknownOptInd			= ~ismember(obj.explicitOptionNames,obj.implicitOptionNames);
 		if any(unknownOptInd)
 			error('Unrecognized option(s):%s',sprintf(' ''%s''',obj.explicitOptionNames{unknownOptInd}));
@@ -169,7 +184,6 @@ methods
 		if any(invalidFudgeInd)
 			error('Invalid fudge(s):%s',sprintf(' ''%s''',opt.fudge{invalidFudgeInd}));
 		end
-		opt.nVoxel				= unless(opt.nVoxel,opt.nSig);
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
@@ -182,17 +196,14 @@ methods
 			end
 		end
 	end
-	
+
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
-		
-		modes	= conditional(strcmp(u.analysis,'total'),obj.analyses,ForceCell(u.analysis));
-		nMode	= numel(modes);
-		
-		for kMode=1:nMode
-			strMode	= modes{kMode};
-			
-			switch strMode
+
+		modeInds	= cellfun(@(m) any(strcmp(u.analysis,{m,'total'})),obj.analyses);
+		modes		= obj.analyses(modeInds);
+		for kMode=1:numel(modes)
+			switch modes{kMode}
 				case 'alex'
 					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 				case 'lizier'
@@ -200,16 +211,16 @@ methods
 				case 'seth'
 					subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'mvgc',doDebug);
 				otherwise
-					error('Bug: missing case for %s.',strMode);
+					error('Bug: missing case for %s.',modes{kMode});
 			end
 		end
 	end
 
 	function alexAccSubj = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
-		
-		%unmix from voxel to "functional" space
+
 		if u.doMixing
+			%unmix and keep the top nSigCause components
 			nTRun	= numel(target{1});	%number of time points per run
 			nT		= nTRun*u.nRun;		%total number of time points
 
@@ -221,27 +232,26 @@ methods
 		else
 			[XUnMix,YUnMix]	= deal(XTest,YTest);
 		end
-		
-		%keep the top nSigCause components
+
 		XUnMix	= XUnMix(:,:,1:u.nSigCause);
 		YUnMix	= YUnMix(:,:,1:u.nSigCause);
 
 		%calculate W*
-		%calculate the directed connectivity from X components to Y components for each
+		%calculate the Granger Causality from X components to Y components for each
 		%run and condition
-		WStarA = calculateW_stars(obj,target,XUnMix,YUnMix,'A');
-		WStarB = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
+		WAs = calculateW_stars(obj,target,XUnMix,YUnMix,'A');
+		WBs = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
 
 		%classify between W*A and W*B
-		[alexAccSubj,p_binom] = classifyBetweenWs(obj,WStarA,WStarB);
+		[alexAccSubj,p_binom] = classifyBetweenWs(obj,WAs,WBs);
 
 		if doDebug
-			mWStarA	= mean(cat(3,WStarA{:}),3);
-			mWStarB	= mean(cat(3,WStarB{:}),3);
+			mWAs	= mean(cat(3,WAs{:}),3);
+			mWBs	= mean(cat(3,WBs{:}),3);
 
-			showTwoWs(obj,mWStarA,mWStarB,'W^*_A and W^*_B');
-			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWStarA)));
-			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWStarB)));
+			showTwoWs(obj,mWAs,mWBs,'W^*_A and W^*_B');
+			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWAs)));
+			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWBs)));
 			fprintf('accuracy: %.2f%%\n',100*alexAccSubj);
 			fprintf('p(binom): %.3f\n',p_binom);
 		end
@@ -253,15 +263,14 @@ methods
 	function causalities = analyzeTestSignalsMultivariate(obj,~,target,X,Y,kind,doDebug)
 		u			= obj.uopt;
 		conds		= {'A' 'B'};
-		nCond		= numel(conds);
-		causalities	= zeros(nCond,1);
+		causalities	= zeros(numel(conds),1);
 
 		%concatenate data for all runs to create a single hypothetical megarun
 		megatarget	= {cat(1,target{:})};
 		megaX		= reshape(X,[],1,size(X,3));
 		megaY		= reshape(Y,[],1,size(Y,3));
 
-		for kC=1:nCond
+		for kC=1:numel(conds)
 			sigs			= extractSignalsForCondition(obj,...
 								megatarget,megaX,megaY,conds{kC});
 			s				= sigs{1};
@@ -278,9 +287,17 @@ methods
 				%TODO: possibly temporary TE verification
 				aX			= squeeze(s.XFudge);
 				aY			= squeeze(s.YFudge);
-				aTE			= calculateCausality(obj,aX,aY,...
-								2:size(aX,1),'te');
-				fprintf('Multivariate TE X->Y for cond %s is %.6f\n',conds{kC},aTE);
+				aTE1		= calculateCausality(obj,aX,aY,...
+								2:size(aX,1),'te'); %#ok
+				%FIXME: redundant, alternate computation
+				aTE1		= TransferEntropy(aX,aY,...
+								'kraskov_k', u.kraskov_k);
+				aTE2		= calculateLizierMVCTE(obj,aX,aY);
+				fprintf('Multivariate TEs X->Y for cond %s are %.6f, %.6f\n',...
+					conds{kC},aTE1,aTE2);
+				if abs(aTE1 - aTE2) > 1e-8
+					error('Bug in TE calculation.');
+				end
 			end
 		end
 		if doDebug
@@ -288,63 +305,89 @@ methods
 			disp(causalities);
 		end
 	end
-	
-	function [sourceOut,destOut] = applyRecurrence(obj,sW,sourceIn,destIn,doDebug)
-	% sourceIn and destIn are nSig x 1
+
+	function [sourceOut,destOut,preSourceOut] = applyRecurrence(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
+		if isfield(sW,'WXX')
+			[sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug);
+		else
+			[sourceOut,destOut,preSourceOut] = applyRecurrenceLizierStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug);
+		end
+	end
+
+	function [sourceOut,destOut,preSourceOut] = applyRecurrenceLizierStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug)
 		u	= obj.uopt;
 		W	= sW.W;
-		
-		%do this so the recurrence works regardless of whether our Ws are
-		%nSigCause x nSigCause or nSig x nSig with zeros for everything but the
-		%causal signals
-			nW			= size(W,1);
-			nNoW		= u.nSig - nW;
-			WStrength	= [reshape(sum(W,1),[],1); zeros(nNoW,1)];
-		
-		sourceNoise	= (1             - u.CRecur).*randn(u.nSig,1);
-		destNoise	= (1 - WStrength - u.CRecur).*randn(u.nSig,1);
-		
-		sourceOut		= u.CRecur.*sourceIn + sourceNoise;
-		destOut			= u.CRecur.*destIn   + destNoise;
-		destOut(1:nW)	= destOut(1:nW) + W.'*sourceIn(1:nW);
-		
-		if doDebug
-			coeffsumx		= u.CRecur.*ones(u.nSig,1) + (1             - u.CRecur);
-			coeffsumy		= u.CRecur.*ones(u.nSig,1) + (1 - WStrength - u.CRecur);
-			coeffsumy(1:nW)	= coeffsumy(1:nW) + W.'*ones(nW,1);
-			errors		= abs([coeffsumx; coeffsumy] - 1);
+		WZ	= sW.WZ;
+
+		if ~u.preSource
+			WZ(:)	= 0;
+		end
+
+		if u.WSumTweak
+			if u.normVar ~= 0
+				error('Combination WSumTweak and normVar not supported.');
+			end
+			tweakedWSum		= u.WSum/sqrt(u.nSigCause);
+			sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + (1-tweakedWSum-u.CRecurX).*randn(u.nSig,1);
+			destOut			= u.CRecurY.*destIn + W.'*sourceIn + (1-tweakedWSum-u.CRecurY).*randn(u.nSig,1);
+			preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+		else
+			switch u.normVar
+				case 0
+					sourceNoise		= (1-sum(WZ,1).'-u.CRecurX).*randn(u.nSig,1);
+					if ~notfalse(u.SNR)
+						destNoise	= (1-sum(W,1).'-u.CRecurY).*randn(u.nSig,1);
+					else
+						destNoise	= 0;
+					end
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + sourceNoise;
+					destOut			= u.CRecurY.*destIn + W.'*sourceIn + destNoise;
+					preSourceOut	= u.CRecurZ.*preSourceIn + (1-u.CRecurZ).*randn(u.nSig,u.nSig);
+				case 1
+					sourceOut		= computeWeightedSumWithVarianceNormalization(obj,...
+										{u.CRecurX,sourceIn},...
+										{WZ.',preSourceIn},...
+										{1-sum(WZ,1).'-u.CRecurX,randn(u.nSig,1)});
+					destOut			= computeWeightedSumWithVarianceNormalization(obj,...
+										{u.CRecurY,destIn},...
+										{W.',sourceIn},...
+										{1-sum(W,1).'-u.CRecurY,randn(u.nSig,1)});
+					preSourceOut	= computeWeightedSumWithVarianceNormalization(obj,...
+										{u.CRecurZ,preSourceIn},...
+										{1-u.CRecurZ,randn(u.nSig,u.nSig)});
+				case 2  % Alternative approach to variance normalization (TODO: remove?)
+					sourceOut		= u.CRecurX.*sourceIn + sum(WZ.'.*preSourceIn,2) + sqrt(1-sum(WZ.^2,1).'-u.CRecurX^2).*randn(u.nSig,1);
+					destOut			= u.CRecurY.*destIn + W.'*sourceIn + sqrt(1-sum(W.^2,1).'-u.CRecurY^2).*randn(u.nSig,1);
+					preSourceOut	= u.CRecurZ.*preSourceIn + sqrt(1-u.CRecurZ^2).*randn(u.nSig,u.nSig);
+				otherwise
+					error('Invalid normVar value %d',u.normVar);
+			end
+		end
+
+		if doDebug && ~u.WSumTweak
+			coeffsumx	= u.CRecurX.*ones(size(sourceIn)) + sum(WZ.'.*ones(size(preSourceIn)),2) + (1-sum(WZ,1).'-u.CRecurX).*ones(u.nSig,1);
+			coeffsumy	= u.CRecurY.*ones(size(destIn)) + W.'*ones(size(sourceIn)) + (1-sum(W,1).'-u.CRecurY).*ones(u.nSig,1);
+			coeffsumz	= u.CRecurZ.*ones(size(preSourceIn)) + (1-u.CRecurZ).*ones(u.nSig,u.nSig);
+			errors		= abs([coeffsumx coeffsumy coeffsumz] - 1);
 			if any(errors > 1e-8)
 				error('Coefficients do not add to one.');
 			end
 		end
 	end
 
-	% TODO: should be a function, not a method--but is there a nice built-in for this?
-	function s = asString(~,value)
-		s	= toString(value);
-		
-		function s = toString(value)
-			if iscell(value)
-				s	= strjoin(cellfun(@toString,value(:).','uni',false));
-			elseif ischar(value)
-				s	= value(:).'; % TODO: maybe improve?
-			elseif islogical(value)
-				s	=  sprintf('%d',value);
-			elseif ~isnumeric(value)
-				s	= '??'; % TODO: improve
-			elseif ~isscalar(value)
-				s	=  strjoin(arrayfun(@toString,value(:).','uni',false));
-			elseif value ~= floor(value)
-				s	=  sprintf('%.2f',value); % TODO: refine
-			else
-				s	=  sprintf('%d',value);
-			end
+	function [sourceOut,destOut,preSourceOut] = applyRecurrenceRegionStyle(obj,sW,sourceIn,destIn,preSourceIn,doDebug) %#ok
+		u				= obj.uopt;
+		if u.WSumTweak || u.normVar ~= 0 || u.preSource || notfalse(u.SNR)
+			error('WSumTweak, normVar, preSource, and SNR not supported for nonempty xCausAlpha.');
 		end
+		sourceOut		= sW.WXX.' * sourceIn + (1-sum(sW.WXX,1).').*randn(u.nSig,1);
+		destOut			= sW.W.' * sourceIn + sW.WYY.' * destIn + (1-sum(sW.W).'-sum(sW.WYY).').*randn(u.nSig,1);
+		preSourceOut	= preSourceIn;
 	end
-	
+
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
 		u	= obj.uopt;
-		if any(strcmp('fakecause',u.fudge))
+		if ismember('fakecause',u.fudge)
 			c = randn^2; %Fudge: return random causality
 			return;
 		end
@@ -369,13 +412,46 @@ methods
 		end
 	end
 
-	function WStars = calculateW_stars(obj,target,X,Y,conditionName)
+	% TODO: should be a function, not a method--but is there a nice built-in for this?
+	function s = asString(~,value)
+		s	= toString(value);
+
+		function s = toString(value)
+			if iscell(value)
+				s	= strjoin(cellfun(@toString,value(:).','uni',false));
+			elseif ischar(value)
+				s	= value(:).'; % TODO: maybe improve?
+			elseif islogical(value)
+				s	=  sprintf('%d',value);
+			elseif ~isnumeric(value)
+				s	= '??'; % TODO: improve
+			elseif ~isscalar(value)
+				s	=  strjoin(arrayfun(@toString,value(:).','uni',false));
+			elseif value ~= floor(value)
+				s	=  sprintf('%.2f',value); % TODO: refine
+			else
+				s	=  sprintf('%d',value);
+			end
+		end
+	end
+
+	%calculateLizierMVCTE: obsolescent, deprecated, soon to be removed.
+	function TE = calculateLizierMVCTE(obj,X,Y)
+		u		= obj.uopt;
+		teCalc	= obj.infodyn_teCalc;
+		teCalc.initialise(1,size(X,2),size(Y,2)); % Use history length 1 (Schreiber k=1)
+		teCalc.setProperty('k',num2str(u.kraskov_k)); % Use Kraskov parameter K=4 for 4 nearest points
+		teCalc.setObservations(X,Y);
+		TE		= teCalc.computeAverageLocalOfObservations();
+	end
+
 	%calculate the Causality from X components to Y components for each
 	%run and for the specified condition
 	% conditionName is 'A' or 'B'
+	function W_stars = calculateW_stars(obj,target,X,Y,conditionName)
 		u		= obj.uopt;
 		sigs	= extractSignalsForCondition(obj,target,X,Y,conditionName);
-		WStars	= repmat({zeros(u.nSigCause)},[u.nRun 1]);
+		W_stars	= repmat({zeros(u.nSigCause)},[u.nRun 1]);
 
 		for kR=1:u.nRun
 			s	= sigs{kR};
@@ -385,13 +461,13 @@ methods
 
 				for kY=1:u.nSigCause
 					Y					= s.Yall(:,:,kY);
-					WStars{kR}(kX,kY)	= calculateCausality(obj,X,Y,...
+					W_stars{kR}(kX,kY)	= calculateCausality(obj,X,Y,...
 											s.kNext,u.WStarKind);
 				end
 			end
 		end
 	end
-	
+
 	function obj = changeDefaultsForBatchProcessing(obj)
 		obj	= obj.changeOptionDefault('nofigures',true);
 		obj	= obj.changeOptionDefault('nowarnings',true);
@@ -415,24 +491,31 @@ methods
 		obj	= obj.consumeRandomizationSeed;
 	end
 
-	function [acc,p_binom] = classifyBetweenWs(obj,WAStar,WBStar)
+	function [acc,p_binom] = classifyBetweenWs(obj,WAs,WBs)
 		u	= obj.uopt;
 		P	= cvpartition(u.nRun,'LeaveOut');
-		
-		WStar	= [WAStar; WBStar];
-		WStar	= cellfun(@(W) reshape(W,1,[]),WStar,'uni',false);
-		
-		lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
-		lblTest		= {'A';'B'};
-		
+
 		res	= zeros(P.NumTestSets,1);
 		for kP=1:P.NumTestSets
-			kTrain	= repmat(P.training(kP),[2 1]);
-			kTest	= repmat(P.test(kP),[2 1]);
-			
-			WTrain	= cat(1,WStar{kTrain});
-			WTest	= cat(1,WStar{kTest});
-			
+			% TODO: Refactor/restructure: redundancy in similar handling of WA, WB,
+			% and in similar handling of Train and Test
+			WATrain	= cellfun(@(W) reshape(W,1,[]), WAs(P.training(kP)),'uni',false);
+			WBTrain	= cellfun(@(W) reshape(W,1,[]), WBs(P.training(kP)),'uni',false);
+
+			WATest	= cellfun(@(W) reshape(W,1,[]), WAs(P.test(kP)),'uni',false);
+			WBTest	= cellfun(@(W) reshape(W,1,[]), WBs(P.test(kP)),'uni',false);
+
+			WATrain	= cat(1,WATrain{:});
+			WBTrain	= cat(1,WBTrain{:});
+			WATest	= cat(1,WATest{:});
+			WBTest	= cat(1,WBTest{:});
+
+			WTrain	= [WATrain; WBTrain];
+			WTest	= [WATest; WBTest];
+
+			lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
+			lblTest		= {'A';'B'};
+
 			sSVM	= svmtrain(WTrain,lblTrain);
 			pred	= svmclassify(sSVM,WTest);
 			res(kP)	= sum(strcmp(pred,lblTest));
@@ -447,6 +530,71 @@ methods
 		acc		= Xbin/Nbin;
 	end
 
+	%expected usage: product of cell arrays
+	%needn't be a method, could be a free-standing function
+	%TODO: with plot-code changes, may be obsolete (so, remove)
+	function cprod = computeCartesianProduct(obj,varargin)
+		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
+			error('Arguments must be cell vectors.');
+		end
+		if numel(varargin) == 0
+			cprod	= cell(1,0);
+		else
+			left	= varargin{1};
+			right	= computeCartesianProduct(obj,varargin{2:end});
+			repleft	= repmat(left(:).',size(right,1),1);
+			cprod	= [repleft(:) repmat(right,numel(left),1)];
+		end
+	end
+
+	%expected usage: product of cell arrays
+	%needn't be a method, could be a free-standing function
+	%TODO: with plot-code changes, may be obsolete (so, remove)
+	function cprod = computeLittleEndianCartesianProduct(obj,varargin)
+		if any(cellfun(@(a) ~iscell(a)||~isvector(a),varargin))
+			error('Arguments must be cell vectors.');
+		end
+		if numel(varargin) == 0
+			cprod	= cell(1,0);
+		else
+			left		= computeLittleEndianCartesianProduct(...
+							obj,varargin{1:end-1});
+			right		= varargin{end};
+			repright	= repmat(right(:).',size(left,1),1);
+			cprod		= [repmat(left,numel(right),1) repright(:)];
+		end
+	end
+
+	function out = computeWeightedSumWithVarianceNormalization(~,varargin)
+		coeffSigPairs	= varargin;
+		nPair			= numel(coeffSigPairs);
+		if nPair < 1
+			error('No arguments.');
+		end
+		firstPair		= coeffSigPairs{1};
+		sizeSigs		= size(firstPair{2});
+		weightedSum		= zeros(sizeSigs);
+		sumSqCoeffs		= zeros(sizeSigs);
+		for kP=1:nPair
+			pair		= coeffSigPairs{kP};
+			coeff		= pair{1};
+			sig			= pair{2};
+			sqCoeff		= coeff.^2;
+			if all(size(coeff) == size(sig))
+				term	= coeff.*sig;
+			else
+				term	= coeff*sig;
+			end
+			if sizeSigs(2) == 1
+				term	= sum(term,2);
+				sqCoeff	= sum(sqCoeff,2);
+			end
+			weightedSum	= weightedSum + term;
+			sumSqCoeffs	= sumSqCoeffs + sqCoeff;
+		end
+		out				= weightedSum./sqrt(sumSqCoeffs);
+	end
+
 	function obj = consumeRandomizationSeed(obj)
 		if notfalse(obj.uopt.seed)
 			rng(obj.uopt.seed,'twister');
@@ -454,12 +602,13 @@ methods
 		obj.uopt.seed	= false;
 	end
 
-	function [array,cLabel,label2index,getfield] = convertPlotCapsuleResultToArray(obj,capsule)
 	% TODO: Clean up.  This method's functionality should be made into
 	% a separate class, whose methods would include something like
 	% "getfield" (currently a return value), a label2index mapping method,
 	% and something like constrainData (currently an inner function in
 	% renderMultiLinePlot).
+	function [array,cLabel,label2index,getfield] = ...
+				convertPlotCapsuleResultToArray(obj,capsule)
 		u			= obj.uopt;
 		result		= capsule.result;
 		keys		= result{1}.keyTuple;
@@ -544,28 +693,37 @@ methods
 		end
 	end
 
-	function signals = extractSignalsForCondition(~,target,X,Y,conditionName)
 	% TODO: clean up comments
-	% X,Y dims are [time, run, signal].
+	% X,Y dims are [time, run, which_signal].
 	% conditionName is 'A' or 'B'
 	%
 	% Return cell array indexed by run.  Each cell holds a struct with
-	%   k,X,Y corresponding to specified condition. Dimensions of these signal
-	%   slices are [time, 1, signal].
+	%   X,Y,XLag,YLag,XFudge,YFudge corresponding to specified condition.
+	%   Dimensions of these signal slices are [time, 1, which_signal].
+	function signals = extractSignalsForCondition(~,target,X,Y,conditionName)
 		nRun	= numel(target);
 		signals = cell(nRun,1);
-		
+
+		%TODO: Many of the members of sigs below are obsolescent, to be removed.
 		for kR=1:nRun
-			bCondition	= strcmp(target{kR},conditionName);
-			bShift		= [0; bCondition(1:end-1)];
-			sigs.kNext	= find(bShift);
+			ind			= strcmp(target{kR},conditionName);
+			indshift	= [0; ind(1:end-1)];
+			kLag		= find(ind);
+			k			= find(indshift);	% i.e., kLag + 1;
+			kFudge		= find(ind | indshift);
+			sigs.kNext	= k;
 			sigs.Xall	= X(:,kR,:);
 			sigs.Yall	= Y(:,kR,:);
+			sigs.X		= X(k,kR,:);
+			sigs.Y		= Y(k,kR,:);
+			sigs.XLag	= X(kLag,kR,:);
+			sigs.YLag	= Y(kLag,kR,:);
+			sigs.XFudge	= X(kFudge,kR,:);
+			sigs.YFudge	= Y(kFudge,kR,:);
 			signals{kR}	= sigs;
 		end
 	end
 
-	function domainValue = findThreshold(obj,varargin)
 	%Find min v in varDomain such that fn(v) <= goal
 	%It is assumed that varDomain is monotonically increasing
 	%It is assumed that fn is monotonically nonincreasing
@@ -573,6 +731,7 @@ methods
 	% Sample quick test:
 	%>> p=Pipeline('nSubject',2,'nRun',5,'nTBlock',2);
 	%>> d=p.findThreshold
+	function domainValue = findThreshold(obj,varargin)
 		opt	= ParseArgs(varargin, ...
 				'varName'		, 'nRepBlock'	, ...
 				'varDomain'		, 1:24			, ...
@@ -622,7 +781,7 @@ methods
 		u			= obj.uopt;
 		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',false);
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
-		
+
 		if doDebug
 			nTRun	= numel(target{1});	%number of time points per run
 			fprintf('TRs per run: %d\n',nTRun);
@@ -631,28 +790,28 @@ methods
 	end
 
 	function [X,Y] = generateFunctionalSignals(obj,block,target,sW,doDebug)
-		u				= obj.uopt;
-		nTRun			= numel(target{1});	%number of time points per run
-		
+		u		= obj.uopt;
+		nTRun	= numel(target{1});	%number of time points per run
+
 		[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
-		
+		Z		= zeros(nTRun,u.nRun,u.nSig,u.nSig);
+
 		for kR=1:u.nRun
-			%initial causality matrix
 			sW.W	= sW.WBlank;
-			
-			%generate each sample
 			for kT=1:nTRun
 				%previous values
 				if kT==1
 					xPrev	= randn(u.nSig,1);
 					yPrev	= randn(u.nSig,1);
+					zPrev	= randn(u.nSig,u.nSig);
 				else
 					xPrev	= squeeze(X(kT-1,kR,:));
 					yPrev	= squeeze(Y(kT-1,kR,:));
+					zPrev	= squeeze(Z(kT-1,kR,:,:));
 				end
 
-				%X=source, Y=destination
-				[X(kT,kR,:),Y(kT,kR,:)]	= applyRecurrence(obj,sW,xPrev,yPrev,doDebug);
+				%X=source, Y=destination, Z=pre-source
+				[X(kT,kR,:),Y(kT,kR,:),Z(kT,kR,:,:)]	= applyRecurrence(obj,sW,xPrev,yPrev,zPrev,doDebug);
 
 				%causality matrix for the next sample
 				switch target{kR}{kT}
@@ -664,10 +823,6 @@ methods
 						sW.W	= sW.WBlank;
 				end
 			end
-			
-			%set the SNR as specified
-				X	= setSignalSNR(obj,X,doDebug);
-				Y	= setSignalSNR(obj,Y,doDebug);
 		end
 
 		if doDebug
@@ -676,19 +831,206 @@ methods
 		end
 	end
 
+	function [X,Y] = generateSignalNoiseMixtureWithNormVar(obj,block,target,sW,doDebug)
+		u			= obj.uopt;
+
+		if u.nSig ~= u.nSigCause
+			error('For SNR with normVar, nSig must equal nSigCause.');
+		end
+		if ~u.doMixing
+			error('For SNR with normVar, doMixing must be true.');
+		end
+		if u.WSmooth || u.WSquash || u.WSumTweak || ~isempty(u.xCausAlpha)
+			error('For SNR with normVar, cannot have WSmooth, WSquash, WSumTweak, or xCausAlpha.');
+		end
+
+		nTRun		= numel(target{1});	%number of time points per run
+		nVoxel		= u.nVoxel;
+		nSig		= u.nSig;
+		nNoise		= nVoxel-nSig;
+		funcidx		= 1:nSig;
+		noiseidx	= (nSig+1):nVoxel;
+		[X,Y]		= deal(zeros(nTRun,u.nRun,nVoxel));
+
+		% Abbreviating MixX as M, a given signal x(i) at time T is
+		% computed as the value from time T-1 of
+		%
+		%   M(i,1)*x(1) + M(i,2)*x(2) + ....
+		%
+		% For the purposes of signal-to-noise computation, components
+		% 1 through nSig (the functional signals) are considered to be
+		% the *signal*; the remaining nNoise components are noise.
+		%
+		% The variance of functional signal i at time T (abbrev xi@T)
+		% is approximately
+		%
+		%   M(i,1)^2*var(x1@(T-1)) + M(i,2)^2*var(x2@(T-1)) + ....
+		%
+		% (This approximation assumes that the functional signals are
+		% not cross-correlated, although to some degree they are.)
+		%
+		% Assume variances of functional signals are all equal, and
+		% invariant over time, and that variances of noise components
+		% are all 1.  Let vfx denote the variance of each functional
+		% signal.  Then, for i in funcidx (i.e., i in 1:nSig), we have
+		%
+		%   vfx == vfx*(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2) +
+		%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2).
+		%
+		% Hence
+		%
+		%   vfx*(1-(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2)) ==
+		%       M(i,nSig+1)^2 + ... + M(i,nVoxel)^2,
+		%
+		% or
+		%
+		% (1) vfx == (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) /
+		%            (1-(M(i,1)^2 + M(i,2)^2 + ... + M(i,nSig)^2)).
+		%
+		% We define signal-to-noise ratio as vfx*nSig/nNoise.  Then for
+		% a given SNR, vfx == SNR*nNoise/nSig.  To obtain desired vfx,
+		% we can adjust either the numerator or denominator of Eq (1).
+		% For simplicity, we set denominator at 0.5 and calibrate
+		% elements of M accordingly.
+		%
+		% The case of MixY is similar to that of MixX, but there is an
+		% extra term in the recurrence for Y, so the variance of y(i)
+		% is approximately
+		%
+		%   M(i,1)^2*var(y(1)) + ... + M(i,nVoxel)^2*var(y(nVoxel)) +
+		%       W(1,i)^2*var(x(1)) + ... + W(nSig,i)^2*var(x(nSig)).
+		%
+		% Let vfy denote the variance of each functional signal in y.
+		% For i in funcidx we have
+		%
+		%   vfy == vfy*(M(i,1)^2 + ... + M(i,nSig)^2) +
+		%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) +
+		%          vfx*(W(1,i)^2 + ... + W(nSig,i)^2).
+		%
+		% If our target value for vfy is the same as vfx, then we have
+		%
+		%   vfy == vfy*(M(i,1)^2 + ... M(i,nSig)^2 +
+		%               W(1,i)^2 + .. + W(nSig,i)^2) +
+		%          (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2),
+		%
+		% or
+		%
+		% (2) vfy == (M(i,nSig+1)^2 + ... + M(i,nVoxel)^2) /
+		%            (1-(M(i,1)^2 + ... + M(i,nSig)^2 +
+		%                W(1,i)^2 + ... + W(nSig,i)^2)).
+		%
+		% Note that W(1,i)^2 + ... + W(nSig,i)^2 cannot exceed WSum^2.
+		% If, as in the case of x, we make M(i,1)^2 + ... + M(i,nSig)^2
+		% equal to 0.5, then for WSum <= 0.5, the presence of the W
+		% terms adds at most 0.25, and hence affects the denominator by
+		% at most a factor of two.  On this basis we ignore the effect
+		% of W for now, though as a future refinement we may wish to
+		% take it into account.
+
+		MixXSig		= randn(nSig,nSig);
+		MixXNoise	= randn(nSig,nNoise);
+		sumSqXSig	= sum(MixXSig.^2,2);
+		sumSqXNoise	= sum(MixXNoise.^2,2);
+		scaleXSig	= sqrt(0.5./sumSqXSig);
+		scaleXNoise	= sqrt((0.5*u.SNR*nNoise/nSig)./sumSqXNoise);
+		MixXSig		= repmat(scaleXSig,1,nSig).*MixXSig;
+		MixXNoise	= repmat(scaleXNoise,1,nNoise).*MixXNoise;
+		MixX		= [MixXSig MixXNoise];
+
+		MixYSig		= randn(nSig,nSig);
+		MixYNoise	= randn(nSig,nNoise);
+		sumSqYSig	= sum(MixYSig.^2,2);
+		sumSqYNoise	= sum(MixYNoise.^2,2);
+		scaleYSig	= sqrt(0.5./sumSqYSig);
+		scaleYNoise	= sqrt((0.5*u.SNR*nNoise/nSig)./sumSqYNoise);
+		MixYSig		= repmat(scaleYSig,1,nSig).*MixYSig;
+		MixYNoise	= repmat(scaleYNoise,1,nNoise).*MixYNoise;
+		MixY		= [MixYSig MixYNoise];
+
+		if doDebug
+			sumSqXSig	= sum(MixXSig.^2,2);
+			sumSqXNoise	= sum(MixXNoise.^2,2);
+			vfx			= sumSqXNoise ./ (1 - sumSqXSig);
+			SNRx		= vfx * (nSig/nNoise);
+			fprintf('scaleXSig.''   =%s\n',sprintf(' %.3f',scaleXSig.'));
+			fprintf('scaleXNoise.'' =%s\n',sprintf(' %.3f',scaleXNoise.'));
+			fprintf('sumSqXSig.''   =%s\n',sprintf(' %.3f',sumSqXSig.'));
+			fprintf('sumSqXNoise.'' =%s\n',sprintf(' %.3f',sumSqXNoise.'));
+			fprintf('vfx.''         =%s\n',sprintf(' %.3f',vfx.'));
+			fprintf('SNRx.''        =%s\n',sprintf(' %.3f',SNRx.'));
+
+			sumSqYSig	= sum(MixYSig.^2,2);
+			sumSqYNoise	= sum(MixYNoise.^2,2);
+			vfy			= sumSqYNoise ./ (1 - sumSqYSig);
+			SNRy		= vfy * (nSig/nNoise);
+			fprintf('scaleYSig.''   =%s\n',sprintf(' %.3f',scaleYSig.'));
+			fprintf('scaleYNoise.'' =%s\n',sprintf(' %.3f',scaleYNoise.'));
+			fprintf('sumSqYSig.''   =%s\n',sprintf(' %.3f',sumSqYSig.'));
+			fprintf('sumSqYNoise.'' =%s\n',sprintf(' %.3f',sumSqYNoise.'));
+			fprintf('vfy.''         =%s\n',sprintf(' %.3f',vfy.'));
+			fprintf('SNRy.''        =%s\n',sprintf(' %.3f',SNRy.'));
+		end
+
+		nPrev		= nVoxel;
+
+		for kR=1:u.nRun
+			sW.W	= sW.WBlank;
+			for kT=1:nTRun
+				%previous values
+				if kT==1
+					xPrev	= randn(nPrev,1);
+					yPrev	= randn(nPrev,1);
+				else
+					xPrev	= squeeze(X(kT-1,kR,1:nPrev));
+					yPrev	= squeeze(Y(kT-1,kR,1:nPrev));
+				end
+
+				%X=source, Y=destination
+				X(kT,kR,funcidx)	= MixX*xPrev;
+				X(kT,kR,noiseidx)	= randn(nNoise,1);
+
+				Y(kT,kR,funcidx)	= MixY*yPrev + sW.W.'*xPrev(funcidx);
+				Y(kT,kR,noiseidx)	= randn(nNoise,1);
+
+				%causality matrix for the next sample
+				switch target{kR}{kT}
+					case 'A'
+						sW.W	= sW.WA;
+					case 'B'
+						sW.W	= sW.WB;
+					otherwise
+						sW.W	= sW.WBlank;
+				end
+			end
+		end
+
+		if doDebug
+			showFunctionalSigStats(obj,X,Y);
+			showSigPlot(obj,X,Y,block,'SNR-based');
+		end
+	end
+
 	function [X,Y] = generateSignalsWithOptions(obj,block,target,sW,doDebug)
 		u		= obj.uopt;
 
-		%generate the functional signals
-		[X,Y]	= generateFunctionalSignals(obj,block,target,sW,doDebug);
+		if notfalse(u.SNR) && u.normVar
+			[X,Y]	= generateSignalNoiseMixtureWithNormVar(obj,block,target,sW,doDebug);
+		else
+			%generate the functional signals
+			[X,Y]	= generateFunctionalSignals(obj,block,target,sW,doDebug);
 
-		%mix between voxels (if applicable)
-		if u.doMixing
-			X	= mapToVoxels(X);
-			Y	= mapToVoxels(Y);
-			
-			if doDebug
-				showSigPlot(obj,X,Y,block,'Mixed Voxel');
+			%mix between voxels (if applicable)
+			if u.doMixing
+				if ~notfalse(u.SNR)
+					X		= mapToVoxels(X,0,true);
+					Y		= mapToVoxels(Y,0,true);
+				else
+					X		= mapToVoxels(X,0,true);
+					Y		= mapToVoxels(Y,u.nVoxel,false);
+				end
+				if doDebug
+					showSigPlot(obj,X,Y,block,'Mixed Voxel');
+				end
 			end
 		end
 
@@ -703,79 +1045,156 @@ methods
 		end
 
 		function C = convCols(C,kernel)
-			n1		= size(C,1);
-			nCol	= numel(C)/n1;
-			
+			n1				= size(C,1);
+			nCol			= numel(C)/n1;
 			for kCol=1:nCol
 				C_hat		= conv(C(:,kCol),kernel);
 				C(:,kCol)	= C_hat(1:n1);
 			end
 		end
 
-		function S = mapToVoxels(S)
-		% Dimensions of S are (time,run,sig)
-			[nTRun,nRun,nSig]	= size(S);
-			nT					= nTRun * nRun;
-			
-			S	= reshape(S,nT,nSig);
-			S	= S*randn(nSig,u.nVoxel);
-			S	= reshape(S,nTRun,nRun,u.nVoxel);
+		function S = mapToVoxels(S,preextension_width,isPostNoise)
+			% Dimensions of S are (time,run,sig)
+			sz				= size(S);
+			nTRun			= numel(target{1});	%number of time points per run
+			nT				= nTRun*u.nRun;		%total number of time points
+			if sz(1) ~= nTRun || sz(2) ~= u.nRun
+				error('Unexpected dimensions.');
+			end
+			sigwid			= sz(3);
+			S				= reshape(S,nT,sigwid);
+			if preextension_width > sigwid
+				noisewid	= preextension_width - sigwid;
+				sigvar		= var(S(:));
+				noisecoeff	= sqrt((sigwid/noisewid)*(sigvar/u.SNR));
+				noise		= noisecoeff*randn(nT,noisewid);
+				S			= [S noise];
+				if doDebug
+					weightedsv	= sigwid*sigvar;
+					weightednv	= noisewid*var(noise(:));
+					fprintf('Weighted variances for SNR: sig=%g, noise=%g, sig:noise=%g, post-sig=%g\n', ...
+						weightedsv,weightednv,weightedsv/weightednv,size(S,2)*var(S(:)));
+				end
+			end
+			S				= S*randn(size(S,2),u.nVoxel);
+			if isPostNoise
+				S			= S + u.noiseMix*randn(size(S));
+			end
+			S				= reshape(S,nTRun,u.nRun,u.nVoxel);
 		end
 	end
 
 	function sW = generateStructOfWs(obj,doDebug)
-		u	= obj.uopt;
-		
-		cName	= {'A';'B';'Blank'};
-		cNameW	= cellfun(@(n) sprintf('W%s',n),cName,'uni',false);
-		nW		= numel(cNameW);
-		
-		cW	= arrayfun(@(k) generateW(obj),(1:nW)','uni',false);
-		
-		sW	= cell2struct(cW,cNameW);
+		u										= obj.uopt;
+
+		%the two causality matrices (and other control causality matrices)
+		%(four causality matrices altogether in the standard case;
+		% possibly two more below if xCausAlpha is nonempty)
+		nW										= 4;
+		[cW,cWCause]							= deal(cell(nW,1));
+		for kW=1:nW
+			[cW{kW},cWCause{kW}]				= generateW(obj,u.xCausAlpha);
+		end
+		[sW.WA,sW.WB,sW.WBlank,sW.WZ]			= deal(cW{:});
+		%two "internal" causality matrices for nonempty xCausAlpha:
+		if ~isempty(u.xCausAlpha)
+			[sW.WXX,WXXCause]					= generateW(obj,1);
+			[sW.WYY,WYYCause]					= generateW(obj,1-u.xCausAlpha);
+		end
 
 		if doDebug
-			showTwoWs(obj,sW.WA,sW.WB,'W_A and W_B');
-			
-			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(sW.WA)));
-			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(sW.WB)));
-			
-			fprintf('sum(WA)+CRecur: %s\n',sprintf('%.3f ',sum(sW.WA)+u.CRecur));
-			fprintf('sum(WB)+CRecur: %s\n',sprintf('%.3f ',sum(sW.WB)+u.CRecur));
+			[WACause,WBCause,WBlankCause,WZCause]	= deal(cWCause{:});
+			showTwoWs(obj,WACause,WBCause,'W_A and W_B');
+			showTwoWs(obj,WBlankCause,WZCause,'W_{blank} and W_Z');
+			if isfield(sW,'WXX')
+				showTwoWs(obj,WXXCause,WYYCause,'W_{XX} and W_{YY}');
+			end
+			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(WACause)));
+			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(WBCause)));
+			if isfield(sW,'WYY')
+				fprintf('sum(WA)+sum(WYY): %s\n',sprintf('%.3f ',sum(WACause)+sum(WYYCause)));
+				fprintf('sum(WB)+sum(WYY): %s\n',sprintf('%.3f ',sum(WBCause)+sum(WYYCause)));
+			else
+				fprintf('sum(WA)+CRecurY: %s\n',sprintf('%.3f ',sum(WACause)+u.CRecurY));
+				fprintf('sum(WB)+CRecurY: %s\n',sprintf('%.3f ',sum(WBCause)+u.CRecurY));
+			end
 		end
 	end
 
-	function W = generateW(obj)
-		u	= obj.uopt;
+	function [W,WCause] = generateW(obj,alpha)
+		if obj.uopt.WSmooth
+			[W,WCause]	= generateWPseudoSparse(obj);
+		else
+			[W,WCause]	= generateWSparse(obj);
+		end
+		if ~isempty(alpha)
+			[W,WCause]	= deal(alpha*W,alpha*WCause);
+		end
+	end
 
-		%generate a random W
-			W	= rand(u.nSigCause);
+	function [W,WCause] = generateWPseudoSparse(obj)
+		u								= obj.uopt;
+		%generate a random WCause
+		WCause							= rand(u.nSigCause);
+		%drive some (or many) elements toward zero (pseudo-sparsity)
+		WCause							= WCause.^(1/u.WFullness);
+		%normalize each column to the specified sum
+		WCause							= WCause*u.WSum./repmat(sum(WCause,1),[u.nSigCause 1]);
+		%insert into the full matrix
+		W								= zeros(u.nSig);
+		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
+	end
+
+	function [W,WCause] = generateWSparse(obj)
+		u								= obj.uopt;
+		WFullness						= u.WFullness;
+
+		%generate a random WCause
+		WCause							= rand(u.nSigCause);
 		%make it sparse
-			W(W>u.WFullness)	= 0;
-		%normalize each column to the specified strength (i.e. sum)
-			WSum		= repmat(sum(W,1),[u.nSigCause 1]);
-			W			= W*u.WStrength./WSum;
-			W(isnan(W))	= 0;
+		if u.WSquash
+			WCause(1-WCause>WFullness)	= 0;
+		else
+			WCause(WCause>WFullness)	= 0;
+		end
+		%normalize each column to the specified mean
+		WCause							= WCause*u.WSum./repmat(sum(WCause,1),[u.nSigCause 1]);
+		WCause(isnan(WCause))			= 0;
+
+		%insert into the full matrix
+		W								= zeros(u.nSig);
+		W(1:u.nSigCause,1:u.nSigCause)	= WCause;
 	end
 
 	function label = getOptLabel(~,optName)
-		label	= switch2(optName,...
-					'acc'		, 'Accuracy (%)'				, ...
-					'alex_ci'	, 'Alex t-test CI'				, ...
-					'alex_p'	, 'Classification p-value'		, ...
-					'nRepBlock'	, 'Number of blocks per run'	, ...
-					'nRun'		, 'Number of runs'				, ...
-					'nSubject'	, 'Number of subjects'			, ...
-					'nTBlock'	, 'Number of TRs per block'		, ...
-					'SNR'		, 'Signal-to-noise ratio'		, ...
-					'WFullness'	, 'W fullness'					, ...
-					'WStrength'	, 'W strength'					, ...
-					optName...
-					);
+		switch optName
+			case 'acc'
+				label	= 'Accuracy (%)';
+			case 'alex_ci'
+				label	= 'Alex t-test CI';
+			case 'alex_p'
+				label	= 'Classification p-value';
+			case 'nRepBlock'
+				label	= 'Number of blocks per run';
+			case 'nRun'
+				label	= 'Number of runs';
+			case 'nSubject'
+				label	= 'Number of subjects';
+			case 'nTBlock'
+				label	= 'Number of TRs per block';
+			case 'SNR'
+				label	= 'Signal-to-noise ratio';
+			case 'WFullness'
+				label	= 'W fullness';
+			case 'WSum'
+				label	= 'W column sum';
+			otherwise
+				label	= optName;
+		end
 	end
 
-	function capsule = makePlotCapsule(obj,plotSpec,varargin)
 	%TODO: comments
+	function capsule = makePlotCapsule(obj,plotSpec,varargin)
 		obj					= consumeRandomizationSeed(obj);
 		opt					= ParseArgs(varargin,...
 			'saveplot'		, obj.uopt.saveplot	  ...
@@ -1146,71 +1565,7 @@ methods
 			end
 		end
 	end
-	
-	function X = setSignalSNR(obj,X,doDebug)
-	% setSignalSNR
-	% 
-	% Description:	multiply the signal amplitudes to achieve the specified SNR
-	%	between causal ("signal") and non-causal ("noise") signals
-	% 
-	% Syntax:	X = setSignalSNR(obj,X,doDebug)
-	% 
-	% In:
-	% 	obj		- the Pipeline object
-	%	X		- the nTRun x nRun x nSignal multidimensional signal
-	%	doDebug	- true to run debug code
-	% 
-	% Out:
-	% 	X	- the multidimensional signal with causal and non-causal components
-	%		  multiplied by appropriate coefficients to achieve the specified
-	%		  SNR
-	% 
-	% Notes:
-	%	we use the definition of SNR as the ratio of signal powers (P_c/P_nc),
-	%	i.e. ratio of squares of RMS amplitudes. here, since we have
-	%	multidimensional signals, RMS amplitude is the sqrt of the mean of the
-	%	squares of the multidimensional signal magnitudes (i.e. L2-norms). so:
-	%    SNR = P_c / P_nc
-	% where:
-	%    P(X)    = A(X)^2                     [X is an N-dimensional signal]
-	%    A(X)    = sqrt(mean( Norm(X_t)^2 ))  [X_t is one sample of signal X]
-	%    Norm(s) = sqrt(sum( s_k^2 ))         [s_k is one element of sample s]
-	%            = std(s) * sqrt(N)           [for 0-mean signals]
-	%
-	%	we first z-score each univariate signal independently to make sure they
-	%	start off on equal footing. then we multiply the causal signals by a_c
-	%	and the non-causal signals by a_nc, so that:
-	%    Norm(s) = a*sqrt(N)                  [std(s) is 1 since we z-scored]
-	% => A(X)    = sqrt(mean( (a*sqrt(N))^2 ))
-	%            = a*sqrt(N)
-	% => P(X)    = a^2*N
-	% => SNR     = ( a_c^2*N_c ) / ( a_nc^2*N_nc )
-	% => a_nc    = a_c * sqrt( N_c / ( SNR * N_nc ) )
-		u				= obj.uopt;
-		nTRun			= size(X,1);
-		nSigNonCause	= u.nSig - u.nSigCause;
-		
-		%z-score each univariate signal
-			X	= zscore(X,1,1);
-		%calculate the amplitude multipliers as described above
-			a_c		= 1;
-			a_nc	= a_c * sqrt( u.nSigCause ./ (u.SNR .* nSigNonCause) );
-		%multiply by causal and non-causal amplitudes
-			X(:,:,1:u.nSigCause)		= a_c .*X(:,:,1:u.nSigCause);
-			X(:,:,u.nSigCause+1:end)	= a_nc.*X(:,:,u.nSigCause+1:end);
-		
-		if doDebug
-			%verify the SNR
-				fNorm	= @(x) sqrt(sum(x.^2,3));
-				fRMS	= @(x) sqrt(mean(fNorm(x).^2,1));
-				fSNR	= @(x,n) (fRMS(x) ./ fRMS(n)).^2;
-				
-				snr	= fSNR(X(:,:,1:u.nSigCause),X(:,:,u.nSigCause+1:end));
-				
-				assert(all(isnan(snr) | (abs(snr-u.SNR) < 1e-8)),'SNR not as specified');
-		end
-	end
-	
+
 	function showBlockDesign(obj,block)
 		if obj.uopt.nofigures
 			return;
@@ -1259,13 +1614,13 @@ methods
 		xPlot	= X(:,1,1);
 		yPlot	= Y(:,1,1);
 
-		strTitle	= sprintf('%s (Run 1, Signal 1)',kindOfSig);
-		h			= alexplot(tPlot,{xPlot yPlot},...
-						'title'		, strTitle		, ...
-						'xlabel'	, 't'			, ...
-						'ylabel'	, 'Amplitude'	, ...
-						'legend'	, {'X','Y'}		  ...
-						);
+		title	= [kindOfSig ' (Run 1, Signal 1)'];
+		h		= alexplot(tPlot,{xPlot yPlot},...
+			'title'		, title			, ...
+			'xlabel'	, 't'			, ...
+			'ylabel'	, 'Amplitude'	, ...
+			'legend'	, {'X','Y'}		  ...
+			);
 
 		yLim	= get(h.hA,'ylim');
 		yMin	= yLim(1);
@@ -1326,7 +1681,7 @@ methods
 
 		%perform simulations, or substitute stub if applicable;
 		%in case of NaN params, set answers to NaN
-		if any(cellfun(@(p) isnumeric(p) && any(isnan(p(:))),struct2cell(u)))
+		if any(cellfun(@(p) isnumeric(p)&&any(isnan(p(:))),struct2cell(u)))
 			%NaN actions; augment as necessary
 			summary.isMissing			= true;
 			summary.alex.meanAccAllSubj	= NaN;
@@ -1339,8 +1694,8 @@ methods
 			summary.alex.meanAccAllSubj	= 1.0*randn;
 			summary.alex.stderrAccAllSu	= 0.2*randn;
 			summary.alex.p				= 0.5*rand;
-			%summary.alex.meanAccAllSubj	= u.WStrength;
-			%summary.alex.stderrAccAllSu	= 0.1*u.CRecur;
+			%summary.alex.meanAccAllSubj	= u.WSum;
+			%summary.alex.stderrAccAllSu	= 0.1*u.CRecurY;
 		else
 			% NOTE: It may appear that the second assignment below, in
 			% overwriting summary, is wiping out the fields of summary
@@ -1372,18 +1727,15 @@ methods
 		% call below.
 		if u.progress
 			progresstypes	= {'figure','commandline'};
-			progress(...
-						'action'	, 'init'						, ...
-						'total'		, u.nSubject					, ...
-						'label'		, 'simulating each subject'		, ...
-						'type'		, progresstypes{1+u.nofigures}	  ...
-					);
+			progress('action','init','total',u.nSubject, ...
+					'label','simulating each subject', ...
+					'type',progresstypes{1+u.nofigures}, ...
+					'log',false);
 		end
-		
 		for kS=1:u.nSubject
 			doDebug		= DEBUG && kS==1;
 			results{kS}	= simulateSubject(obj,doDebug);
-			
+
 			if u.progress
 				progress;
 			end
@@ -1435,7 +1787,7 @@ methods
 			end
 		end
 		if u.verbosData
-			summary.subjectResults		= results;
+			summary.subjectResults			= results;
 		end
 	end
 
@@ -1469,19 +1821,19 @@ methods (Static)
 
 		spec				= repmat(struct,4,1);
 
-		spec(1).varName		= {'WStrength','CRecur','WStrengthFrac'};
+		spec(1).varName		= {'WSum','CRecurY','WSumFrac'};
 		spec(1).varValues	= {NaN,[0 0.35 0.7],(0:0.05:0.3)/0.3};
-		spec(1).pseudoVar	= 'WStrengthFrac';
-		spec(1).transform	= @(~,CRecur,WStrengthFrac) deal(...
-								WStrengthFrac*(1-CRecur),CRecur,WStrengthFrac);
+		spec(1).pseudoVar	= 'WSumFrac';
+		spec(1).transform	= @(~,CRecurY,WSumFrac) deal(...
+								WSumFrac*(1-CRecurY),CRecurY,WSumFrac);
 
-		spec(2).varName		= {'WFullness','CRecur'};
+		spec(2).varName		= {'WFullness','CRecurY'};
 		spec(2).varValues	= {0.1:0.2:0.9,[0 0.35 0.7]};
 
-		spec(3).varName		= {'nTBlock','CRecur'};
+		spec(3).varName		= {'nTBlock','CRecurY'};
 		spec(3).varValues	= {1:5,[0 0.35 0.7]};
 
-		spec(4).varName		= {'SNR','CRecur'};
+		spec(4).varName		= {'SNR','CRecurY'};
 		spec(4).varValues	= {0.1*(1:5),[0 0.35 0.7]};
 
 		nSpec				= numel(spec);
@@ -1496,7 +1848,7 @@ methods (Static)
 		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
 									1,nSpec,pipeline.uopt.nSubject);
 		plot_data.cCapsule		= capsule;
-		%save([filename_prefix '_recur_plot_data.mat'],'plot_data');
+		%save([filename_prefix '_recurY_plot_data.mat'],'plot_data');
 	end
 
 	function cH = constructTestPlotsFromData(plot_data)
@@ -1513,7 +1865,6 @@ methods (Static)
 		end
 	end
 
-	function pipeline = createDebugPipeline(varargin)
 	% createDebugPipeline - static method for creating debug-pipeline
 	%
 	% Syntax:	pipeline = Pipeline.createDebugPipeline(<options>)
@@ -1523,11 +1874,11 @@ methods (Static)
 	%		See Pipeline constructor above for description of <options>,
 	%		but note that this method overrides the default debugging options
 	%
+	function pipeline = createDebugPipeline(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsToDebug;
 	end
 
-	function summary = debugSimulation(varargin)
 	% debugSimulation - static method for running debug-pipeline
 	%
 	% Syntax:	summary = Pipeline.debugSimulation(<options>)
@@ -1536,11 +1887,11 @@ methods (Static)
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
+	function summary = debugSimulation(varargin)
 		pipeline	= Pipeline.createDebugPipeline(varargin{:});
 		summary		= pipeline.simulateAllSubjects;
 	end
 
-	function summary = runSimulation(varargin)
 	% runSimulation - static method for running pipeline
 	%
 	% Syntax:	summary = Pipeline.runSimulation(<options>)
@@ -1549,11 +1900,11 @@ methods (Static)
 	%	<options>:
 	%		See Pipeline constructor above for description of <options>
 	%
+	function summary = runSimulation(varargin)
 		pipeline	= Pipeline(varargin{:});
 		summary		= pipeline.simulateAllSubjects;
 	end
 
-	function summary = speedupDebugSimulation(varargin)
 	% speedupDebugSimulation - static method for running sped-up
 	%                          debug-pipeline
 	%
@@ -1563,6 +1914,7 @@ methods (Static)
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
+	function summary = speedupDebugSimulation(varargin)
 		pipeline	= Pipeline.createDebugPipeline(varargin{:});
 		pipeline	= pipeline.changeOptionDefault('nSubject',...
 						ceil(pipeline.uopt.nSubject/3));
@@ -1570,7 +1922,6 @@ methods (Static)
 		summary		= pipeline.simulateAllSubjects;
 	end
 
-	function summary = textOnlyDebugSimulation(varargin)
 	% textOnlyDebugSimulation - static method for running figure-free
 	%                           debug-pipeline
 	%
@@ -1580,10 +1931,26 @@ methods (Static)
 	%	<options>:
 	%		See createDebugPipeline above for description of <options>
 	%
+	function summary = textOnlyDebugSimulation(varargin)
 		pipeline	= Pipeline.createDebugPipeline(varargin{:});
 		pipeline	= pipeline.changeOptionDefault('nofigures',true);
 		summary		= pipeline.simulateAllSubjects;
 	end
-end
 
+	% xWDebugSimulation - static method for running debug-pipeline with
+	%                     extra "internal" W matrices
+	%
+	% Syntax:	summary = Pipeline.xWDebugSimulation(<options>)
+	%
+	% In:
+	%	<options>:
+	%		See createDebugPipeline above for description of <options>
+	%
+	function summary = xWDebugSimulation(varargin)
+		pipeline	= Pipeline.createDebugPipeline(varargin{:});
+		pipeline	= pipeline.changeOptionDefault('xCausAlpha',0.8);
+		pipeline	= pipeline.changeOptionDefault('WSum',0.8);
+		summary		= pipeline.simulateAllSubjects;
+	end
+end
 end

@@ -62,15 +62,15 @@ function [b,cPathOut] = FSLRandomise(cPathData,d,varargin)
 %		glmoutput:			(false) true to output glm information for the
 %							t-statistics
 %		cores:				(1) the number of processor cores to use
-%		force:				(true) true to force bet to run even if the output
-%							already exists
+%		force:				(true) true to force randomise to run even if the
+%							output already exists
 %		silent:				(false) true to suppress status messages
 % 
 % Out:
 % 	b			- true for each randomise call that completed successfully
 %	cPathOut	- the root output path(s)
 % 
-% Updated: 2015-05-05
+% Updated: 2015-05-07
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -307,7 +307,10 @@ function b = RandomiseOne(strPathData,d,strPathOut,strPathMask,tContrast,fTest,e
 			
 			cPathP	= FindFiles(strDirOut,[strFileOutRE '.*_p_']);
 			
-			cPathPFDR	= cellfun(@(f) StatFDRCorrect(f,'mask',strPathMask,'silent',param.silent),cPathP,'uni',false);
+			cPathPFDR	= StatFDRCorrect(cPathP,...
+							'mask'		, strPathMask	, ...
+							'silent'	, param.silent	  ...
+							);
 		end
 	
 	b	= true;

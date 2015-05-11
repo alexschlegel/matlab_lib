@@ -12,11 +12,15 @@ function x = demean(x,varargin)
 % Out:
 % 	x	- the demeaned array 
 % 
-% Updated: 2012-09-24
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-05-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-dim	= ParseArgs(varargin,1);
+if nargin>1
+	dim	= varargin{1};
+else
+	dim	= 1;
+end
 
 %calculate the mean
 	m	= mean(x,dim);

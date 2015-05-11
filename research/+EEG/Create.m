@@ -1,13 +1,14 @@
 function eeg = Create(eeg)
 % EEG.Create
 % 
-% Description:	create an EEG file
+% Description:	create an EEG data set
 % 
 % Syntax:	eeg = EEG.Create(eeg)
 % 
 % In:
 % 	eeg	- an eeg struct or eeg header struct. if the path referred to by the
-%		  eeg struct is not a NIfTI file, its file extension is changed to 'nii'
+%		  eeg struct is not a NIfTI file, its file extension is changed to
+%		  'nii'.
 % 
 % Out:
 %	eeg	- the updated eeg struct

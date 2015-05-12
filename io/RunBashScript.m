@@ -136,11 +136,11 @@ nScript					= numel(cScript);
 		end
 	end
 %execute the scripts
+	vExitCode	= NaN(sScript);
+	cOutput		= cell(sScript);
+	
 	if opt.run
 		if opt.cores==1
-			vExitCode	= NaN(sScript);
-			cOutput		= cell(sScript);
-			
 			if ~opt.silent
 				progress('action','init','total',nScript,'label',opt.description,'status',true,'silent',opt.silent);
 			end
@@ -182,7 +182,11 @@ nScript					= numel(cScript);
 	end
 %delete temporary files
 	cellfun(@delete,cPathScriptTemp);
-	cellfun(@delete,cPathLogTemp);
+	
+	if opt.run
+		cellfun(@delete,cPathLogTemp);
+	end
+	
 	cellfun(@delete,cPathMetaScript);
 %parse the output
 	if bCharOutput

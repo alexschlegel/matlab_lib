@@ -14,6 +14,8 @@ function eeg = Read(strPathEEG,varargin)
 %		status:		(true) true to read the status channel (if raw data are
 %					being read)
 %		sample:		(<all>) the samples to read
+%		load:		(false) for NIfTI data, true to load the data, false to use
+%					a file_array
 %		fid:		(<open>) the fid of the file if it is already open
 % 
 % Out:
@@ -24,7 +26,7 @@ function eeg = Read(strPathEEG,varargin)
 %			.data:		an nChannelData x (sample size) array of the electrode
 %						data
 %
-% Updated: 2015-04-15
+% Updated: 2015-05-11
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -34,12 +36,11 @@ function eeg = Read(strPathEEG,varargin)
 			'channel'		, {}	, ...
 			'status'		, true	, ...
 			'sample'		, []	, ...
+			'load'			, false	, ...
 			'fid'			, []	  ...
 			);
 	
-	if notfalse(opt.channel)
-		opt.channel	= ForceCell(opt.channel);
-	end
+	opt.channel	= ForceCell(opt.channel);
 
 %read the header
 	if isstruct(strPathEEG)
@@ -92,7 +93,7 @@ function eeg = Read(strPathEEG,varargin)
 		szSampleRead	= [eeg.hdr.samples 1];
 	end
 	
-	nSampleRead		= numel(kSampleRead);
+	nSampleRead	= numel(kSampleRead);
 
 %read the data
 	strExt	= lower(PathGetExt(eeg.hdr.path));
@@ -124,16 +125,10 @@ function eeg = Read(strPathEEG,varargin)
 
 %------------------------------------------------------------------------------%
 function ReadData_NIfTI()
-	switch strExt
-		case 'nii'
-		%this allows us to take advantage of SPM's file_array to not read
-		%everything if we only want a subset of the data
-			nii			= nifti(strPathEEG);
-			eeg.data	= nii.dat(kChannelRead,kSampleRead);
-		case 'nii.gz'
-			nii			= NIfTI.Read(strPathEEG);
-			eeg.data	= nii.data(kChannelRead,kSampleRead); 
-	end
+	eeg.data	= NIfTI.Read(strPathEEG,
+					'load'		, opt.load	, ...
+					'return'	, 'data		  ...
+					);
 end
 %------------------------------------------------------------------------------%
 function ReadData_BDF()

@@ -31,7 +31,6 @@ properties (SetAccess = private)
 	notableOptionNames
 	unlikelyOptionNames
 	analyses			= {'alex','lizier','seth'}
-	infodyn_teCalc
 end
 
 methods
@@ -89,7 +88,6 @@ methods
 	%
 	%		analysis:	('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
-	%		loadJavaTE:	(false) Load Lizier's infodynamics JAR for calculating TE
 	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
 	%
@@ -129,7 +127,6 @@ methods
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
 			'kraskov_k'		, 4			, ...
-			'loadJavaTE'	, false		, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
@@ -173,14 +170,6 @@ methods
 		opt.analysis			= CheckInput(opt.analysis,'analysis',[obj.analyses 'total']);
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
-		if isempty(obj.infodyn_teCalc) && opt.loadJavaTE
-			try
-				obj.infodyn_teCalc	= javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorMultiVariateKraskov');
-			catch err
-				fprintf('Warning:  Instantiation of infodynamics TE calculator raised error:\n');
-				disp(err);
-			end
-		end
 	end
 	
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
@@ -664,11 +653,11 @@ methods
 						sW.W	= sW.WBlank;
 				end
 			end
-			
-			%set the SNR as specified
-				X	= setSignalSNR(obj,X,doDebug);
-				Y	= setSignalSNR(obj,Y,doDebug);
 		end
+
+		%set the SNR as specified
+			X	= setSignalSNR(obj,X,doDebug);
+			Y	= setSignalSNR(obj,Y,doDebug);
 
 		if doDebug
 			showFunctionalSigStats(obj,X,Y);
@@ -1208,6 +1197,11 @@ methods
 				snr	= fSNR(X(:,:,1:u.nSigCause),X(:,:,u.nSigCause+1:end));
 				
 				assert(all(isnan(snr) | (abs(snr-u.SNR) < 1e-8)),'SNR not as specified');
+			%verify equivalence to variance-based definition of SNR
+				fWtVar	= @(x) cellfun(@(r) size(r,3)*var(r(:),1),num2cell(x,[1 3]));
+				vsnr	= fWtVar(X(:,:,1:u.nSigCause)) ./ fWtVar(X(:,:,u.nSigCause+1:end));
+
+				assert(all(isnan(vsnr) | (abs(vsnr-u.SNR) < 1e-8)),'Unexpected SNR behavior');
 		end
 	end
 	
@@ -1366,10 +1360,6 @@ methods
 		% it does NOT suffice to suppress the progress reports below
 		% through the 'silent' option:  instead we must avoid the
 		% calls to 'progress' altogether.
-		% TODO:  With the recent changes to progress.m, the 'log'
-		% option is no longer supported.  If support is not restored
-		% with future changes to progress.m, should remove 'log' from
-		% call below.
 		if u.progress
 			progresstypes	= {'figure','commandline'};
 			progress(...

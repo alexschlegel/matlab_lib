@@ -1,5 +1,5 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-% 
+%
 % Cleanup and revision of Pipeline.m
 % --------------------------------------------------------------------
 
@@ -97,7 +97,7 @@ methods
 	%		njobmax:	(1000) Maximum number of jobs per batch within MultiTask
 	%		nIteration:	(10) Number of simulations per point in plot-data generation
 	%		saveplot:	(false) Save individual plot capsules to mat files on generation
-	
+
 		%user-defined parameters (with defaults)
 		obj.defaultOptions	= { ...
 			'DEBUG'			, false		, ...
@@ -171,16 +171,16 @@ methods
 		opt.WStarKind			= CheckInput(opt.WStarKind,'WStarKind',{'gc','mvgc','te'});
 		obj.uopt				= opt;
 	end
-	
+
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
-		
+
 		modes	= conditional(strcmp(u.analysis,'total'),obj.analyses,ForceCell(u.analysis));
 		nMode	= numel(modes);
-		
+
 		for kMode=1:nMode
 			strMode	= modes{kMode};
-			
+
 			switch strMode
 				case 'alex'
 					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
@@ -196,7 +196,7 @@ methods
 
 	function alexAccSubj = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
-		
+
 		%unmix from voxel to "functional" space
 		if u.doMixing
 			nTRun	= numel(target{1});	%number of time points per run
@@ -210,7 +210,7 @@ methods
 		else
 			[XUnMix,YUnMix]	= deal(XTest,YTest);
 		end
-		
+
 		%keep the top nSigCause components
 		XUnMix	= XUnMix(:,:,1:u.nSigCause);
 		YUnMix	= YUnMix(:,:,1:u.nSigCause);
@@ -274,26 +274,26 @@ methods
 			disp(causalities);
 		end
 	end
-	
+
 	function [sourceOut,destOut] = applyRecurrence(obj,sW,sourceIn,destIn,doDebug)
 	% sourceIn and destIn are nSig x 1
 		u	= obj.uopt;
 		W	= sW.W;
-		
+
 		%do this so the recurrence works regardless of whether our Ws are
 		%nSigCause x nSigCause or nSig x nSig with zeros for everything but the
 		%causal signals
 			nW			= size(W,1);
 			nNoW		= u.nSig - nW;
 			WStrength	= [reshape(sum(W,1),[],1); zeros(nNoW,1)];
-		
+
 		sourceNoise	= (1             - u.CRecur).*randn(u.nSig,1);
 		destNoise	= (1 - WStrength - u.CRecur).*randn(u.nSig,1);
-		
+
 		sourceOut		= u.CRecur.*sourceIn + sourceNoise;
 		destOut			= u.CRecur.*destIn   + destNoise;
 		destOut(1:nW)	= destOut(1:nW) + W.'*sourceIn(1:nW);
-		
+
 		if doDebug
 			coeffsumx		= u.CRecur.*ones(u.nSig,1) + (1             - u.CRecur);
 			coeffsumy		= u.CRecur.*ones(u.nSig,1) + (1 - WStrength - u.CRecur);
@@ -308,7 +308,7 @@ methods
 	function s = asString(~,value)
 	% TODO: should be a function, not a method--but is there a nice built-in for this?
 		s	= toString(value);
-		
+
 		function s = toString(value)
 			if iscell(value)
 				s	= strjoin(cellfun(@toString,value(:).','uni',false));
@@ -327,7 +327,7 @@ methods
 			end
 		end
 	end
-	
+
 	function c = calculateCausality(obj,X,Y,indicesOfSamples,kind)
 		u	= obj.uopt;
 		if any(strcmp('fakecause',u.fudge))
@@ -377,7 +377,7 @@ methods
 			end
 		end
 	end
-	
+
 	function obj = changeDefaultsForBatchProcessing(obj)
 		obj	= obj.changeOptionDefault('nofigures',true);
 		obj	= obj.changeOptionDefault('nowarnings',true);
@@ -406,21 +406,21 @@ methods
 	function [acc,p_binom] = classifyBetweenWs(obj,WAStar,WBStar)
 		u	= obj.uopt;
 		P	= cvpartition(u.nRun,'LeaveOut');
-		
+
 		WStar	= [WAStar; WBStar];
 		WStar	= cellfun(@(W) reshape(W,1,[]),WStar,'uni',false);
-		
+
 		lblTrain	= reshape(repmat({'A' 'B'},[u.nRun-1 1]),[],1);
 		lblTest		= {'A';'B'};
-		
+
 		res	= zeros(P.NumTestSets,1);
 		for kP=1:P.NumTestSets
 			kTrain	= repmat(P.training(kP),[2 1]);
 			kTest	= repmat(P.test(kP),[2 1]);
-			
+
 			WTrain	= cat(1,WStar{kTrain});
 			WTest	= cat(1,WStar{kTest});
-			
+
 			sSVM	= svmtrain(WTrain,lblTrain);
 			pred	= svmclassify(sSVM,WTest);
 			res(kP)	= sum(strcmp(pred,lblTest));
@@ -542,7 +542,7 @@ methods
 	%   slices are [time, 1, signal].
 		nRun	= numel(target);
 		signals = cell(nRun,1);
-		
+
 		for kR=1:nRun
 			bCondition	= strcmp(target{kR},conditionName);
 			bShift		= [0; bCondition(1:end-1)];
@@ -610,7 +610,7 @@ methods
 		u			= obj.uopt;
 		block		= blockdesign(1:2,u.nRepBlock,u.nRun,'seed',false);
 		target		= arrayfun(@(run) block2target(block(run,:),u.nTBlock,u.nTRest,{'A','B'}),reshape(1:u.nRun,[],1),'uni',false);
-		
+
 		if doDebug
 			nTRun	= numel(target{1});	%number of time points per run
 			fprintf('TRs per run: %d\n',nTRun);
@@ -621,13 +621,13 @@ methods
 	function [X,Y] = generateFunctionalSignals(obj,block,target,sW,doDebug)
 		u				= obj.uopt;
 		nTRun			= numel(target{1});	%number of time points per run
-		
+
 		[X,Y]	= deal(zeros(nTRun,u.nRun,u.nSig));
-		
+
 		for kR=1:u.nRun
 			%initial causality matrix
 			sW.W	= sW.WBlank;
-			
+
 			%generate each sample
 			for kT=1:nTRun
 				%previous values
@@ -674,7 +674,7 @@ methods
 		if u.doMixing
 			X	= mapToVoxels(X);
 			Y	= mapToVoxels(Y);
-			
+
 			if doDebug
 				showSigPlot(obj,X,Y,block,'Mixed Voxel');
 			end
@@ -693,7 +693,7 @@ methods
 		function C = convCols(C,kernel)
 			n1		= size(C,1);
 			nCol	= numel(C)/n1;
-			
+
 			for kCol=1:nCol
 				C_hat		= conv(C(:,kCol),kernel);
 				C(:,kCol)	= C_hat(1:n1);
@@ -704,7 +704,7 @@ methods
 		% Dimensions of S are (time,run,sig)
 			[nTRun,nRun,nSig]	= size(S);
 			nT					= nTRun * nRun;
-			
+
 			S	= reshape(S,nT,nSig);
 			S	= S*randn(nSig,u.nVoxel);
 			S	= reshape(S,nTRun,nRun,u.nVoxel);
@@ -713,21 +713,21 @@ methods
 
 	function sW = generateStructOfWs(obj,doDebug)
 		u	= obj.uopt;
-		
+
 		cName	= {'A';'B';'Blank'};
 		cNameW	= cellfun(@(n) sprintf('W%s',n),cName,'uni',false);
 		nW		= numel(cNameW);
-		
+
 		cW	= arrayfun(@(k) generateW(obj),(1:nW)','uni',false);
-		
+
 		sW	= cell2struct(cW,cNameW);
 
 		if doDebug
 			showTwoWs(obj,sW.WA,sW.WB,'W_A and W_B');
-			
+
 			fprintf('WA column sums:  %s\n',sprintf('%.3f ',sum(sW.WA)));
 			fprintf('WB column sums:  %s\n',sprintf('%.3f ',sum(sW.WB)));
-			
+
 			fprintf('sum(WA)+CRecur: %s\n',sprintf('%.3f ',sum(sW.WA)+u.CRecur));
 			fprintf('sum(WB)+CRecur: %s\n',sprintf('%.3f ',sum(sW.WB)+u.CRecur));
 		end
@@ -1132,25 +1132,25 @@ methods
 			end
 		end
 	end
-	
+
 	function X = setSignalSNR(obj,X,doDebug)
 	% setSignalSNR
-	% 
+	%
 	% Description:	multiply the signal amplitudes to achieve the specified SNR
 	%	between causal ("signal") and non-causal ("noise") signals
-	% 
+	%
 	% Syntax:	X = setSignalSNR(obj,X,doDebug)
-	% 
+	%
 	% In:
 	% 	obj		- the Pipeline object
 	%	X		- the nTRun x nRun x nSignal multidimensional signal
 	%	doDebug	- true to run debug code
-	% 
+	%
 	% Out:
 	% 	X	- the multidimensional signal with causal and non-causal components
 	%		  multiplied by appropriate coefficients to achieve the specified
 	%		  SNR
-	% 
+	%
 	% Notes:
 	%	we use the definition of SNR as the ratio of signal powers (P_c/P_nc),
 	%	i.e. ratio of squares of RMS amplitudes. here, since we have
@@ -1174,7 +1174,7 @@ methods
 	% => a_nc    = a_c * sqrt( N_c / ( SNR * N_nc ) )
 		u				= obj.uopt;
 		nSigNonCause	= u.nSig - u.nSigCause;
-		
+
 		%z-score each univariate signal
 			X	= zscore(X,1,1);
 		%calculate the amplitude multipliers as described above
@@ -1183,15 +1183,15 @@ methods
 		%multiply by causal and non-causal amplitudes
 			X(:,:,1:u.nSigCause)		= a_c .*X(:,:,1:u.nSigCause);
 			X(:,:,u.nSigCause+1:end)	= a_nc.*X(:,:,u.nSigCause+1:end);
-		
+
 		if doDebug
 			%verify the SNR
 				fNorm	= @(x) sqrt(sum(x.^2,3));
 				fRMS	= @(x) sqrt(mean(fNorm(x).^2,1));
 				fSNR	= @(x,n) (fRMS(x) ./ fRMS(n)).^2;
-				
+
 				snr	= fSNR(X(:,:,1:u.nSigCause),X(:,:,u.nSigCause+1:end));
-				
+
 				assert(all(isnan(snr) | (abs(snr-u.SNR) < 1e-8)),'SNR not as specified');
 			%verify equivalence to variance-based definition of SNR
 				fWtVar	= @(x) cellfun(@(r) size(r,3)*var(r(:),1),num2cell(x,[1 3]));
@@ -1200,7 +1200,7 @@ methods
 				assert(all(isnan(vsnr) | (abs(vsnr-u.SNR) < 1e-8)),'Unexpected SNR behavior');
 		end
 	end
-	
+
 	function showBlockDesign(obj,block)
 		if obj.uopt.nofigures
 			return;
@@ -1365,11 +1365,11 @@ methods
 						'type'		, progresstypes{1+u.nofigures}	  ...
 					);
 		end
-		
+
 		for kS=1:u.nSubject
 			doDebug		= DEBUG && kS==1;
 			results{kS}	= simulateSubject(obj,doDebug);
-			
+
 			if u.progress
 				progress;
 			end

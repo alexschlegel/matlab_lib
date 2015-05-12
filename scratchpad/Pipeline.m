@@ -23,7 +23,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150507,...
+	version				= struct('pipeline',20150512,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -236,10 +236,10 @@ methods
 		end
 	end
 
+	function causalities = analyzeTestSignalsMultivariate(obj,~,target,X,Y,kind,doDebug)
 	%X,Y dims are time, run, signal
 	%kind is causality kind ('mvgc', 'te')
 	%return one causality for each condition
-	function causalities = analyzeTestSignalsMultivariate(obj,~,target,X,Y,kind,doDebug)
 		u			= obj.uopt;
 		conds		= {'A' 'B'};
 		nCond		= numel(conds);
@@ -265,11 +265,8 @@ methods
 			end
 			if reportResult && strcmp(kind,'te')
 				%TODO: possibly temporary TE verification
-				aX			= squeeze(s.XFudge);
-				aY			= squeeze(s.YFudge);
-				aTE			= calculateCausality(obj,aX,aY,...
-								2:size(aX,1),'te');
-				fprintf('Multivariate TE X->Y for cond %s is %.6f\n',conds{kC},aTE);
+				TE			= causalities(kC);
+				fprintf('Multivariate TE X->Y for cond %s is %.6f\n',conds{kC},TE);
 			end
 		end
 		if doDebug
@@ -308,8 +305,8 @@ methods
 		end
 	end
 
-	% TODO: should be a function, not a method--but is there a nice built-in for this?
 	function s = asString(~,value)
+	% TODO: should be a function, not a method--but is there a nice built-in for this?
 		s	= toString(value);
 		
 		function s = toString(value)
@@ -354,7 +351,7 @@ methods
 						'silent'		, u.subSilent		  ...
 						);
 			otherwise
-				error('Unrecognized causality kind %s',kind);
+				error('Unrecognized causality kind ''%s''',kind);
 		end
 	end
 
@@ -385,7 +382,6 @@ methods
 		obj	= obj.changeOptionDefault('nofigures',true);
 		obj	= obj.changeOptionDefault('nowarnings',true);
 		obj	= obj.changeOptionDefault('progress',false);
-		%obj	= obj.changeOptionDefault('verbosity',0);
 	end
 
 	function obj = changeDefaultsToDebug(obj)
@@ -394,6 +390,9 @@ methods
 	end
 
 	function obj = changeOptionDefault(obj,optionName,newDefault)
+		if ~ismember(optionName,obj.implicitOptionNames)
+			error('Unrecognized option ''%s''',optionName);
+		end
 		if ~ismember(optionName,obj.explicitOptionNames)
 			obj.uopt.(optionName)	= newDefault;
 		end
@@ -516,7 +515,7 @@ methods
 		function index = getLabelIndex(label)
 			index	= find(strcmp(label,cLabel));
 			if ~isscalar(index)
-				error('Invalid or non-unique label %s',label);
+				error('Invalid or non-unique label ''%s''',label);
 			end
 		end
 
@@ -844,7 +843,7 @@ methods
 
 	function note = noteMiscOpts(obj,capsule,getConstVarVal,optsToExclude)
 		binding		= {};
-		names		= [obj.notableOptionNames obj.unlikelyOptionNames];
+		names		= [obj.notableOptionNames; obj.unlikelyOptionNames];
 		[~,ix]		= sort(lower(names));
 
 		for kName=1:numel(names)
@@ -891,11 +890,9 @@ methods
 		else
 			if ~iscell(plotSpec.varValues)
 				error('Plot-spec varValues must be cell when varName is cell.');
-			end
-			if ~isvector(plotSpec.varName) || ~isvector(plotSpec.varValues)
+			elseif ~isvector(plotSpec.varName) || ~isvector(plotSpec.varValues)
 				error('Plot-spec varName and varValues cells must be nonempty vectors.');
-			end
-			if numel(plotSpec.varName) ~= numel(plotSpec.varValues)
+			elseif numel(plotSpec.varName) ~= numel(plotSpec.varValues)
 				error('Plot-spec varName and varValues cells must have same length.');
 			end
 			plotSpec.varName	= plotSpec.varName(:).';
@@ -1066,8 +1063,8 @@ methods
 			end
 		end
 
-		% constrainData: See also comments at convertPlotCapsuleResultToArray.
 		function subdata = constrainData(data,varName,varValue)
+		% constrainData: See also comments at convertPlotCapsuleResultToArray.
 			varIdx		= label2index(varName);
 			lastDim		= numel(size(data));
 			rdims		= 1:(lastDim-1);
@@ -1176,7 +1173,6 @@ methods
 	% => SNR     = ( a_c^2*N_c ) / ( a_nc^2*N_nc )
 	% => a_nc    = a_c * sqrt( N_c / ( SNR * N_nc ) )
 		u				= obj.uopt;
-		nTRun			= size(X,1);
 		nSigNonCause	= u.nSig - u.nSigCause;
 		
 		%z-score each univariate signal
@@ -1445,12 +1441,12 @@ methods
 end
 
 methods (Static)
+	function plot_data = constructTestPlotData(varargin)
 	% constructTestPlotData
 	%
 	% Quick test:
 	%  pd=Pipeline.constructTestPlotData('fudge',{'stubsim'})
 	%  cH=Pipeline.constructTestPlotsFromData(pd)
-	function plot_data = constructTestPlotData(varargin)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchProcessing;
 		pipeline	= pipeline.changeOptionDefault('nSubject',10);

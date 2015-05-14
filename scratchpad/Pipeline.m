@@ -23,7 +23,7 @@ properties
 	uopt
 end
 properties (SetAccess = private)
-	version				= struct('pipeline',20150512,...
+	version				= struct('pipeline',20150513,...
 							'capsuleFormat',20150423)
 	defaultOptions
 	implicitOptionNames
@@ -509,7 +509,7 @@ methods
 
 		function err = get_alex_ci_err(r)
 			ci	= bound_to_unit_interval(r.summary.alex.ci);
-			err	= sqrt(0.5)*std(ci);
+			err	= (ci(2)-ci(1))/2;
 		end
 
 		function index = getLabelIndex(label)
@@ -999,7 +999,7 @@ methods
 			data	= constrainData(data,fixedVars{kFV},fixedVarValues{kFV});
 		end
 		getyval		= @(d)getfield(yVarName,d);
-		geterror	= @(d)getfield('zeros',d);
+		geterror	= @(d)stderr(getyval(d),1);
 		if strcmp(yVarName,'acc')
 			getyval		= @(d)100*getfield(yVarName,d); % Percentage
 			geterror	= @(d)100*getfield('stderr',d); % Percentage

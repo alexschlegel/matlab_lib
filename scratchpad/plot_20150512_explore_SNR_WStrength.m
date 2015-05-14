@@ -8,14 +8,18 @@ function hF = plot_20150512_explore_SNR_WStrength(varargin)
 stem			= 'explore_SNR_WStrength';
 matfilePrefix	= '20150513_0043';
 opt				= ParseArgs(varargin, ...
-					'yVarName'		, 'acc'		, ...
-					'capsule'		, []		, ...
-					'nosavefig'		, []		  ...
+					'yvarname'		, 'acc'		, ...
+					'autosave'		, false		, ...
+					'extra_plots'	, false		, ...
+					'capsule'		, []		  ...
 					);
 hF				= zeros(1,0);
 
-skipFile		= ~isempty(opt.capsule);
-if skipFile
+if ~opt.autosave
+	fprintf('For auto-save, set option ''autosave'' to true.\n');
+end
+
+if ~isempty(opt.capsule)
 	cCapsule	= opt.capsule;
 	stem		= sprintf('%s_%s',cCapsule{1}.id,stem);
 else
@@ -44,23 +48,23 @@ fixedPairs		= { ...
 %}
 fixedPairs	= {};
 
-hF				= plot_quads_SNR_WStrength(hF,cap1,opt.yVarName,horizVar,vertVar12{1},fixedPairs);
-hF				= plot_quads_SNR_WStrength(hF,cap1,opt.yVarName,horizVar,vertVar12{2},fixedPairs);
+hF				= plot_quads_SNR_WStrength(hF,cap1,opt.yvarname,horizVar,vertVar12{1},fixedPairs,opt);
+hF				= plot_quads_SNR_WStrength(hF,cap1,opt.yvarname,horizVar,vertVar12{2},fixedPairs,opt);
 
 
-nosavefig		= unless(opt.nosavefig,skipFile);
-if nosavefig
+if ~opt.autosave
+	fprintf('Skipping auto-save.\n');
 	return;
 end
 
 figfilepath		= sprintf('scratchpad/figfiles/%s-%s-%s.fig',stem, ...
-					opt.yVarName,FormatTime(nowms,'mmdd'));
+					opt.yvarname,FormatTime(nowms,'mmdd'));
 savefig(hF(end:-1:1),figfilepath);
 fprintf('Plots saved to %s\n',figfilepath);
 
 end
 
-function hF = plot_quads_SNR_WStrength(hF,capsule,yVarName,horizVar,vertVar,fixedPairs)
+function hF = plot_quads_SNR_WStrength(hF,capsule,yVarName,horizVar,vertVar,fixedPairs,opt)
 	spec			= capsule.plotSpec;
 	SNR_vals		= spec.varValues{1};
 	WStrength_vals	= spec.varValues{2};
@@ -83,6 +87,10 @@ function hF = plot_quads_SNR_WStrength(hF,capsule,yVarName,horizVar,vertVar,fixe
 					'fixedVarValuePairs'	, fixedPairs		  ...
 					);
 	hF(end+1)	= ha.hF;
+
+	if ~opt.extra_plots
+		return;
+	end
 
 	ha			= p.renderMultiLinePlot(capsule,'WStrength'		, ...
 					'yVarName'				, yVarName			, ...

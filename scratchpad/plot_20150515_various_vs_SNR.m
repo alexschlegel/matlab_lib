@@ -1,12 +1,12 @@
 % For old plotting scripts, see scratchpad/archived/plotting-scripts/*
 
-% Script to plot data from 20150514_0904_explore_SNR.mat
-% See also create_20150513_explore_SNR_p_transition.m
+% Script to plot data from 20150515_HHMM_various_vs_SNR.mat
+% See also create_20150515_various_vs_SNR.m
 
 
-function hF = plot_20150513_explore_SNR_p_transition(varargin)
-stem			= 'explore_SNR_p_transition';
-matfilePrefix	= '20150514_0904';
+function hF = plot_20150515_various_vs_SNR(varargin)
+stem			= 'various_vs_SNR';
+matfilePrefix	= '20150515_HHMM';
 opt				= ParseArgs(varargin, ...
 					'yvarname'		, 'alex_log10_p'	, ...
 					'autosave'		, false				, ...
@@ -29,23 +29,7 @@ else
 end
 
 
-% Capsule 1 multiplots
-
-cap1		= cCapsule{1};
-
-horizVar	= {									  ...
-				'CRecur'		, {0 0.5}		  ...
-			  };
-%{
-vertVar12	= {
-				{'WFullness'	, {0.15 0.25}}
-				{'WFullness'	, {0.25 0.35}}
-			  };
-fixedPairs	= { ...
-				'CRecur'		, 0				, ...
-				'WFullness'		, 0.25			  ...
-			  };
-%}
+horizVar	= {};
 vertVar		= {};
 fixedPairs	= {};
 constPairs	= {};
@@ -55,8 +39,10 @@ if strcmp(opt.yvarname,'alex_log10_p')
 				  };
 end
 
-hF			= plot_pairs_SNR_WStrength(hF,cap1,opt.yvarname,horizVar,vertVar,fixedPairs,constPairs,opt);
-
+nCap		= numel(cCapsule);
+for kCap=1:nCap
+	hF	= plot_testvar_with_SNR(hF,cCapsule{kCap},opt.yvarname,horizVar,vertVar,fixedPairs,constPairs,opt);
+end
 
 if ~opt.autosave
 	fprintf('Skipping auto-save.\n');
@@ -70,19 +56,18 @@ fprintf('Plots saved to %s\n',figfilepath);
 
 end
 
-function hF = plot_pairs_SNR_WStrength(hF,capsule,yVarName,horizVar,vertVar,fixedPairs,constPairs,opt)
+function hF = plot_testvar_with_SNR(hF,capsule,yVarName,horizVar,vertVar,fixedPairs,constPairs,opt)
 	spec			= capsule.plotSpec;
-	WStrength_vals	= spec.varValues{2};
+	testvarName		= spec.varName{1};
+	testvarValues	= spec.varValues{1};
 
-	W_subset		= WStrength_vals(1:end);
+	testvarSubset	= testvarValues(1:end);
 
 	p			= Pipeline;
 	ha			= p.renderMultiLinePlot(capsule,'SNR'			, ...
 					'yVarName'				, yVarName			, ...
-					'lineVarName'			, 'WStrength'		, ...
-					'lineVarValues'			, W_subset			, ...
-					'horizVarName'			, horizVar{1}		, ...
-					'horizVarValues'		, horizVar{2}		, ...
+					'lineVarName'			, testvarName		, ...
+					'lineVarValues'			, testvarSubset		, ...
 					'fixedVarValuePairs'	, fixedPairs		, ...
 					'constLabelValuePairs'	, constPairs		  ...
 					);

@@ -17,7 +17,7 @@ function cCapsule = create_20150513_explore_SNR_p_transition(varargin)
 	snr_ranges		= [
 						%low	high
 						0.2		0.45	%for least WStrength
-						0.1		0.25	%for greatest WStrength 
+						0.1		0.25	%for greatest WStrength
 					  ];
 
 	spec.pseudoVar	= 'SNR_index';
@@ -34,8 +34,8 @@ function cCapsule = create_20150513_explore_SNR_p_transition(varargin)
 		assert(isscalar(SNR),'bug');
 	end
 
-	function interpolation = splitdiff(alpha)
-		interpolation	= [1-alpha, alpha];
+	function interpolation_vector = splitdiff(frac)
+		interpolation_vector	= [1-frac, frac];
 	end
 
 	cCapsule{end+1}	= pipeline.makePlotCapsule(spec);

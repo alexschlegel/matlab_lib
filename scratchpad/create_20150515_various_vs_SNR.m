@@ -12,10 +12,10 @@ function cCapsule = create_20150515_various_vs_SNR(varargin)
 	pipeline	= pipeline.changeSeedDefaultAndConsume(0);
 	cCapsule	= cell(0,1);
 
+	cCapsule{end+1}	= makeCapsule('nRun', [5 8 11 14 17]);
 	cCapsule{end+1}	= makeCapsule('nSubject', [5 8 11 14 17]);
 	cCapsule{end+1}	= makeCapsule('nTBlock', [1 3 6 10 15]);
 	cCapsule{end+1}	= makeCapsule('nRepBlock', [3 4 5 6 7]);
-	cCapsule{end+1}	= makeCapsule('nRun', [5 8 11 14 17]);
 
 	if ismember('stubsim',pipeline.uopt.fudge)
 		return;

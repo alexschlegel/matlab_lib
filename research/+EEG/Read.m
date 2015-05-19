@@ -40,7 +40,9 @@ function eeg = Read(strPathEEG,varargin)
 			'fid'			, []	  ...
 			);
 	
-	opt.channel	= ForceCell(opt.channel);
+	if notfalse(opt.channel)
+		opt.channel	= ForceCell(opt.channel);
+	end
 
 %read the header
 	if isstruct(strPathEEG)
@@ -125,9 +127,9 @@ function eeg = Read(strPathEEG,varargin)
 
 %------------------------------------------------------------------------------%
 function ReadData_NIfTI()
-	eeg.data	= NIfTI.Read(strPathEEG,
+	eeg.data	= NIfTI.Read(strPathEEG,...
 					'load'		, opt.load	, ...
-					'return'	, 'data		  ...
+					'return'	, 'data'	  ...
 					);
 end
 %------------------------------------------------------------------------------%

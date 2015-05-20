@@ -35,7 +35,7 @@ function res = CrossValidation(d,cTarget,kChunk,varargin)
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-res	= struct;
+res	= struct('error',false);
 
 %parse the inputs
 	opt	= ParseArgs(varargin,...
@@ -136,16 +136,23 @@ res	= struct;
 		'silent'	, opt.silent									  ...
 		);
 	for kF=1:nFold
-		[acc,kTarget,kPredict]	= CVFold(kTrain(kF,:),kTest(kF,:),opt.target_balancer);
-		
-		%mean accuracy for this fold
-			res.accuracy(kF)	= mean(acc);
-		
-		%update the confusions
-			kConfusion					= sub2ind([nTarget nTarget],kTarget,kPredict);
-			kConfusionU					= unique(kConfusion);
-			nAdd						= arrayfun(@(kc) sum(kConfusion==kc),kConfusionU);
-			res.confusion(kConfusionU)	= res.confusion(kConfusionU) + nAdd;
+		try
+			[acc,kTarget,kPredict]	= CVFold(kTrain(kF,:),kTest(kF,:),opt.target_balancer);
+			
+			%mean accuracy for this fold
+				res.accuracy(kF)	= mean(acc);
+			
+			%update the confusions
+				kConfusion					= sub2ind([nTarget nTarget],kTarget,kPredict);
+				kConfusionU					= unique(kConfusion);
+				nAdd						= arrayfun(@(kc) sum(kConfusion==kc),kConfusionU);
+				res.confusion(kConfusionU)	= res.confusion(kConfusionU) + nAdd;
+		catch me
+			res.error	= me;
+			warning('Cross-validation failed: %s',me.message);
+			progress('action','end');
+			break;
+		end
 		
 		progress;
 	end

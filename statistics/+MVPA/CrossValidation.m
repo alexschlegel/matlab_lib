@@ -11,6 +11,7 @@ function res = CrossValidation(d,cTarget,kChunk,varargin)
 %	kChunk	- an nSample x 1 integer array of the chunk for each sample. chunks
 %			  with value 0 are excluded from the analysis.
 %	<options>:
+%		name:				('') an optional name for the cross-validation
 %		partitioner:		(1) the partitioner to use. one of the following:
 %								n: perform leave-n-out cross validation
 %		classifier:			('svm') the classifier to ues. one of the following:
@@ -39,6 +40,7 @@ res	= struct('error',false);
 
 %parse the inputs
 	opt	= ParseArgs(varargin,...
+			'name'				, ''		, ...
 			'partitioner'		, 1			, ...
 			'classifier'		, 'svm'		, ...
 			'zscore'			, 'chunk'	, ...
@@ -149,7 +151,7 @@ res	= struct('error',false);
 				res.confusion(kConfusionU)	= res.confusion(kConfusionU) + nAdd;
 		catch me
 			res.error	= me;
-			warning('Cross-validation failed: %s',me.message);
+			warning('Cross-validation failed (%s): %s',opt.name,me.message);
 			progress('action','end');
 			break;
 		end

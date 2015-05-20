@@ -47,7 +47,7 @@ function sInfo = progress(varargin)
 %		pause(0.1);
 %	end
 % 
-% Updated: 2015-05-20
+% Updated: 2015-04-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -580,7 +580,7 @@ function strName = GetDefaultIndicatorName()
 		
 			%make sure we're not too long
 				if numel(strName)>63
-					strName	= sprintf('%s_%s',strName(1:54),str2hash(strName(55:end,'output','string')));
+					strName	= sprintf('%s_%s',strName(1:54),str2hash(strName(55:end),'output','string'));
 				end
 			
 			%add a record of the name

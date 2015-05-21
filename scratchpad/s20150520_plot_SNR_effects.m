@@ -1,14 +1,23 @@
-% For old plot-capsule- and plot-creation scripts, see
-%   scratchpad/archived/standalone-capsule-creation-scripts/*
-%   scratchpad/archived/standalone-plotting-scripts/*
+% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
+
+% This script creates plots in two phases (each of which is optional
+% in any given run):
+%
+%  1. Generation of so-called plot-data capsules;
+%  2. Conversion of plot-data capsules to plot figures.
+%
+% TODO: More comments
+
+% For old plot-capsule-creation and plot-creation scripts, see
+%   scratchpad/archived/separated-data-and-plot-scripts/*/*
 %
 
 function h = s20150520_plot_SNR_effects(varargin)
-	stem		= 'SNR_effects';
-	least_ts	= '20150520_';
+	stem		= 's20150520_SNR_effects';
+	not_before	= '20150521_';
 	opt			= ParseArgs(varargin, ...
 					'noplot'		, false				, ...
-					'not_before'	, least_ts			, ...
+					'not_before'	, not_before		, ...
 					'savedata'		, []				, ...
 					'saveplot'		, false				, ...
 					'yvarname'		, 'alex_log10_p'	  ...
@@ -115,7 +124,7 @@ function h = s20150520_plot_SNR_effects(varargin)
 			ts		= new_timestamp;
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
-				save(path,'capsule');
+				save(path,'capsule','-v7.3');
 				fprintf('Saved capsule to %s\n\n',path);
 			end
 		else

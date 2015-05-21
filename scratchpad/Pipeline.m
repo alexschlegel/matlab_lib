@@ -88,7 +88,7 @@ methods
 	%					-- Analysis
 	%
 	%		analysis:		('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
-	%		dataVerbosity:	(2) Verbosity of simulation summary data (0=least, 3=most)
+	%		dataVerbosity:	(1) Verbosity of simulation summary data (0=least, 5=most)
 	%		kraskov_k:		(4) Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		max_aclags:		(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:		('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
@@ -130,7 +130,7 @@ methods
 			'HRF'			, false		, ...
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
-			'dataVerbosity'	, 2			, ...
+			'dataVerbosity'	, 1			, ...
 			'kraskov_k'		, 4			, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
@@ -183,11 +183,13 @@ methods
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
-		if u.dataVerbosity > 2
+		if u.dataVerbosity > 3
 			subjectStats.rawData.block	= block;
 			subjectStats.rawData.target	= target;
-			subjectStats.rawData.X		= XTest;
-			subjectStats.rawData.Y		= YTest;
+			if u.dataVerbosity > 4
+				subjectStats.rawData.X	= XTest;
+				subjectStats.rawData.Y	= YTest;
+			end
 		end
 
 		modes	= conditional(strcmp(u.analysis,'total'),obj.analyses,ForceCell(u.analysis));
@@ -255,7 +257,7 @@ methods
 		if u.dataVerbosity > 1
 			alexResult.WStarA	= WStarA;
 			alexResult.WStarB	= WStarB;
-			if u.doMixing
+			if u.doMixing && u.dataVerbosity > 2
 				alexResult.XCoeff	= XCoeff;
 				alexResult.YCoeff	= YCoeff;
 			end

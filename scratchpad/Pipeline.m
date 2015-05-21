@@ -24,9 +24,9 @@ properties
 end
 properties (SetAccess = private)
 	% version numbers represent date; to distinguish versions within same day,
-	% append decimal fractions, e.g., 20150514.1122
-	version				= struct('pipeline',20150514,...
-							'capsuleFormat',20150514)
+	% append decimal fractions, e.g., 20150520.0807
+	version				= struct('pipeline',20150520,...
+							'capsuleFormat',20150520)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
@@ -53,7 +53,6 @@ methods
 	%		seed:		(randseed2) Seed to use for randomizing (false for none)
 	%		subSilent:	(true) Suppress status messages from TE, etc.
 	%		szIm:		(200) Pixel height of debug images
-	%		verbosData:	(true) Preserve extra data in simulation summary
 	%		verbosity:	(1) Extra diagnostic output level (0=none, 10=most)
 	%
 	%					-- Subjects
@@ -83,23 +82,26 @@ methods
 	%
 	%					-- Hemodynamic response
 	%
-	%		hrf:		(false) convolve signals with hemodynamic response function
+	%		HRF:		(false) convolve signals with hemodynamic response function
 	%		hrfOptions:	({}) options to quasiHRF kernel generator
 	%
 	%					-- Analysis
 	%
-	%		analysis:	('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
-	%		kraskov_k:	(4) Kraskov K for Lizier's multivariate transfer entropy calculation
-	%		max_aclags:	(1000) GrangerCausality parameter to limit running time
-	%		WStarKind:	('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
+	%		analysis:		('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
+	%		dataVerbosity:	(2) Verbosity of simulation summary data (0=least, 3=most)
+	%		kraskov_k:		(4) Kraskov K for Lizier's multivariate transfer entropy calculation
+	%		max_aclags:		(1000) GrangerCausality parameter to limit running time
+	%		WStarKind:		('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
 	%
 	%					-- Batch processing and plot preparation
 	%
-	%		max_cores:	(1) Maximum number of cores to request for multitasking
-	%		njobmax:	(1000) Maximum number of jobs per batch within MultiTask
+	%		max_cores:		(1) Maximum number of cores to request for multitasking
+	%		MT_debug:		('warn') Debug option for MultiTask (see MultiTask documentation)
+	%		MT_debug_comm:	('warn') Debug communicator option for MultiTask (see MultiTask documentation)
+	%		njobmax:		(1000) Maximum number of jobs per batch within MultiTask
 	%
-	%		min_p:		(1e-6) Lower bound to impose on p-values when computing logarithms
-	%		nIteration:	(10) Number of simulations per point in plot-data generation
+	%		min_p:			(1e-6) Lower bound to impose on p-values when computing logarithms
+	%		nIteration:		(10) Number of simulations per point in plot-data generation
 
 		%user-defined parameters (with defaults)
 		obj.defaultOptions	= { ...
@@ -111,7 +113,6 @@ methods
 			'seed'			, randseed2	, ...
 			'subSilent'		, true		, ...
 			'szIm'			, 200		, ...
-			'verbosData'	, true		, ...
 			'verbosity'		, 1			, ...
 			'nSubject'		, 15		, ...
 			'nSigCause'		, 10		, ...
@@ -126,13 +127,16 @@ methods
 			'nRun'			, 15		, ...
 			'CRecur'		, 0			, ...
 			'doMixing'		, true		, ...
-			'hrf'			, false		, ...
+			'HRF'			, false		, ...
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
+			'dataVerbosity'	, 2			, ...
 			'kraskov_k'		, 4			, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
 			'max_cores'		, 1			, ...
+			'MT_debug'		, 'warn'	, ...
+			'MT_debug_comm'	, 'warn'	, ...
 			'njobmax'		, 1000		, ...
 			'min_p'			, 1e-6		, ...
 			'nIteration'	, 10		  ...
@@ -153,7 +157,7 @@ methods
 										'nRepBlock'
 										'nRun'
 										'CRecur'
-										'hrf'
+										'HRF'
 										'nIteration'
 									};
 		obj.unlikelyOptionNames	=	{
@@ -179,6 +183,13 @@ methods
 	function subjectStats = analyzeTestSignals(obj,block,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
+		if u.dataVerbosity > 2
+			subjectStats.rawData.block	= block;
+			subjectStats.rawData.target	= target;
+			subjectStats.rawData.X		= XTest;
+			subjectStats.rawData.Y		= YTest;
+		end
+
 		modes	= conditional(strcmp(u.analysis,'total'),obj.analyses,ForceCell(u.analysis));
 		nMode	= numel(modes);
 
@@ -187,7 +198,7 @@ methods
 
 			switch strMode
 				case 'alex'
-					subjectStats.alexAccSubj	= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
+					subjectStats.alexResult		= analyzeTestSignalsModeAlex(obj,block,target,XTest,YTest,doDebug);
 				case 'lizier'
 					subjectStats.lizierTEs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'te',doDebug);
 				case 'seth'
@@ -198,7 +209,7 @@ methods
 		end
 	end
 
-	function alexAccSubj = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
+	function alexResult = analyzeTestSignalsModeAlex(obj,~,target,XTest,YTest,doDebug)
 		u		= obj.uopt;
 
 		%unmix from voxel to "functional" space
@@ -206,11 +217,11 @@ methods
 			nTRun	= numel(target{1});	%number of time points per run
 			nT		= nTRun*u.nRun;		%total number of time points
 
-			[~,XUnMix]	= pca(reshape(XTest,nT,u.nVoxel));
-			XUnMix		= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
+			[XCoeff,XUnMix]	= pca(reshape(XTest,nT,u.nVoxel));
+			XUnMix			= reshape(XUnMix,nTRun,u.nRun,u.nVoxel);
 
-			[~,YUnMix]	= pca(reshape(YTest,nT,u.nVoxel));
-			YUnMix		= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
+			[YCoeff,YUnMix]	= pca(reshape(YTest,nT,u.nVoxel));
+			YUnMix			= reshape(YUnMix,nTRun,u.nRun,u.nVoxel);
 		else
 			[XUnMix,YUnMix]	= deal(XTest,YTest);
 		end
@@ -226,7 +237,7 @@ methods
 		WStarB = calculateW_stars(obj,target,XUnMix,YUnMix,'B');
 
 		%classify between W*A and W*B
-		[alexAccSubj,p_binom] = classifyBetweenWs(obj,WStarA,WStarB);
+		[accSubj,p_binom]	= classifyBetweenWs(obj,WStarA,WStarB);
 
 		if doDebug
 			mWStarA	= mean(cat(3,WStarA{:}),3);
@@ -235,8 +246,19 @@ methods
 			showTwoWs(obj,mWStarA,mWStarB,'W^*_A and W^*_B');
 			fprintf('mean W*A column sums:  %s\n',sprintf('%.3f ',sum(mWStarA)));
 			fprintf('mean W*B column sums:  %s\n',sprintf('%.3f ',sum(mWStarB)));
-			fprintf('accuracy: %.2f%%\n',100*alexAccSubj);
+			fprintf('accuracy: %.2f%%\n',100*accSubj);
 			fprintf('p(binom): %.3f\n',p_binom);
+		end
+
+		%set return value
+		alexResult.accSubj	= accSubj;
+		if u.dataVerbosity > 1
+			alexResult.WStarA	= WStarA;
+			alexResult.WStarB	= WStarB;
+			if u.doMixing
+				alexResult.XCoeff	= XCoeff;
+				alexResult.YCoeff	= YCoeff;
+			end
 		end
 	end
 
@@ -690,7 +712,7 @@ methods
 			end
 		end
 
-		if u.hrf
+		if u.HRF
 			kernel	= quasiHRF(u.hrfOptions{:});
 			X		= convCols(X,kernel);
 			Y		= convCols(Y,kernel);
@@ -756,7 +778,7 @@ methods
 			W(isnan(W))	= 0;
 	end
 
-	function label = getOptLabel(obj,optName)
+	function label = getOptAxisLabel(obj,optName)
 		label	= switch2(optName,...
 					'acc'			, 'Accuracy (%)'				, ...
 					'alex_log10_p'	, 'log_{10}(p)'					, ...
@@ -781,9 +803,13 @@ methods
 					);
 	end
 
-	function capsule = makePlotCapsule(obj,plotSpec,varargin)
+	function capsule = makePlotCapsule(obj,plotSpec)
 	%TODO: comments
 		obj					= consumeRandomizationSeed(obj);
+		if ~isscalar(plotSpec)
+			capsule	= arrayfun(@(s) makePlotCapsule(obj,s),plotSpec);
+			return;
+		end
 		plotSpec			= regularizePlotSpec(obj,plotSpec);
 		obj.uopt.nIteration	= plotSpec.nIteration; % For benefit of noteMiscOpts
 
@@ -798,13 +824,16 @@ methods
 			fprintf('Number of plot-variable combinations = %d\n',nSim);
 		end
 
-		seed				= randperm(intmax('uint32'),nSim).';
+		seed				= randperm(intmax('uint32'),nSim);
 		rngState			= rng;
-		cResult				= MultiTask(@taskWrapper, ...
-								{num2cell(1:nSim)}, ...
-								'njobmax',obj.uopt.njobmax, ...
-								'cores',obj.uopt.max_cores, ...
-								'silent',(obj.uopt.max_cores<2));
+		[cVobj,cResult]		= arrayfun(@taskWrapper,1:nSim,'uni',false);
+		cResult				= MultiTask(@wrapSimulateAllSubjects, {cVobj,cResult}	, ...
+								'njobmax'				, obj.uopt.njobmax			, ...
+								'cores'					, obj.uopt.max_cores		, ...
+								'debug'					, obj.uopt.MT_debug			, ...
+								'debug_communicator'	, obj.uopt.MT_debug_comm	, ...
+								'silent'				, (obj.uopt.max_cores<2)	  ...
+								);
 		rng(rngState);
 		end_ms				= nowms;
 
@@ -817,7 +846,7 @@ methods
 		capsule.elapsed_ms	= end_ms - start_ms;
 		capsule.done		= FormatTime(end_ms);
 
-		function result = taskWrapper(taskIndex)
+		function [vobj,result] = taskWrapper(taskIndex)
 			vind		= cell(1,numel(itVarName));
 			[vind{:}]	= ind2sub(itValuesShape,taskIndex);
 			valueTuple	= arrayfun(@(j) itVarValues{j}{vind{j}}, ...
@@ -841,7 +870,6 @@ methods
 			result.keyTuple		= itVarName;
 			result.valueTuple	= valueTuple;
 			result.seed			= vopt.seed;
-			result.summary		= simulateAllSubjects(vobj);
 		end
 	end
 
@@ -886,6 +914,8 @@ methods
 	function plotSpec = regularizePlotSpec(obj,plotSpec)
 		if ~isstruct(plotSpec)
 			error('Plot spec must be struct.');
+		elseif ~isscalar(plotSpec)
+			error('Scalar plot spec expected here.');
 		end
 		requiredFields	= {
 			'varName'		, ...
@@ -952,6 +982,12 @@ methods
 	end
 
 	function h = renderMultiLinePlot(obj,capsule,xVarName,varargin)
+		if ~isstruct(capsule)
+			error('Capsule must be struct.');
+		elseif ~isscalar(capsule)
+			h	= arrayfun(@(c) renderMultiLinePlot(obj,c,xVarName,varargin{:}),capsule);
+			return;
+		end
 		opt	= ParseArgs(varargin,...
 			'yVarName'				, 'acc'				, ...
 			'lineVarName'			, ''				, ...
@@ -964,21 +1000,17 @@ methods
 			'fixedVarValuePairs'	, {}				, ...
 			'constLabelValuePairs'	, {}				  ...
 			);
-		%earliestCompatibleFormat	= obj.version.capsuleFormat;
-		earliestCompatibleFormat	= 20150423;
+		%earliestCompatibleFormat	= 20150518;
+		earliestCompatibleFormat	= obj.version.capsuleFormat;
 		if ~isfield(capsule,'version') || ...
 				~isfield(capsule.version,'capsuleFormat') || ...
 				capsule.version.capsuleFormat < earliestCompatibleFormat
 			error('Incompatible capsule format.');
 		end
-		if capsule.version.capsuleFormat < 20150514
-			% temp kludge for noteMiscOpts (TODO: remove in future)
-			capsule.uopt.nIteration	= capsule.plotSpec.nIteration;
-		end
 
-		checkBothOrNeither('line');
-		checkBothOrNeither('horiz');
-		checkBothOrNeither('vert');
+		opt	= checkBothOrNeither(opt,'line');
+		opt	= checkBothOrNeither(opt,'horiz');
+		opt	= checkBothOrNeither(opt,'vert');
 		if ~isempty(opt.horizVarName) || ~isempty(opt.vertVarName)
 			h			= makeMultiplot;
 			return;
@@ -1068,8 +1100,8 @@ methods
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end
-		xlabelStr	= getOptLabel(obj,xVarName);
-		ylabelStr	= getOptLabel(obj,yVarName);
+		xlabelStr	= getOptAxisLabel(obj,xVarName);
+		ylabelStr	= getOptAxisLabel(obj,yVarName);
 		yVarInTitle	= getOptNameSpelledOut(obj,yVarName);
 		titleStr	= sprintf('%s vs %s%s',yVarInTitle,xVarName,parennote);
 		cLegend		= [opt.lineLabels(:); constLabels(:)];
@@ -1088,12 +1120,15 @@ methods
 		axes('Position',[0 0 1 1],'Visible','off');
 		text(0.02,0.07,noteMiscOpts(obj,capsule,@getConstVarVal,fixedVars));
 
-		function checkBothOrNeither(prefix)
+		function opt = checkBothOrNeither(opt,prefix)
 			name	= [prefix 'VarName'];
 			values	= [prefix 'VarValues'];
 			if isempty(opt.(name)) ~= isempty(opt.(values))
 				error(['Both %s and %s must be specified, ' ...
 					'or neither.'],name,values);
+			end
+			if ~iscell(opt.(values))
+				opt.(values)	= num2cell(opt.(values));
 			end
 		end
 
@@ -1409,10 +1444,14 @@ methods
 			end
 		end
 
+		if u.dataVerbosity > 0
+			summary.subjectResults		= results;
+		end
+
 		%evaluate the classifier accuracies
-		if isfield(results{1},'alexAccSubj')
+		if isfield(results{1},'alexResult')
 			% TODO: Factor out common code between alex (here) and lizier and seth (below)
-			acc							= cellfun(@(r) r.alexAccSubj,results);
+			acc							= cellfun(@(r) r.alexResult.accSubj,results);
 			[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
 
 			summary.alex.meanAccAllSubj	= mean(acc);
@@ -1454,9 +1493,6 @@ methods
 				fprintf('Seth group-level: t(%d)=%.3f, p=%.3f\n',stats.df,stats.tstat,p_grouplevel);
 			end
 		end
-		if u.verbosData
-			summary.subjectResults		= results;
-		end
 	end
 
 	function subjectStats = simulateSubject(obj,doDebug)
@@ -1472,6 +1508,10 @@ methods
 		%preprocess and analyze test signals according to analysis mode(s)
 		subjectStats	= analyzeTestSignals(obj,block,target,XTest,YTest,doDebug);
 	end
+
+	function result = wrapSimulateAllSubjects(obj,result)
+		result.summary	= simulateAllSubjects(obj);
+	end
 end
 
 methods (Static)
@@ -1480,12 +1520,20 @@ methods (Static)
 	%
 	% Quick test:
 	%  pd=Pipeline.constructTestPlotData('fudge',{'stubsim'})
-	%  cH=Pipeline.constructTestPlotsFromData(pd)
+	%  h=Pipeline.constructTestPlotsFromData(pd)
 		pipeline	= Pipeline(varargin{:});
 		pipeline	= pipeline.changeDefaultsForBatchProcessing;
 		pipeline	= pipeline.changeOptionDefault('nSubject',10);
 		pipeline	= pipeline.changeOptionDefault('analysis','alex');
 		pipeline	= pipeline.changeSeedDefaultAndConsume(0);
+
+		%{
+		spec				= repmat(struct,2,1);
+		spec(1).varName		= 'WStrength';
+		spec(1).varValues	= [0.1 0.2];
+		spec(2).varName		= 'WStrength';
+		spec(2).varValues	= [0.3 0.4];
+		%}
 
 		spec				= repmat(struct,4,1);
 
@@ -1504,29 +1552,24 @@ methods (Static)
 		spec(4).varName		= {'SNR','CRecur'};
 		spec(4).varValues	= {0.1*(1:5),[0 0.35 0.7]};
 
-		nSpec				= numel(spec);
-		capsule				= cell(1,nSpec);
-
-		for kSpec=1:nSpec
-			capsule{kSpec}	= pipeline.makePlotCapsule(spec(kSpec));
-		end
+		capsule				= pipeline.makePlotCapsule(spec);
+		[sz1,sz2]			= size(capsule);
 
 		pause(1);
 		filename_prefix			= FormatTime(nowms,'yyyymmdd_HHMMSS'); %#ok
-		plot_data.label			= sprintf('%dx%d capsules w/ nSubject=%d (except as noted)',...
-									1,nSpec,pipeline.uopt.nSubject);
-		plot_data.cCapsule		= capsule;
+		plot_data.label			= sprintf('%dx%d capsule',sz1,sz2);
+		plot_data.capsule		= capsule;
 		%save([filename_prefix '_recur_plot_data.mat'],'plot_data');
 	end
 
-	function cH = constructTestPlotsFromData(plot_data)
+	function h = constructTestPlotsFromData(plot_data)
 		pipeline	= Pipeline;
-		cap			= plot_data.cCapsule;
-		nFig		= numel(cap);
-		cH			= cell(1,nFig);
-		for kF=1:nFig
-			spec	= cap{kF}.plotSpec;
-			cH{kF}	= pipeline.renderMultiLinePlot(cap{kF},spec.varName{1}, ...
+		cap			= plot_data.capsule;
+		h			= arrayfun(@renderCapsule,plot_data.capsule);
+
+		function h = renderCapsule(cap)
+			spec	= cap.plotSpec;
+			h		= pipeline.renderMultiLinePlot(cap,spec.varName{1}, ...
 						'lineVarName'	, spec.varName{2}	, ...
 						'lineVarValues'	, spec.varValues{2}	  ...
 						);

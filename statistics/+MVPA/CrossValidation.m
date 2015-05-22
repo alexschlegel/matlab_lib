@@ -13,10 +13,17 @@ function res = CrossValidation(d,cTarget,kChunk,varargin)
 %	<options>:
 %		name:				('') an optional name for the cross-validation
 %		partitioner:		(1) the partitioner to use. one of the following:
-%								n: perform leave-n-out cross validation
-%		classifier:			('svm') the classifier to ues. one of the following:
-%								'svm': use a support vector machine classifier
-%		zscore:				('chunk') how to z-score the data before
+%								n:		perform leave-n-out cross validation
+%								str:	the name of a valid partitioner class
+%										in MVPA.Partitioner, to use that
+%										partitioner with the default parameters
+%								prt:	an MVPA.Partitioner.* object
+%		classifier:			('SVM') the classifier to use. one of the following:
+%								str:	the name of a valid classifier class in
+%										MVPA.Classifier, to use that classifier
+%										with the default parameters
+%								cls:	an MVPA.Classifier.* object
+%		zscore:				(false) how to z-score the data before
 %							classification. one of the following:
 %								'chunk':	z-score by chunk
 %								false:		don't z-score
@@ -27,12 +34,13 @@ function res = CrossValidation(d,cTarget,kChunk,varargin)
 %							the training set used for training.
 %		average:			(false) true to average samples with the same target
 %							and chunk before classifying
+%		error:				(true) true to fail if an error occurs
 %		silent:				(false) true to suppress status messages
 % 
 % Out:
 % 	res	- a struct of results
 % 
-% Updated: 2015-05-20
+% Updated: 2015-05-21
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -42,21 +50,20 @@ res	= struct('error',false);
 	opt	= ParseArgs(varargin,...
 			'name'				, ''		, ...
 			'partitioner'		, 1			, ...
-			'classifier'		, 'svm'		, ...
-			'zscore'			, 'chunk'	, ...
+			'classifier'		, 'SVM'		, ...
+			'zscore'			, false		, ...
 			'target_balancer'	, 10		, ...
 			'average'			, false		, ...
+			'error'				, true		, ...
 			'silent'			, false		  ...
 			);
 	
 	assert(isscalar(opt.partitioner),'partitioner option must be a scalar');
 	
-	opt.classifier	= CheckInput(opt.classifier,'classifier',{'svm'});
-	
 	bZscore	= true;
 	switch class(opt.zscore)
 		case 'char'
-			opt.zscore	= CheckInput(opt.zscore,'zscore',{'chunks'});
+			opt.zscore	= CheckInput(opt.zscore,'zscore',{'chunk'});
 		otherwise
 			assert(~notfalse(opt.zscore),'zscore option must be a string or false');
 			bZscore	= false;
@@ -74,6 +81,34 @@ res	= struct('error',false);
 	nChunk				= numel(res.uniquechunks);
 	
 	[res.samples,res.features]	= size(d);
+
+%get the partitioner
+	if isa(opt.partitioner,'MVPA.Partitioner.Base')
+		prt	= opt.partitioner;
+	elseif ischar(opt.partitioner)
+		try
+			prt	= MVPA.Partitioner.(opt.partitioner);
+		catch me
+			error('%s is not a valid partitioner class',opt.partitioner);
+		end
+	elseif isscalar(opt.partitioner)
+		prt	= MVPA.Partitioner.LeaveNOut('n',opt.partitioner);
+	else
+		error('invalid partitioner');
+	end
+
+%get the classifier
+	if isa(opt.classifier,'MVPA.Classifier.Base')
+		cls	= opt.classifier;
+	elseif ischar(opt.classifier)
+		try
+			cls	= MVPA.Classifier.(opt.classifier);
+		catch me
+			error('%s is not a valid classifier class',opt.classifier);
+		end
+	else
+		error('invalid classifier');
+	end
 
 %z-score the data
 	if bZscore
@@ -113,16 +148,9 @@ res	= struct('error',false);
 		res.samples	= size(d,1);
 	end
 
-%get the classifier
-	switch opt.classifier
-		case 'svm'
-			fTrain	= @CVTrainSVM;
-			fTest	= @CVTestSVM;
-	end
-
 %partition the data
-	[kTrain,kTest]	= MVPA.LeaveNOutPartitioner(nChunk,opt.partitioner);
-	nFold			= size(kTrain,1);
+	[kTrain,kTest]	= prt.Partition(nChunk);
+	nFold			= numel(kTrain);
 
 %perform the cross validation
 	%temporarily convert targets to integers
@@ -139,7 +167,7 @@ res	= struct('error',false);
 		);
 	for kF=1:nFold
 		try
-			[acc,kTarget,kPredict]	= CVFold(kTrain(kF,:),kTest(kF,:),opt.target_balancer);
+			[acc,kTarget,kPredict]	= CVFold(kTrain{kF},kTest{kF},opt.target_balancer);
 			
 			%mean accuracy for this fold
 				res.accuracy(kF)	= mean(acc);
@@ -150,10 +178,14 @@ res	= struct('error',false);
 				nAdd						= arrayfun(@(kc) sum(kConfusion==kc),kConfusionU);
 				res.confusion(kConfusionU)	= res.confusion(kConfusionU) + nAdd;
 		catch me
-			res.error	= me;
-			warning('Cross-validation failed (%s): %s',opt.name,me.message);
-			progress('action','end');
-			break;
+			if opt.error
+				rethrow(me);
+			else
+				res.error	= me;
+				warning('Cross-validation failed (%s): %s',opt.name,me.message);
+				progress('action','end');
+				break;
+			end
 		end
 		
 		progress;
@@ -207,23 +239,13 @@ function [acc,kTarget,kPredict] = CVFold(kTrainFold,kTestFold,targetBalance)
 		end
 	
 	if ~bDoTargetBalance
-		sTrain	= fTrain(d(kSampleTrain,:),kTargetTrain);
+		cls.Train(d(kSampleTrain,:),kTargetTrain);
 		
 		kTarget		= reshape(kTargetTest,[],1);
-		kPredict	= fTest(d(kSampleTest,:),sTrain);
+		kPredict	= cls.Predict(d(kSampleTest,:));
 		
 		acc	= kTarget==kPredict;
 	end
-end
-%------------------------------------------------------------------------------%
-
-%------------------------------------------------------------------------------%
-function sTrain = CVTrainSVM(d,kTarget)
-	sTrain	= svmtrain(d,kTarget);
-end
-%------------------------------------------------------------------------------%
-function kPredict = CVTestSVM(d,sTrain)
-	kPredict	= svmclassify(sTrain,d);
 end
 %------------------------------------------------------------------------------%
 

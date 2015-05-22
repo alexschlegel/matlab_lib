@@ -86,9 +86,9 @@ classdef Window < PTB.Object
 	%PROPERTY GET/SET----------------------------------------------------------%
 	methods
 		function bOccludes = get.occludes(win)
-			kMonitor	= win.parent.Info.Get('window','monitor');
-			bFullscreen	= win.parent.Info.Get('window','fullscreen');
-			bOccludes	= notfalse(kMonitor==1) && notfalse(bFullscreen);
+			bOccludes	=	notfalse(win.parent.Info.Get('window','monitor')==1) && ...
+							notfalse(win.parent.Info.Get('window','fullscreen')) && ...
+							~isempty(win.parent.Info.Get('window',{'h','main'}));
 		end
 	end
 	%PROPERTY GET/SET----------------------------------------------------------%

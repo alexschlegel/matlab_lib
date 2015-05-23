@@ -56,14 +56,13 @@ function h = s20150520_plot_SNR_effects(varargin)
 	end
 
 	plot_SNR_vs('nRun'		, 2:20);
+	plot_vs_SNR('nRun'		,		[5 8 11 14 17]);
 	plot_SNR_vs('nSubject'	, 1:20);
+	plot_vs_SNR('nSubject'	,		[5 8 11 14 17]);
 	plot_SNR_vs('nTBlock'	, 1:20);
+	plot_vs_SNR('nTBlock'	,		[1 3 6 10 15]);
 	plot_SNR_vs('nRepBlock'	, 2:15);
-
-	plot_vs_SNR('nRun'		, [5 8 11 14 17]);
-	plot_vs_SNR('nSubject'	, [5 8 11 14 17]);
-	plot_vs_SNR('nTBlock'	, [1 3 6 10 15]);
-	plot_vs_SNR('nRepBlock'	, [3 4 5 6 7]);
+	plot_vs_SNR('nRepBlock'	,		[3 4 5 6 7]);
 
 	if numel(h) > 0
 		if ~opt.saveplot
@@ -125,13 +124,13 @@ function h = s20150520_plot_SNR_effects(varargin)
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
 				save(path,'capsule','-v7.3');
-				fprintf('Saved capsule to %s\n\n',path);
+				fprintf('Saved capsule to %s\n',path);
 			end
 		else
 			fprintf('Using preexisting capsule for %s\n',data_label);
 			newest_name	= recent_names{end};
 			path		= sprintf('%s/%s',dirpath,newest_name);
-			fprintf('Loading %s...\n\n',path);
+			fprintf('Loading %s...\n',path);
 			data		= load(path);
 			capsule		= data.capsule;
 			ts_regexp	= sprintf('^(.*)%s$',suffix);

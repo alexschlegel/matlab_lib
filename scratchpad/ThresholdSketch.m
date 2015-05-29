@@ -12,6 +12,7 @@ function [h,sPoint,area,color] = ThresholdSketch(varargin)
 					'nProbe'			, 200				, ...
 					'nOuter'			, 6					, ...
 					'init_npt'			, 7					, ...
+					'npt_growth'		, sqrt(2)			, ...
 					'kmargin'			, 2					  ...
 					);
 	extraargs	= opt2cell(threshOpt.opt_extra);
@@ -78,17 +79,16 @@ function sPoint = thresholdExplore(obj,xvar,yvar,tOpt)
 
 	function var = findrange(var,varpick,varProbed,pProbed)
 		mingood		= min(varProbed(pProbed <= tOpt.pThreshold));
+		mingood		= unless(mingood,varpick.vals(1));
 		kminpick	= max(1,find(varpick.vals==mingood)-tOpt.kmargin);
-		kminpick	= unless(kminpick,1);
 		kmin		= find(var.vals==varpick.vals(kminpick));
 
-		npick		= numel(varpick.vals);
 		maxbad		= max(varProbed(pProbed > tOpt.pThreshold));
-		kmaxpick	= min(find(varpick.vals==maxbad)+tOpt.kmargin,npick);
-		kmaxpick	= unless(kmaxpick,npick);
+		maxbad		= unless(maxbad,varpick.vals(end));
+		kmaxpick	= min(find(varpick.vals==maxbad)+tOpt.kmargin,numel(varpick.vals));
 		kmax		= find(var.vals==varpick.vals(kmaxpick));
 
-		var.npt		= min(ceil(1.4*var.npt),kmax-kmin+1);
+		var.npt		= min(ceil(tOpt.npt_growth*var.npt),kmax-kmin+1);
 		var.vals	= var.vals(kmin:kmax);
 
 		if tOpt.threshverbosity > 2
@@ -127,9 +127,9 @@ function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 		sPoint(nPoint)		= pt;
 
 		if pt.p <= tOpt.pThreshold
-			ky	= ky+1;
-		else
 			kx	= kx-1;
+		else
+			ky	= ky+1;
 		end
 		%fprintf('Advanced to (%d,%d)\n',kx,ky);
 	end
@@ -149,7 +149,8 @@ function [h,area,color] = plot_points(sPoint,pThreshold)
 end
 
 function summary = fakeSimulateAllSubjects(obj)
+	obj				= obj.consumeRandomizationSeed;
 	x				= obj.uopt.SNR;
 	y				= obj.uopt.nSubject;
-	summary.alex.p	= 0.05*x*y*(1.2^randn);
+	summary.alex.p	= 0.05/(x*y*1.2^randn);
 end

@@ -1204,6 +1204,13 @@ methods
 		end
 	end
 
+	function obj = setopt(obj,optionName,optionValue)
+		if ~ismember(optionName,obj.implicitOptionNames)
+			error('Unrecognized option ''%s''',optionName);
+		end
+		obj.uopt.(optionName)	= optionValue;
+	end
+
 	function X = setSignalSNR(obj,X,doDebug)
 	% setSignalSNR
 	%

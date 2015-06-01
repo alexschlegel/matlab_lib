@@ -2,37 +2,52 @@
 
 function [h,sPoint,area,color] = ThresholdSketch(varargin)
 	threshOpt	= ParseArgs(varargin, ...
-					'threshverbosity'	, 1					, ...
+					'threshVerbosity'	, 1					, ...
 					'fakedata'			, true				, ...
-					'xname'				, 'SNR'				, ...
 					'yname'				, 'nSubject'		, ...
-					'xvals'				, 0.01:0.001:0.5	, ...
 					'yvals'				, 1:20				, ...
+					'xname'				, 'SNR'				, ...
+					'xstart'			, 0.01				, ...
+					'xstep'				, 0.001				, ...
+					'xend'				, 0.6				, ...
 					'pThreshold'		, 0.05				, ...
 					'nProbe'			, 200				, ...
 					'nOuter'			, 6					, ...
 					'init_npt'			, 7					, ...
 					'npt_growth'		, sqrt(2)			, ...
-					'kmargin'			, 2					  ...
+					'kmargin'			, 2					, ...
+					'max_aspect'		, 2					  ...
 					);
 	extraargs	= opt2cell(threshOpt.opt_extra);
 	obj			= Pipeline(extraargs{:});
+	obj			= obj.changeDefaultsForBatchProcessing;
 	obj			= obj.consumeRandomizationSeed;
 
 	% Assume p declines with increasing x or increasing y
-	% Assume probe cost depends more on x than on y
+	% Assume probe cost depends more on y than on x
 
 	xvar.name	= threshOpt.xname;
+	xvar.vals	= threshOpt.xstart:threshOpt.xstep:threshOpt.xend;
 	yvar.name	= threshOpt.yname;
-	xvar.vals	= threshOpt.xvals;
 	yvar.vals	= threshOpt.yvals;
-	sPoint		= [];
 
-	for kOuter=1:threshOpt.nOuter
-		sPoint	= [sPoint thresholdExplore(obj,xvar,yvar,threshOpt)];
+	cPoint		= cell(threshOpt.nOuter,1);
+	cTask		= repmat({@thresholdExplore},threshOpt.nOuter,1);
+	taskarg		= {{obj},{xvar},{yvar},{threshOpt}};
+	cPoint		= MultiTask(cTask, taskarg	, ...
+					'njobmax'				, obj.uopt.njobmax			, ...
+					'cores'					, obj.uopt.max_cores		, ...
+					'debug'					, obj.uopt.MT_debug			, ...
+					'debug_communicator'	, obj.uopt.MT_debug_comm	, ...
+					'silent'				, (obj.uopt.max_cores<2)	  ...
+					);
+	sPoint		= cat(2,cPoint{:});
+
+	if feature('ShowFigureWindows')
+		[h,area,color]	= plot_points(sPoint,threshOpt.pThreshold);
+	else
+		[h,area,color]	= deal([]);
 	end
-
-	[h,area,color]	= plot_points(sPoint,threshOpt.pThreshold);
 end
 
 function sPoint = thresholdExplore(obj,xvar,yvar,tOpt)
@@ -42,8 +57,8 @@ function sPoint = thresholdExplore(obj,xvar,yvar,tOpt)
 	yvar	= initvar(yvar);
 
 	while numel(sPoint) < tOpt.nProbe
-		xvar.npt	= min(xvar.npt,2*yvar.npt);
-		yvar.npt	= min(yvar.npt,2*xvar.npt);
+		xvar.npt	= min(xvar.npt,tOpt.max_aspect*yvar.npt);
+		yvar.npt	= min(yvar.npt,tOpt.max_aspect*xvar.npt);
 		xpick		= pickvals(xvar);
 		ypick		= pickvals(yvar);
 		sPointNew	= thresholdSweep(obj,xpick,ypick,tOpt);
@@ -57,33 +72,41 @@ function sPoint = thresholdExplore(obj,xvar,yvar,tOpt)
 	end
 
 	function var = pickvals(var)
-		nval			= numel(var.vals);
-		krange			= [1 nval];
-		switch var.npt
-			case 0
-				k		= [];
-			case 1
-				k		= floor(mean(krange));
-			case 2
-				k		= krange;
-			otherwise
-				k		= sort([krange (1+randperm(nval-2,var.npt-2))]);
-		end
-		var.vals	= var.vals(k);
+		nval	= numel(var.vals);
+		k		= var.npt;
 
-		if tOpt.threshverbosity > 2
-			fprintf('%s count=%d indices:%s\n',var.name,nval,sprintf(' %d',k));
+		assert(nval>=k && k>=2,'Bug: bad argument');
+
+		netgap	= nval - 1;
+		ngap	= k - 1;
+		meangap	= floor(netgap/ngap);
+		gap		= randi(meangap,1,ngap);
+		extra	= netgap - sum(gap);
+		quot	= floor(extra/ngap);
+		gap		= gap + quot;
+		ix		= randperm(ngap,extra - ngap*quot);
+		gap(ix) = gap(ix) + 1;
+		kval	= cumsum([1 gap]);
+
+		assert(numel(kval)==k,'Bug: wrong size');
+		assert(kval(1)==1 && kval(end)==nval,'Bug: bad endpoint');
+
+		var.vals	= var.vals(kval);
+		if tOpt.threshVerbosity > 2
+			fprintf('%s count=%d indices:%s\n',var.name,nval,sprintf(' %d',kval));
 			fprintf('    vals:%s\n',sprintf(' %g',var.vals));
 		end
 	end
 
 	function var = findrange(var,varpick,varProbed,pProbed)
-		mingood		= min(varProbed(pProbed <= tOpt.pThreshold));
+		goodidx		= pProbed <= tOpt.pThreshold; % N.B.: excludes NaN probes!
+
+		mingood		= min(varProbed(goodidx));
 		mingood		= unless(mingood,varpick.vals(1));
 		kminpick	= max(1,find(varpick.vals==mingood)-tOpt.kmargin);
 		kmin		= find(var.vals==varpick.vals(kminpick));
 
-		maxbad		= max(varProbed(pProbed > tOpt.pThreshold));
+		maxbad		= max(varProbed(~goodidx)); % (includes NaN probes)
 		maxbad		= unless(maxbad,varpick.vals(end));
 		kmaxpick	= min(find(varpick.vals==maxbad)+tOpt.kmargin,numel(varpick.vals));
 		kmax		= find(var.vals==varpick.vals(kmaxpick));
@@ -91,7 +114,7 @@ function sPoint = thresholdExplore(obj,xvar,yvar,tOpt)
 		var.npt		= min(ceil(tOpt.npt_growth*var.npt),kmax-kmin+1);
 		var.vals	= var.vals(kmin:kmax);
 
-		if tOpt.threshverbosity > 2
+		if tOpt.threshVerbosity > 2
 			fprintf('  %s mingood=%g kmin=%d maxbad=%g kmax=%d\n',var.name,mingood,kmin,maxbad,kmax);
 			fprintf('      new npt=%d new min=%g new max=%g\n',var.npt,var.vals(1),var.vals(end));
 		end
@@ -138,7 +161,8 @@ function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 end
 
 function [h,area,color] = plot_points(sPoint,pThreshold)
-	area		= 30+abs(30*log([sPoint.p]./pThreshold));
+	ratio		= max(1e-6,min([sPoint.p]./pThreshold,1e6));
+	area		= 30+abs(60*log(ratio));
 	leThreshold	= [sPoint.p] <= pThreshold;
 	blue		= leThreshold.';
 	red			= ~blue;
@@ -149,8 +173,18 @@ function [h,area,color] = plot_points(sPoint,pThreshold)
 end
 
 function summary = fakeSimulateAllSubjects(obj)
-	obj				= obj.consumeRandomizationSeed;
-	x				= obj.uopt.SNR;
-	y				= obj.uopt.nSubject;
-	summary.alex.p	= 0.05/(x*y*1.2^randn);
+	obj		= obj.consumeRandomizationSeed;
+	% p-values synthesized here are not intended to be realistic, but
+	% merely to create curve shapes that are useful for testing
+	x		= obj.uopt.SNR;
+	y1		= obj.uopt.nRepBlock;	% default=5
+	y2		= obj.uopt.nRun;		% default=15
+	y3		= obj.uopt.nSubject;	% default=15
+	y4		= obj.uopt.nTBlock;		% default=10
+	if y3 < 2
+		p	= NaN;
+	else
+		p	= 0.05*(1+0.2*15/y3)^randn/((x/0.2+0.3*y2/15)*(y1/5)*(y4/10-0.07));
+	end
+	summary.alex.p	= p;
 end

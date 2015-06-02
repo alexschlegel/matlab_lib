@@ -1,5 +1,6 @@
 restoredefaultpath;
-g = genpath('/home/tselab/studies/iflow/simulation/matlab_lib');
+fprintf('Resetting matlabpath to use %s/../matlab_lib/...\n\n',pwd);
+g = genpath('../matlab_lib');
 gs = regexp(g,':','split');
 starts = regexp(gs,'/(_old|\.git|matlab_lib/statistics/mvgc(/|$))','start');
 ok_indices = find(cellfun(@(c) numel(c) == 0, starts));

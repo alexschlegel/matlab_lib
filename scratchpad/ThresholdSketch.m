@@ -178,7 +178,7 @@ function [h,area,color] = plot_points(sPoint,pThreshold)
 	red			= ~blue;
 	green		= zeros(size(red));
 	color		= [red green blue];
-	h = figure;
+	h			= figure;
 	scatter([sPoint.x],[sPoint.y],area,color);
 end
 

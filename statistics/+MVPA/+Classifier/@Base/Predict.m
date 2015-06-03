@@ -18,12 +18,8 @@ function prediction = Predict(cls,dTest)
 
 %error check
 	assert(cls.trained,'classifier has not yet been trained');
-	
-	assert(ndims(dTest)==2,'testing data must be an nSample x nFeature array');
+	assert(ismatrix(dTest),'testing data must be an nSample x nFeature array');
 	assert(isnumeric(dTest) || islogical(dTest),'testing data must be numeric');
-	
-	[nSample,nFeature]	= size(dTest);
-	
 	assert(size(dTest,2)==cls.nFeature,'testing data does not have the same number of features as the training data');
 
 %predict

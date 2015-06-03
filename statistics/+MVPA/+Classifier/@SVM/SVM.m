@@ -14,7 +14,7 @@ classdef SVM < MVPA.Classifier.Base
 %		type:			(0) the SVM type:
 %							0:	C-SVC (multi-class classification)
 %							1:	nu-SVC (multi-class classification)
-%		kernel_type:	(2) the kernel function type:
+%		kernel_type:	(0) the kernel function type:
 %							0:	linear - u'*v
 %							1:	polynomial - (gamma*u'*v + coef0)^degree
 %							2:	radial basis function - exp(-gamma*|u-v|^2)
@@ -29,7 +29,7 @@ classdef SVM < MVPA.Classifier.Base
 %		shrinking:		(true) true to use shrinking heuristics
 %		weight:			(1) set C parameter of class i to weight*C
 %
-% Updated: 2015-05-21
+% Updated: 2015-06-02
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -43,7 +43,7 @@ classdef SVM < MVPA.Classifier.Base
 	%PUBLIC PROPERTIES---------------------------------------------------------%
 	properties
 		type		= 0;
-		kernel_type	= 2;
+		kernel_type	= 0;
 		degree		= 3;
 		gamma		= [];
 		coef0		= 0;

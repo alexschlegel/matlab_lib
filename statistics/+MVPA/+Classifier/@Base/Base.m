@@ -1,4 +1,4 @@
-classdef Base < handle
+classdef Base < MVPA.Object
 % MVPA.Classifier.Base
 % 
 % Description:	base classifier class
@@ -13,7 +13,7 @@ classdef Base < handle
 %	subclasses only need to implement the p_train and p_predict private
 %	functions
 % 
-% Updated: 2015-05-21
+% Updated: 2015-06-03
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -47,6 +47,8 @@ classdef Base < handle
 	%PUBLIC METHODS------------------------------------------------------------%
 	methods
 		function cls = Base(varargin)
+			cls	= cls@MVPA.Object({'trained';'model'});
+			
 			%parse the input options
 				for k=1:2:nargin
 					opt	= varargin{k};

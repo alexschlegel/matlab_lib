@@ -543,7 +543,7 @@ methods
 
 		function val = get_alex_log10_p(r)
 			p	= max(u.min_p,min(r.summary.alex.p,1)); % Note: maps NaN to 1
-			val	= log(p)/log(10);
+			val	= log10(p);
 		end
 
 		function index = getLabelIndex(label)

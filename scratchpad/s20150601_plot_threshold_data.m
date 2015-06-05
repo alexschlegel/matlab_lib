@@ -6,11 +6,16 @@
 function h = s20150601_plot_threshold_data(varargin)
 	stem		= 's20150601_threshold_data';
 	opt			= ParseArgs(varargin, ...
+					'axisvars'			, 'snr_test'		, ...
 					'fakedata'			, true				, ...
 					'forcegen'			, false				, ...
 					'nogen'				, true				, ...
 					'noplot'			, false				, ...
-					'savedata'			, []				  ...
+					'savedata'			, []				, ...
+					'varname'			, []				, ...
+					'xstart'			, 0.01				, ...
+					'xstep'				, 0.001				, ...
+					'xend'				, 0.7				  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 
@@ -28,8 +33,13 @@ function h = s20150601_plot_threshold_data(varargin)
 	sketch('WStrength'	, 0.01:0.001:0.8);
 
 	function sketch(testvarName,testvarValues)
-		valuesStr		= sprintf('_%d',testvarValues([1,end]));
-		data_label		= sprintf('%s_%s%s',stem,testvarName,valuesStr);
+		if ~isempty(opt.varname) && ~strcmp(testvarName,opt.varname)
+			return;
+		end
+		snrrange		= opt.xstart:opt.xstep:opt.xend;
+		plex			= opt.xend+testvarValues(end)*1i;
+		data_label		= sprintf('%s_%s_%d_%s_%d_%s',stem,testvarName,numel(testvarValues), ...
+							'SNR',numel(snrrange),num2str(abs(plex)));
 		fcreate_dataset	= conditional(opt.nogen,[],@create_threshPts);
 		not_before		= conditional(opt.forcegen,timestamp,'00000000_');
 		[dataset,ts]	= get_dataset(data_label,fcreate_dataset, ...
@@ -39,8 +49,23 @@ function h = s20150601_plot_threshold_data(varargin)
 							);
 		if ~opt.noplot
 			if ~isempty(dataset)
-				h(end+1)		= plot_points(dataset,0.05,testvarName); % FIXME: should use threshold from data
-				cap_ts{end+1}	= ts;
+				allplots	= ~isempty(opt.varname);
+				if allplots || strcmp(opt.axisvars,'snr_fittest')
+					h(end+1)		= linefit_test_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
+					cap_ts{end+1}	= ts;
+				end
+				if allplots || strcmp(opt.axisvars,'snr_test')
+					h(end+1)		= scatter_test_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
+					cap_ts{end+1}	= ts;
+				end
+				if allplots || strcmp(opt.axisvars,'snr_p')
+					h(end+1)		= scatter_p_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
+					cap_ts{end+1}	= ts;
+				end
+				if allplots || strcmp(opt.axisvars,'test_p')
+					h(end+1)		= scatter_p_vs_test(dataset,0.05,testvarName); % FIXME: should use threshold from data
+					cap_ts{end+1}	= ts;
+				end
 			end
 		end
 
@@ -50,6 +75,9 @@ function h = s20150601_plot_threshold_data(varargin)
 							'noplot'	, true				, ...
 							'yname'		, testvarName		, ...
 							'yvals'		, testvarValues		, ...
+							'xstart'	, opt.xstart		, ...
+							'xstep'		, opt.xstep			, ...
+							'xend'		, opt.xend			, ...
 							'seed'		, 0					, ...
 							extraargs{:} ...
 							);
@@ -97,11 +125,60 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 	end
 end
 
-% TODO: Following function is redundant with same function in ThresholdSketch.
+function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
+	xvals	= [sPoint.x];
+	yvals	= [sPoint.y];
+	pvals	= max(1e-6,min([sPoint.p],1e6));
+	snr		= unique(xvals);
+	nsnr	= numel(snr);
+	ploty	= zeros(1,nsnr);
+	for ks=1:nsnr
+		b	= xvals == snr(ks);
+		if sum(b) < 4
+			ploty(ks)	= NaN;
+		else
+			y			= yvals(b);
+			logp		= log10(pvals(b));
+			fit			= polyfit(logp,y,1);
+			ploty(ks)	= fit(1)*log10(pThreshold) + fit(2);
+		end
+	end
+	h		= figure;
+	plot(snr,ploty);
+	title(sprintf('%s vs SNR to achieve p=%s (no error bars yet)',varname,num2str(pThreshold)));
+end
+
+function h = scatter_p_vs_SNR(sPoint,pThreshold,varname)
+	h	= scatter_p_vs_x('SNR',[sPoint.x],[sPoint.p],varname,[sPoint.y],pThreshold);
+end
+
+function h = scatter_p_vs_test(sPoint,pThreshold,varname)
+	h	= scatter_p_vs_x(varname,[sPoint.y],[sPoint.p],'SNR',[sPoint.x],pThreshold);
+end
+
+function h = scatter_p_vs_x(xname,xvals,pvals,colorname,colorvals,pThreshold)
+	log10_p		= log10(max(1e-6,min(pvals,1e6)));
+	%xsorted		= sort(xvals);
+	%xdistinct	= xsorted([(xsorted(1:end-1) ~= xsorted(2:end)) true]);
+	xdistinct	= unique(xvals);
+	xmost		= xdistinct(1:end-1);
+	xgap		= diff(xdistinct);
+	nbetween	= ceil(200/numel(xmost));
+	dots		= reshape(repmat(xmost,nbetween,1)+(1:nbetween).'*xgap/(nbetween+1),1,[]);
+	unit		= ones(size(dots));
+	scatx		= [xvals dots];
+	scaty		= [log10_p log10(pThreshold)*unit];
+	color		= [colorvals max(colorvals)*unit];
+	h			= figure;
+	scatter(scatx,scaty,10,color);
+	title(sprintf('log10(p) vs %s, with low %s as blue, high %s as red/brown',xname,colorname,colorname));
+end
+
+% TODO: Following function is redundant with plot_points in ThresholdSketch.
 % Should clean up this redundancy.
-function [h,area,color] = plot_points(sPoint,pThreshold,varname)
+function h = scatter_test_vs_SNR(sPoint,pThreshold,varname)
 	ratio		= max(1e-6,min([sPoint.p]./pThreshold,1e6));
-	area		= 30+abs(60*log(ratio));
+	area		= 10+abs(60*log(ratio));
 	leThreshold	= [sPoint.p] <= pThreshold;
 	blue		= leThreshold.';
 	red			= ~blue;
@@ -109,5 +186,5 @@ function [h,area,color] = plot_points(sPoint,pThreshold,varname)
 	color		= [red green blue];
 	h			= figure;
 	scatter([sPoint.x],[sPoint.y],area,color);
-	title(sprintf('%s vs SNR',varname));
+	title(sprintf('%s vs SNR, with low p as blue, high p as red',varname));
 end

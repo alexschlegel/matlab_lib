@@ -1,6 +1,10 @@
 #!/bin/bash
 
 cd "$(dirname "$0")" || exit 1
+if pwd | fgrep -q shadow; then
+  echo >&2 "$0: shouldn't be using shadow directory"
+  exit 1
+fi
 
 OPTS="-nodesktop -nodisplay -nosplash"
 if [[ $# -eq 0 ]]; then
@@ -15,5 +19,10 @@ else
   }
   TS=$(date +%Y%m%d_%H%M%S)
   O_PREFIX="bg-output/$TS-$MBASE"
-  nohup matlab $OPTS -r "$MBASE" > "$O_PREFIX.out" 2> "$O_PREFIX.err" &
+  (
+    echo -e "\nCurrent directory is $(pwd)"
+    echo "Using $(basename "$0") to run $(basename "$1") on $(hostname)"
+    uname -a
+    nohup matlab $OPTS -r "$MBASE"
+  ) > "$O_PREFIX.out" 2> "$O_PREFIX.err" &
 fi

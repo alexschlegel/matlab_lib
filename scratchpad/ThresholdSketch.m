@@ -1,6 +1,6 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 
-function [sPoint,h,area,color] = ThresholdSketch(varargin)
+function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdSketch(varargin)
 	threshOpt	= ParseArgs(varargin, ...
 					'fakedata'			, true				, ...
 					'noplot'			, false				, ...
@@ -24,6 +24,7 @@ function [sPoint,h,area,color] = ThresholdSketch(varargin)
 	obj			= obj.changeDefaultsForBatchProcessing;
 	obj			= obj.changeOptionDefault('analysis','alex');
 	obj			= obj.consumeRandomizationSeed;
+	pipeline	= obj;
 
 	% Assume p declines with increasing x or increasing y
 	% Assume probe cost depends more on y than on x

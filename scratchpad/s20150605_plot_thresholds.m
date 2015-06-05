@@ -1,21 +1,23 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 
+% This script is an updated variant of s20150601_plot_threshold_data.m
+%
 % TODO: Comments
 %
 
-function h = s20150601_plot_threshold_data(varargin)
-	stem		= 's20150601_threshold_data';
+function h = s20150605_plot_thresholds(varargin)
+	stem		= 's20150605_thresholds';
 	opt			= ParseArgs(varargin, ...
-					'axisvars'			, 'snr_test'		, ...
-					'fakedata'			, true				, ...
-					'forcegen'			, false				, ...
-					'nogen'				, true				, ...
-					'noplot'			, false				, ...
-					'savedata'			, []				, ...
-					'varname'			, []				, ...
-					'xstart'			, 0.01				, ...
-					'xstep'				, 0.001				, ...
-					'xend'				, 0.7				  ...
+					'fakedata'			, true			, ...
+					'forcegen'			, false			, ...
+					'nogen'				, true			, ...
+					'noplot'			, false			, ...
+					'plottype'			, []			, ...
+					'savedata'			, []			, ...
+					'varname'			, []			, ...
+					'xstart'			, 0.06			, ...
+					'xstep'				, 0.02			, ...
+					'xend'				, 0.34			  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 
@@ -30,7 +32,7 @@ function h = s20150601_plot_threshold_data(varargin)
 	sketch('nSubject'	, 1:20);
 	sketch('nTBlock'	, 1:20);
 	sketch('nRepBlock'	, 2:15);
-	sketch('WStrength'	, 0.01:0.001:0.8);
+	sketch('WStrength'	, 0.2:0.001:0.8);
 
 	function sketch(testvarName,testvarValues)
 		if ~isempty(opt.varname) && ~strcmp(testvarName,opt.varname)
@@ -40,37 +42,52 @@ function h = s20150601_plot_threshold_data(varargin)
 		plex			= opt.xend+testvarValues(end)*1i;
 		data_label		= sprintf('%s_%s_%d_%s_%d_%s',stem,testvarName,numel(testvarValues), ...
 							'SNR',numel(snrrange),num2str(abs(plex)));
-		fcreate_dataset	= conditional(opt.nogen,[],@create_threshPts);
+		fcreate_dataset	= conditional(opt.nogen,[],@create_threshCapsule);
 		not_before		= conditional(opt.forcegen,timestamp,'00000000_');
-		[dataset,ts]	= get_dataset(data_label,fcreate_dataset, ...
+		[capsule,ts]	= get_dataset(data_label,fcreate_dataset, ...
+							'data_varname'	, 'capsule'		, ...
 							'not_before'	, not_before	, ...
 							'savedata'		, opt.savedata	, ...
 							'timestamp'		, timestamp		  ...
 							);
-		if ~opt.noplot
-			if ~isempty(dataset)
-				allplots	= ~isempty(opt.varname);
-				if allplots || strcmp(opt.axisvars,'snr_fittest')
-					h(end+1)		= linefit_test_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
-					cap_ts{end+1}	= ts;
-				end
-				if allplots || strcmp(opt.axisvars,'snr_test')
-					h(end+1)		= scatter_test_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
-					cap_ts{end+1}	= ts;
-				end
-				if allplots || strcmp(opt.axisvars,'snr_p')
-					h(end+1)		= scatter_p_vs_SNR(dataset,0.05,testvarName); % FIXME: should use threshold from data
-					cap_ts{end+1}	= ts;
-				end
-				if allplots || strcmp(opt.axisvars,'test_p')
-					h(end+1)		= scatter_p_vs_test(dataset,0.05,testvarName); % FIXME: should use threshold from data
-					cap_ts{end+1}	= ts;
-				end
+		if opt.noplot || isempty(capsule)
+			return;
+		elseif ~isfield(capsule.version,'thresholdCapsule')
+			error('Not a threshold capsule.');
+		elseif ~strcmp(capsule.version.thresholdCapsule,stem)
+			error('Incompatible capsule version %s',capsule.version.thresholdCapsule);
+		end
+		points		= capsule.points;
+		pThreshold	= capsule.threshopt.pThreshold;
+		if isempty(opt.plottype)
+			plottype	= conditional(isempty(opt.varname),{'fit'},...
+							{'fit','p_snr','p_test','test_snr'});
+		elseif ~iscell(opt.plottype)
+			plottype	= {opt.plottype};
+		end
+		nAV	= numel(plottype);
+		for kAV=1:nAV
+			switch plottype{kAV}
+				case 'fit'
+					plotfn	= @linefit_test_vs_SNR;
+				case 'p_snr'
+					plotfn	= @scatter_p_vs_SNR;
+				case 'p_test'
+					plotfn	= @scatter_p_vs_test;
+				case 'test_snr'
+					plotfn	= @scatter_test_vs_SNR;
+				otherwise
+					error('Unknown plottype ''%s''',plottype{kAV});
 			end
+			h(end+1)		= plotfn(points,pThreshold,testvarName);
+			cap_ts{end+1}	= ts;
 		end
 
-		function threshPts = create_threshPts
-			threshPts	= ThresholdSketch(...
+		function capsule = create_threshCapsule
+			start_ms	= nowms;
+
+			[threshPts,pipeline,threshOpt]	...
+						= ThresholdSketch(...
 							'fakedata'	, opt.fakedata		, ...
 							'noplot'	, true				, ...
 							'yname'		, testvarName		, ...
@@ -81,13 +98,33 @@ function h = s20150601_plot_threshold_data(varargin)
 							'seed'		, 0					, ...
 							extraargs{:} ...
 							);
+			end_ms		= nowms;
+			version		= struct(...
+							'pipeline'			, pipeline.version.pipeline	, ...
+							'thresholdCapsule'	, stem						  ...
+							);
+
+			capsule.begun		= FormatTime(start_ms);
+			capsule.id			= FormatTime(start_ms,'yyyymmdd_HHMMSS');
+			capsule.label		= data_label;
+			capsule.version		= version;
+			capsule.uopt		= pipeline.uopt;
+			capsule.threshopt	= threshOpt;
+			capsule.points		= threshPts;
+			capsule.elapsed_ms	= end_ms - start_ms;
+			capsule.done		= FormatTime(end_ms);
 		end
 	end
 end
 
 function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
+% TODO: This disk-data memoization function (i.e., caching and
+% retrieval function) is reasonably generic and should be usable for
+% datasets other than capsules.  Should perhaps make it into a
+% standalone function, or perhaps into a disk-data memoization class.
 	opt		= ParseArgs(varargin, ...
-				'not_before'	, '20150601_'		, ...
+				'data_varname'	, 'dataset'			, ...
+				'not_before'	, '20150101_'		, ...
 				'savedata'		, true				, ...
 				'timestamp'		, []				  ...
 				);
@@ -100,26 +137,27 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 	recent_names	= sorted_names((1+find(strcmp(opt.not_before,sorted_names))):end);
 	if numel(recent_names) == 0
 		if isempty(fcreate_dataset)
-			fprintf('Preexisting dataset not available for %s\n',data_label);
+			fprintf('Preexisting %s not available for %s\n',opt.data_varname,data_label);
 			dataset	= [];
 			ts		= [];
 		else
-			fprintf('Creating new dataset for %s\n',data_label);
+			fprintf('Creating new %s for %s\n',opt.data_varname,data_label);
 			dataset	= fcreate_dataset();
 			ts		= unless(opt.timestamp,FormatTime(nowms,'yyyymmdd_HHMMSS'));
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
-				save(path,'dataset','-v7.3');
-				fprintf('Saved dataset to %s\n',path);
+				eval(sprintf('%s = dataset;',opt.data_varname));
+				save(path,opt.data_varname,'-v7.3');
+				fprintf('Saved %s to %s\n',opt.data_varname,path);
 			end
 		end
 	else
-		fprintf('Using preexisting dataset for %s\n',data_label);
+		fprintf('Using preexisting %s for %s\n',opt.data_varname,data_label);
 		newest_name	= recent_names{end};
 		path		= sprintf('%s/%s',dirpath,newest_name);
-		fprintf('Loading %s...\n',path);
+		fprintf('Loading %s\n',path);
 		content		= load(path);
-		dataset		= content.dataset;
+		dataset		= content.(opt.data_varname);
 		ts_regexp	= sprintf('^(.*)%s$',suffix);
 		ts			= regexprep(newest_name,ts_regexp,'$1');
 	end
@@ -158,8 +196,6 @@ end
 
 function h = scatter_p_vs_x(xname,xvals,pvals,colorname,colorvals,pThreshold)
 	log10_p		= log10(max(1e-6,min(pvals,1e6)));
-	%xsorted		= sort(xvals);
-	%xdistinct	= xsorted([(xsorted(1:end-1) ~= xsorted(2:end)) true]);
 	xdistinct	= unique(xvals);
 	xmost		= xdistinct(1:end-1);
 	xgap		= diff(xdistinct);

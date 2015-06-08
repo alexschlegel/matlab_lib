@@ -45,7 +45,7 @@ function res = CrossValidation(d,target,chunk,varargin)
 % Out:
 % 	res	- a struct of results
 % 
-% Updated: 2015-06-02
+% Updated: 2015-06-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -100,7 +100,7 @@ res	= struct('error',false);
 		opt.seed	= randseed2;
 	end
 	
-	[res.num_samples,res.num_features]	= size(d);
+	[res.num_sample,res.num_feature]	= size(d);
 
 %seed the random number generator
 	if notfalse(opt.seed)
@@ -160,7 +160,7 @@ res	= struct('error',false);
 	
 %average the data
 	if opt.average
-		dAvg	= NaN(nTarget,nChunk,res.num_features);
+		dAvg	= NaN(nTarget,nChunk,res.num_feature);
 		bUse	= false(nTarget,nChunk);
 		
 		for kT=1:nTarget
@@ -185,10 +185,10 @@ res	= struct('error',false);
 		res.target	= res.uniquetargets(kTargetUse);
 		res.chunk	= res.uniquechunks(kChunkUse);
 		
-		d	= reshape(dAvg,nTarget*nChunk,res.num_features);
+		d	= reshape(dAvg,nTarget*nChunk,res.num_feature);
 		d	= d(kSampleUse,:);
 		
-		res.num_samples	= size(d,1);
+		res.num_sample	= size(d,1);
 	end
 
 %partition the data

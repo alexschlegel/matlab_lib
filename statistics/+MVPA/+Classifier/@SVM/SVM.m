@@ -27,9 +27,8 @@ classdef SVM < MVPA.Classifier.Base
 %		cachesize:		(100) cache memory size, in MB
 %		epsilon:		(0.001) tolerance of termination criterion
 %		shrinking:		(true) true to use shrinking heuristics
-%		weight:			(1) set C parameter of class i to weight*C
 %
-% Updated: 2015-06-02
+% Updated: 2015-06-08
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -52,7 +51,6 @@ classdef SVM < MVPA.Classifier.Base
 		cachesize	= 100;
 		epsilon		= 0.001;
 		shrinking	= true;
-		weight		= 1;
 	end
 	%PUBLIC PROPERTIES---------------------------------------------------------%
 	
@@ -82,7 +80,7 @@ classdef SVM < MVPA.Classifier.Base
 					cls.default_gamma	= true;
 				end
 			%parse the options
-				strOptions	= sprintf('-s %d -t %d -d %d -g %f -r %f -c %f -n %f -m %f -e %f -h %d -wi %f -q',...
+				strOptions	= sprintf('-s %d -t %d -d %d -g %f -r %f -c %f -n %f -m %f -e %f -h %d -q',...
 								cls.type		, ...
 								cls.kernel_type	, ...
 								cls.degree		, ...
@@ -92,8 +90,7 @@ classdef SVM < MVPA.Classifier.Base
 								cls.nu			, ...
 								cls.cachesize	, ...
 								cls.epsilon		, ...
-								cls.shrinking	, ...
-								cls.weight		  ...
+								cls.shrinking	  ...
 								);
 			%train the classifier
 				model	= libsvmtrain(kTarget,dTrain,strOptions);

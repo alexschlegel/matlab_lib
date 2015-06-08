@@ -26,10 +26,10 @@ classdef TseCluster < handle
 %		Close  	   - stop all servers, the manager, and all workers for this job
 %		Run 	   - run a task on the cluster (this is really just for testing purposes)
 %
-% Updated: 2015-05-01
-% Alex Schlegel, Scottie Alexander
-%
-% Please report bugs to: scottiealexander11@gmail.com
+% Updated: 2015-06-08
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com) and Scottie Alexander
+% (scottiealexander11@gmail.com).  This work is licensed under a Creative
+% Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
 %PRIVATE PROPERTIES------------------------------------------------------------%
 properties (SetAccess=private)
@@ -44,7 +44,7 @@ properties (SetAccess=private)
 	jobname;
 	manager   = struct('host','','status','stopped');
 	servers   = struct;
-	all_hosts = {'ebbinghaus','fechner','helmholtz','wertheimer','wundt'}; %'ramonycajal',
+	all_hosts = {'ebbinghaus','fechner','helmholtz','wertheimer','wundt','ramonycajal'};
 end
 %PRIVATE PROPERTIES------------------------------------------------------------%
 
@@ -385,7 +385,7 @@ methods %(Access=private)
 		end
 
 		if ~strcmp(host,tc.hostname)
-			cmd = ['ssh ' host ' ''' cmd ''''];
+			cmd = ['ssh ' host ' ''' cmd '''']; %***
 		end
 
 		[b,out] = system(cmd);

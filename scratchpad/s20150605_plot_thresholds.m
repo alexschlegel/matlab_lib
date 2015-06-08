@@ -2,26 +2,38 @@
 
 % This script is an updated variant of s20150601_plot_threshold_data.m
 %
+% Among other differences, the variants of this script use different
+% data formats.  Data files written by one variant can be plotted only
+% by the same variant.  Files written by the earlier variant have
+% names that include the stem s20150601_threshold_data.
+
 % TODO: Comments
 %
 
 function h = s20150605_plot_thresholds(varargin)
 	stem		= 's20150605_thresholds';
 	opt			= ParseArgs(varargin, ...
-					'fakedata'			, true			, ...
+					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
-					'nogen'				, true			, ...
-					'noplot'			, false			, ...
+					'nogen'				, []			, ...
+					'noplot'			, []			, ...
 					'plottype'			, []			, ...
 					'savedata'			, []			, ...
 					'varname'			, []			, ...
+					'xge'				, []			, ...
+					'xle'				, []			, ...
+					'yge'				, []			, ...
+					'yle'				, []			, ...
 					'xstart'			, 0.06			, ...
 					'xstep'				, 0.02			, ...
 					'xend'				, 0.34			  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 
-	opt.nogen		= opt.nogen && ~opt.forcegen;
+	hasFigwin		= feature('ShowFigureWindows');
+	opt.fakedata	= unless(opt.fakedata,hasFigwin);
+	opt.nogen		= unless(opt.nogen,hasFigwin) && ~opt.forcegen;
+	opt.noplot		= unless(opt.noplot,~hasFigwin);
 	opt.savedata	= unless(opt.savedata,~opt.fakedata);
 
 	timestamp	= FormatTime(nowms,'yyyymmdd_HHMMSS');
@@ -59,6 +71,13 @@ function h = s20150605_plot_thresholds(varargin)
 		end
 		points		= capsule.points;
 		pThreshold	= capsule.threshopt.pThreshold;
+
+		xge			= unless(opt.xge,-Inf);
+		xle			= unless(opt.xle,+Inf);
+		yge			= unless(opt.yge,-Inf);
+		yle			= unless(opt.yle,+Inf);
+		okpoints	= xge <=[points.x] & [points.x] <= xle & yge <= [points.y] & [points.y] <= yle;
+		points		= points(okpoints);
 		if isempty(opt.plottype)
 			plottype	= conditional(isempty(opt.varname),{'fit'},...
 							{'fit','p_snr','p_test','test_snr'});
@@ -170,6 +189,8 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
 	snr		= unique(xvals);
 	nsnr	= numel(snr);
 	ploty	= zeros(1,nsnr);
+	ploterr	= zeros(1,nsnr);
+	errfac	= 1;	% For error bars at 50%; TODO: revise
 	for ks=1:nsnr
 		b	= xvals == snr(ks);
 		if sum(b) < 4
@@ -177,13 +198,20 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
 		else
 			y			= yvals(b);
 			logp		= log10(pvals(b));
-			fit			= polyfit(logp,y,1);
-			ploty(ks)	= fit(1)*log10(pThreshold) + fit(2);
+			[fit,S]		= polyfit(logp,y,1);
+			[fity,dy]	= polyval(fit,log10(pThreshold),S);
+			ploty(ks)	= fity;
+			ploterr(ks)	= errfac*dy;
 		end
 	end
-	h		= figure;
-	plot(snr,ploty);
-	title(sprintf('%s vs SNR to achieve p=%s (no error bars yet)',varname,num2str(pThreshold)));
+	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
+
+	hA	= alexplot(snr,ploty, ...
+			'error'		, ploterr		, ...
+			'title'		, titleStr		, ...
+			'errortype'	, 'bar'			  ...
+			);
+	h	= hA.hF;
 end
 
 function h = scatter_p_vs_SNR(sPoint,pThreshold,varname)
@@ -198,9 +226,13 @@ function h = scatter_p_vs_x(xname,xvals,pvals,colorname,colorvals,pThreshold)
 	log10_p		= log10(max(1e-6,min(pvals,1e6)));
 	xdistinct	= unique(xvals);
 	xmost		= xdistinct(1:end-1);
-	xgap		= diff(xdistinct);
-	nbetween	= ceil(200/numel(xmost));
-	dots		= reshape(repmat(xmost,nbetween,1)+(1:nbetween).'*xgap/(nbetween+1),1,[]);
+	if ~isempty(xmost)
+		xgap		= diff(xdistinct);
+		nbetween	= ceil(200/numel(xmost));
+		dots		= reshape(repmat(xmost,nbetween,1)+(1:nbetween).'*xgap/(nbetween+1),1,[]);
+	else
+		dots		= [];
+	end
 	unit		= ones(size(dots));
 	scatx		= [xvals dots];
 	scaty		= [log10_p log10(pThreshold)*unit];

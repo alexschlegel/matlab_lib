@@ -21,8 +21,10 @@ function [cPathCum,cPathAdd,cPathDel] = DTIProcessStageFiles(strDirSession,kStag
 %	cPathDel	- a cell of paths to files that were deleted by the specified
 %				  stage
 % 
-% Updated: 2011-11-12
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'nfibres'	, 2	  ...
 		);
@@ -85,12 +87,12 @@ function [cPathAdd,cPathDel] = StageFileChange(strDirSession,kStage)
 										'bvecs'
 										'bvals'
 										'commands\.txt'
-										'logs'
+										'logs/'
 										'mean_dsamples\.nii\.gz'
 										'monitor'
 										'nodif_brain_mask\.nii\.gz'
 										'nodif_brain\.nii\.gz'
-										'xfms'
+										'xfms/'
 										}];
 			
 			cFileAdd	= cellfun(@(x) PathUnsplit(strDirBedpostx,x),cFileAdd,'UniformOutput',false);

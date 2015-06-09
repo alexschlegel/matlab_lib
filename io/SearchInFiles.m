@@ -9,19 +9,19 @@ function [cPathFound,nFound] = SearchInFiles(cPathSearch,str,varargin)
 % 	cPathSearch	- a cell of file paths to search in
 %	str			- the string to search for
 %	<options>:
-%		silent:	(false) true to suppress status messages
+%		silent:	(true) true to suppress status messages
 % 
 % Out:
 % 	cPathFound	- a cell of the files containing the search string
 %	nFound		- the number of instances of the search string found in each
 %				  file in cPathFound
 % 
-% Updated: 2015-04-08
+% Updated: 2015-06-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
-		'silent'	, false	  ...
+		'silent'	, true	  ...
 		);
 
 cPathSearch	= ForceCell(cPathSearch);
@@ -32,23 +32,29 @@ nSearch		= numel(cPathSearch);
 bKeep	= false(szSearch);
 nFound	= zeros(szSearch);
 
-progress('action','init',...
-			'total'		, nSearch				, ...
-			'label'		, 'searching in files'	, ...
-			'silent'	, opt.silent			  ...
-			);
+if ~opt.silent
+	progress('action','init',...
+				'total'		, nSearch				, ...
+				'label'		, 'searching in files'	, ...
+				'silent'	, opt.silent			  ...
+				);
+end
 
 for kS=1:nSearch
 	strPathSearch	= cPathSearch{kS};
 	
-	if FileExists(strPathSearch)
+	try
 		strData	= fget(strPathSearch);
 		
 		nFound(kS)	= numel(regexp(strData,str));
 		bKeep(kS)	= nFound(kS)>0;
+	catch me
+		
 	end
 	
-	progress;
+	if ~opt.silent
+		progress;
+	end
 end
 
 cPathFound	= cPathSearch(bKeep);

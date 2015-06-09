@@ -87,7 +87,7 @@ function bSuccess = DTICombine(cPathData,varargin)
 %		cPathData = cellfun(@(d) FindFiles(d,'data\.nii\.gz','subdir',true),'UniformOutput',false);
 %		bSuccess = DTICombine(cPathData,'cores',5,'f_thresh',0.2);
 % 
-% Updated: 2015-05-01
+% Updated: 2015-06-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -110,7 +110,7 @@ opt	= ParseArgs(varargin,...
 [cPathData]	= ForceCell(cPathData,'level',2);
 opt.dir_out	= ForceCell(opt.dir_out);
 
-if numel(cPathData)==1 && all(cellfun(@isdir,cPathData{1})) && ~any(FileExists(cPathData{1},'data(-orig)?\.nii$'))
+if numel(cPathData)==1 && all(cellfun(@isdir,cPathData{1})) && all(cellfun(@(d) isempty(FindFiles(d,'data(-orig)?\.nii(\.gz)$')),cPathData{1}))
 %a cell of directory roots was passed
 	%find potential directories
 		cDirMaybe	= cellfun(@(d) FindDirectories(d,'(\.bedpostX)|(\.probtrackX)|(combined)','negate',true),cPathData{1},'UniformOutput',false);
@@ -157,7 +157,7 @@ end
 		cPathBVecsOrig	= cellfun(@(cbv) cellfun(@(f) PathAddSuffix(f,'-orig'),cbv,'UniformOutput',false),cPathBVecs,'UniformOutput',false);
 		cPathBVecs		= cellfun(@(cbv,cbvo) cellfun(@(f,fo) conditional(FileExists(fo),fo,f),cbv,cbvo,'UniformOutput',false),cPathBVecs,cPathBVecsOrig,'UniformOutput',false);
 	
-	varfun(@(cf) FileExists(append(cf{:}),'error',true),cPathData,cPathBVecs,cPathBVals);
+	varfun(@(cf) assertFileExists(append(cf{:})),cPathData,cPathBVecs,cPathBVals);
 %process each stage
 	bSuccess	= true(sSet);
 	nStage		= numel(opt.stage);

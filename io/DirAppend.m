@@ -17,17 +17,9 @@ function strDir = DirAppend(strDir,varargin)
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-
 %get the slash type
-	strSlash	= conditional(any(strDir=='\'),'\','/');
-%add a slash to the end of the directory
-	if numel(strDir) && strDir(end)~=strSlash
-		strDir	= [strDir strSlash];
-	end
-%append the subdirectories
-	strAppend	= '';
-	for k=1:nargin-1
-		strAppend	= [strAppend varargin{k} strSlash];
-	end
-	
-	strDir	= [strDir strAppend];
+	strSlash	= GetSlashType(strDir);
+%join the path together
+	strDir	= join([strDir varargin],strSlash);
+%make sure we don't have double slashes
+	strDir	= strrep(strDir,[strSlash strSlash],strSlash);

@@ -29,10 +29,9 @@ function [cPath,cDir,nPath] = FindFiles(strDir,varargin)
 %			  found
 %
 % Example:
-%	FindFiles('c:\','\.txt$') will find all .txt files in the root
-%	directory
+%	FindFiles('/','\.txt$') will find all .txt files in the root directory
 % 
-% Updated: 2015-04-08
+% Updated: 2015-06-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -67,7 +66,7 @@ function [cPath,cDir,nPath] = FindFiles(strDir,varargin)
 	
 	%add trailing slashes
 		for kDir=1:nDir
-			cDir{kDir}	= AddSlash(cDir{kDir},false);
+			cDir{kDir}	= AddSlash(cDir{kDir});
 		end
 	
 	%get sub directories

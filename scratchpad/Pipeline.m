@@ -25,8 +25,8 @@ end
 properties (SetAccess = private)
 	% version numbers represent date; to distinguish versions within same day,
 	% append decimal fractions, e.g., 20150520.0807
-	version				= struct('pipeline',20150520,...
-							'capsuleFormat',20150520)
+	version				= struct('pipeline',20150610,...
+							'capsuleFormat',20150610)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
@@ -89,6 +89,7 @@ methods
 	%
 	%		analysis:		('alex') analysis mode:  'alex', 'lizier', 'seth', or 'total'
 	%		dataVerbosity:	(1) Verbosity of simulation summary data (0=least, 5=most)
+	%		deconvTRs:		(2) Number of TRs to shift by as HRF pseudo-deconvolution
 	%		kraskov_k:		(4) Kraskov K for Lizier's multivariate transfer entropy calculation
 	%		max_aclags:		(1000) GrangerCausality parameter to limit running time
 	%		WStarKind:		('gc') what kind of causality to use in W* computations ('gc', 'mvgc', 'te')
@@ -131,6 +132,7 @@ methods
 			'hrfOptions'	, {}		, ...
 			'analysis'		, 'alex'	, ...
 			'dataVerbosity'	, 1			, ...
+			'deconvTRs'		, 2			, ...
 			'kraskov_k'		, 4			, ...
 			'max_aclags'	, 1000		, ...
 			'WStarKind'		, 'gc'		, ...
@@ -158,6 +160,7 @@ methods
 										'nRun'
 										'CRecur'
 										'HRF'
+										'deconvTRs'
 										'nIteration'
 									};
 		obj.unlikelyOptionNames	=	{
@@ -192,6 +195,11 @@ methods
 			end
 		end
 
+		if u.HRF && u.deconvTRs > 0
+			XTest	= pseudoDeconv(XTest,u.deconvTRs,'X');
+			YTest	= pseudoDeconv(YTest,u.deconvTRs,'Y');
+		end
+
 		modes	= conditional(strcmp(u.analysis,'total'),obj.analyses,ForceCell(u.analysis));
 		nMode	= numel(modes);
 
@@ -207,6 +215,23 @@ methods
 					subjectStats.sethGCs		= analyzeTestSignalsMultivariate(obj,block,target,XTest,YTest,'mvgc',doDebug);
 				otherwise
 					error('Bug: missing case for %s.',strMode);
+			end
+		end
+
+		function S = pseudoDeconv(S,shift,label)
+			if doDebug
+				preshift	= S;
+			end
+			S				= circshift(S,-shift,1);
+			[nTR,nRun,nSig]	= size(S);
+			kpad			= nTR+(1-shift:0);
+			S(kpad,:,:)		= zeros(shift,nRun,nSig);
+			if doDebug
+				caption		= sprintf('HRF pseudo-deconv for %s',label);
+				showSigPlot(obj,preshift,S,block,caption, ...
+					'legendX'	, 'pre-deconv'	, ...
+					'legendY'	, 'post-deconv'	  ...
+					);
 			end
 		end
 	end
@@ -525,7 +550,11 @@ methods
 
 		function n = forcenum(n)
 			if ~isnumeric(n)||~isscalar(n)
-				n	= -Inf;
+				if islogical(n)&&isscalar(n)
+					n	= double(n);
+				else
+					n	= -Inf;
+				end
 			elseif isnan(n)
 				n	= Inf;
 			end
@@ -923,9 +952,20 @@ methods
 			'varName'		, ...
 			'varValues'		  ...
 			};
+		optionalFields	= {
+			'nIteration'	, ...
+			'pseudoVar'		, ...
+			'transform'		  ...
+			};
+		allowedFields	= [requiredFields optionalFields];
 		missingFields	= cellfun(@(f) ~isfield(plotSpec,f), requiredFields);
 		if any(missingFields)
 			error('Missing plot parameter(s):%s',sprintf(' ''%s''',requiredFields{missingFields}));
+		end
+		plotSpecFields	= fields(plotSpec);
+		unknownFields	= cellfun(@(f) ~ismember(f,allowedFields), plotSpecFields);
+		if any(unknownFields)
+			error('Unknown plot parameter(s):%s',sprintf(' ''%s''',plotSpecFields{unknownFields}));
 		end
 
 		if ~iscell(plotSpec.varName)
@@ -1060,9 +1100,11 @@ methods
 		end
 		getyval		= @(d)getfield(yVarName,d);
 		geterror	= @(d)stderr(getyval(d),1);
+		yrange		= {};
 		if strcmp(yVarName,'acc')
 			getyval		= @(d)100*getfield(yVarName,d); % Percentage
 			geterror	= @(d)100*getfield('stderr',d); % Percentage
+			yrange		= {'ymin',40,'ymax',100};
 		elseif strcmp(yVarName,'alex_ci')
 			geterror	= @(d)getfield('alex_ci_err',d);
 		end
@@ -1113,7 +1155,8 @@ methods
 						'xlabel'	, xlabelStr			, ...
 						'ylabel'	, ylabelStr			, ...
 						'legend'	, cLegend			, ...
-						'errortype'	, 'bar'				  ...
+						'errortype'	, 'bar'				, ...
+						yrange{:}						  ...
 						);
 		set(h.hTitle,'FontSize',12);
 		pos			= get(h.hA,'Position');
@@ -1316,7 +1359,11 @@ methods
 		fprintf('tstat  mean/range/std/std(d/dx): %.3f %.3f %.3f %.3f\n',tstat{:});
 	end
 
-	function showSigPlot(obj,X,Y,block,kindOfSig)
+	function showSigPlot(obj,X,Y,block,kindOfSig,varargin)
+		opt	= ParseArgs(varargin, ...
+				'legendX'	, 'X'	, ...
+				'legendY'	, 'Y'	  ...
+				);
 		if obj.uopt.nofigures
 			return;
 		end
@@ -1328,11 +1375,12 @@ methods
 		yPlot	= Y(:,1,1);
 
 		strTitle	= sprintf('%s (Run 1, Signal 1)',kindOfSig);
+		cLegend		= {opt.legendX,opt.legendY};
 		h			= alexplot(tPlot,{xPlot yPlot},...
 						'title'		, strTitle		, ...
 						'xlabel'	, 't'			, ...
 						'ylabel'	, 'Amplitude'	, ...
-						'legend'	, {'X','Y'}		  ...
+						'legend'	, cLegend		  ...
 						);
 
 		yLim	= get(h.hA,'ylim');
@@ -1404,8 +1452,8 @@ methods
 			%stub actions; revise as necessary
 			summary.isMissing			= false;
 			summary.uopt				= u;
-			summary.alex.meanAccAllSubj	= 1.0*randn;
-			summary.alex.stderrAccAllSu	= 0.2*randn;
+			summary.alex.meanAccAllSubj	= 0.4+0.2*rand+min(0.4,0.02*(u.nTBlock*u.nRepBlock)^0.5+0.1*log10(u.nTBlock)+0.07*log10(u.nRun));
+			summary.alex.stderrAccAllSu	= 0.02*rand;
 			summary.alex.p				= 0.5*rand;
 			%summary.alex.meanAccAllSubj	= u.WStrength;
 			%summary.alex.stderrAccAllSu	= 0.1*u.CRecur;

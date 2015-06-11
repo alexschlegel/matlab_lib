@@ -220,15 +220,15 @@ methods
 
 		function S = pseudoDeconv(S,shift,label)
 			if doDebug
-				preshift	= S;
+				S_before	= S;
 			end
-			S				= circshift(S,-shift,1);
+			S				= circshift(S,[-shift 0 0]);
 			[nTR,nRun,nSig]	= size(S);
 			kpad			= nTR+(1-shift:0);
 			S(kpad,:,:)		= zeros(shift,nRun,nSig);
 			if doDebug
 				caption		= sprintf('HRF pseudo-deconv for %s',label);
-				showSigPlot(obj,preshift,S,block,caption, ...
+				showSigPlot(obj,S_before,S,block,caption, ...
 					'legendX'	, 'pre-deconv'	, ...
 					'legendY'	, 'post-deconv'	  ...
 					);

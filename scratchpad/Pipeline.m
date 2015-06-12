@@ -25,7 +25,7 @@ end
 properties (SetAccess = private)
 	% version numbers represent date; to distinguish versions within same day,
 	% append decimal fractions, e.g., 20150520.0807
-	version				= struct('pipeline',20150610,...
+	version				= struct('pipeline',20150612,...
 							'capsuleFormat',20150610)
 	defaultOptions
 	implicitOptionNames
@@ -1031,6 +1031,7 @@ methods
 			return;
 		end
 		opt	= ParseArgs(varargin,...
+			'tag'					, ''				, ...
 			'yVarName'				, 'acc'				, ...
 			'lineVarName'			, ''				, ...
 			'lineVarValues'			, {}				, ...
@@ -1085,6 +1086,9 @@ methods
 		if numel(fixedVars) ~= numel(fixedVarValues) || ...
 				~all(cellfun(@ischar,fixedVars))
 			error('Ill-formed fixedVarValuePairs.');
+		end
+		if isempty(opt.constLabelValuePairs) && strcmp(opt.yVarName,'alex_log10_p')
+			opt.constLabelValuePairs	= {'log(0.05)',log10(0.05)};
 		end
 		constLabels				= opt.constLabelValuePairs(1:2:end);
 		constValues				= opt.constLabelValuePairs(2:2:end);
@@ -1143,6 +1147,9 @@ methods
 		parennote	= noteFixedVars(obj,fixedVars,fixedVarValues);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
+		end
+		if ~isempty(opt.tag)
+			parennote	= sprintf('%s [%s]',parennote,opt.tag);
 		end
 		xlabelStr	= getOptAxisLabel(obj,xVarName);
 		ylabelStr	= getOptAxisLabel(obj,yVarName);

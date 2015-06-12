@@ -17,7 +17,8 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 					'nogen'			, []			, ...
 					'noplot'		, []			, ...
 					'savedata'		, []			, ...
-					'saveplot'		, false			  ...
+					'saveplot'		, false			, ...
+					'yvarname'		, 'acc+logp'	  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 	hasFigwin	= feature('ShowFigureWindows');
@@ -65,7 +66,12 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 	if opt.noplot || isempty(capsule)
 		return;
 	end
-	plotCapsule(capsule);
+	if ~strcmp(opt.yvarname,'acc+logp')
+		plotCapsule(capsule,opt.yvarname);
+	else
+		plotCapsule(capsule,'acc');
+		plotCapsule(capsule,'alex_log10_p');
+	end
 
 	if numel(h) > 0
 		if ~opt.saveplot
@@ -75,7 +81,7 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 			%capTS		= cap_ts{end};
 			dirpath		= 'scratchpad/figfiles';
 			prefix		= sprintf('%s_%s',capTS,stem);
-			figfilepath	= sprintf('%s/%s-%s.fig',dirpath,prefix,FormatTime(nowms,'mmdd'));
+			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,opt.yvarname,FormatTime(nowms,'mmdd'));
 			savefig(h(end:-1:1),figfilepath);
 			fprintf('Plot(s) saved to %s\n',figfilepath);
 		end
@@ -108,8 +114,10 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 		end
 	end
 
-	function plotCapsule(capsule)
+	function plotCapsule(capsule,yVarName)
 		ha	= pipeline.renderMultiLinePlot(capsule,'nTBlock', ...
+				'tag'					, stem				, ...
+				'yVarName'				, yVarName			, ...
 				'lineVarName'			, 'nSamplePerRun'	, ...
 				'lineVarValues'			, 12*(2:6)			, ...
 				'vertVarName'			, 'I'				, ...

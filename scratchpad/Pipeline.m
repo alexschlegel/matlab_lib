@@ -25,8 +25,8 @@ end
 properties (SetAccess = private)
 	% version numbers represent date; to distinguish versions within same day,
 	% append decimal fractions, e.g., 20150520.0807
-	version				= struct('pipeline',20150612,...
-							'capsuleFormat',20150610)
+	version				= struct('pipeline',20150615,...
+							'capsuleFormat',20150615)
 	defaultOptions
 	implicitOptionNames
 	explicitOptionNames
@@ -503,7 +503,11 @@ methods
 	% renderMultiLinePlot).
 		u			= obj.uopt;
 		result		= capsule.result;
-		keys		= result{1}.keyTuple;
+		if isfield(capsule,'keyTuple')
+			keys	= capsule.keyTuple; % New format: keyTuple factored out to reduce mat-file size (dramatically in case of long keyTuple)
+		else
+			keys	= result{1}.keyTuple; % Old format:  %TODO: remove this provision
+		end
 		keymaps		= arrayfun(@(k) {keys{k},@(r)forcenum(r.valueTuple{k})}, ...
 						1:numel(keys),'uni',false);
 		datamaps	= {	{'seed',			@(r)r.seed}, ...
@@ -873,6 +877,7 @@ methods
 		capsule.version		= obj.version;
 		capsule.plotSpec	= plotSpec;
 		capsule.uopt		= obj.uopt;
+		capsule.keyTuple	= itVarName;
 		capsule.result		= reshape(cResult,itValuesShape);
 		capsule.elapsed_ms	= end_ms - start_ms;
 		capsule.done		= FormatTime(end_ms);
@@ -898,7 +903,6 @@ methods
 			end
 			vobj				= obj;
 			vobj.uopt			= vopt;
-			result.keyTuple		= itVarName;
 			result.valueTuple	= valueTuple;
 			result.seed			= vopt.seed;
 		end
@@ -1043,8 +1047,8 @@ methods
 			'fixedVarValuePairs'	, {}				, ...
 			'constLabelValuePairs'	, {}				  ...
 			);
-		%earliestCompatibleFormat	= 20150518;
-		earliestCompatibleFormat	= obj.version.capsuleFormat;
+		earliestCompatibleFormat	= 20150610;
+		%earliestCompatibleFormat	= obj.version.capsuleFormat;
 		if ~isfield(capsule,'version') || ...
 				~isfield(capsule.version,'capsuleFormat') || ...
 				capsule.version.capsuleFormat < earliestCompatibleFormat
@@ -1144,21 +1148,21 @@ methods
 		yvals(constLineIdx)			= cellfun(@(v) [v v],constValues,'uni',false);
 		[errorvals{constLineIdx}]	= deal([0 0]);
 
+		yVarInTitle	= getOptNameSpelledOut(obj,yVarName);
 		parennote	= noteFixedVars(obj,fixedVars,fixedVarValues);
 		if ~isempty(parennote)
 			parennote	= sprintf(' (%s)',parennote);
 		end
+		cTitle{1}		= sprintf('%s vs %s%s',yVarInTitle,xVarName,parennote);
 		if ~isempty(opt.tag)
-			parennote	= sprintf('%s [%s]',parennote,opt.tag);
+			cTitle{2}	= sprintf('[%s]',opt.tag);
 		end
 		xlabelStr	= getOptAxisLabel(obj,xVarName);
 		ylabelStr	= getOptAxisLabel(obj,yVarName);
-		yVarInTitle	= getOptNameSpelledOut(obj,yVarName);
-		titleStr	= sprintf('%s vs %s%s',yVarInTitle,xVarName,parennote);
 		cLegend		= [opt.lineLabels(:); constLabels(:)];
 		h			= alexplot(xvals,yvals,...
 						'error'		, errorvals			, ...
-						'title'		, titleStr			, ...
+						'title'		, cTitle			, ...
 						'xlabel'	, xlabelStr			, ...
 						'ylabel'	, ylabelStr			, ...
 						'legend'	, cLegend			, ...

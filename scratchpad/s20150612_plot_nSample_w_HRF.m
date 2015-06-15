@@ -14,7 +14,7 @@ function h = s20150612_plot_nSample_w_HRF(varargin)
 					'noplot'		, []			, ...
 					'savedata'		, []			, ...
 					'saveplot'		, false			, ...
-					'yvarname'		, 'acc+logp'	  ...
+					'yvarname'		, 'logp+acc'	  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 	hasFigwin	= feature('ShowFigureWindows');
@@ -62,11 +62,11 @@ function h = s20150612_plot_nSample_w_HRF(varargin)
 	if opt.noplot || isempty(capsule)
 		return;
 	end
-	if ~strcmp(opt.yvarname,'acc+logp')
+	if ~strcmp(opt.yvarname,'logp+acc')
 		plotCapsule(capsule,opt.yvarname);
 	else
-		plotCapsule(capsule,'acc');
 		plotCapsule(capsule,'alex_log10_p');
+		plotCapsule(capsule,'acc');
 	end
 
 	if numel(h) > 0
@@ -111,6 +111,10 @@ function h = s20150612_plot_nSample_w_HRF(varargin)
 
 	function plotCapsule(capsule,yVarName)
 		plotGrid(capsule,yVarName,1,[2 3],3,[2 3],2,1);
+		%plotGrid(capsule,yVarName,1,[2 3],3,[2 3],2,2);
+		%plotGrid(capsule,yVarName,1,[2 3],3,[2 3],2,3);
+		plotGrid(capsule,yVarName,1,[1 2],2,[1 3],3,3);
+		plotGrid(capsule,yVarName,1,[1 2],2,[1 2],3,1);
 	end
 
 	function plotGrid(capsule,yVarName,v_var,v_sel,h_var,h_sel,fixed_var,fixed_sel)

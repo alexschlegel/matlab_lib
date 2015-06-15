@@ -9,8 +9,8 @@
 % TODO: Comments
 %
 
-function h = s20150610_plot_nSample_wwo_HRF(varargin)
-	stem		= 's20150610_nSample_wwo_HRF';
+function h = s20150615_plot_nSample_wwo_HRF(varargin)
+	stem		= 's20150615_nSample_wwo_HRF';
 	opt			= ParseArgs(varargin, ...
 					'fakedata'		, []			, ...
 					'forcegen'		, false			, ...
@@ -18,7 +18,7 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 					'noplot'		, []			, ...
 					'savedata'		, []			, ...
 					'saveplot'		, false			, ...
-					'yvarname'		, 'acc+logp'	  ...
+					'yvarname'		, 'logp+acc'	  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 	hasFigwin	= feature('ShowFigureWindows');
@@ -52,6 +52,8 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 
 	pipeline		= Pipeline(extraargs{:});
 	pipeline		= pipeline.changeDefaultsForBatchProcessing;
+	pipeline		= pipeline.changeOptionDefault('CRecur',0.5);
+	pipeline		= pipeline.changeOptionDefault('SNR',0.3);
 	pipeline		= pipeline.changeOptionDefault('analysis','alex');
 	pipeline		= pipeline.changeOptionDefault('seed',0);
 	pipeline		= pipeline.consumeRandomizationSeed;
@@ -66,11 +68,11 @@ function h = s20150610_plot_nSample_wwo_HRF(varargin)
 	if opt.noplot || isempty(capsule)
 		return;
 	end
-	if ~strcmp(opt.yvarname,'acc+logp')
+	if ~strcmp(opt.yvarname,'logp+acc')
 		plotCapsule(capsule,opt.yvarname);
 	else
-		plotCapsule(capsule,'acc');
 		plotCapsule(capsule,'alex_log10_p');
+		plotCapsule(capsule,'acc');
 	end
 
 	if numel(h) > 0

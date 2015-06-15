@@ -12,6 +12,7 @@ function h = s20150601_plot_threshold_data(varargin)
 					'nogen'				, true				, ...
 					'noplot'			, false				, ...
 					'savedata'			, []				, ...
+					'saveplot'			, false				, ...
 					'varname'			, []				, ...
 					'xstart'			, 0.01				, ...
 					'xstep'				, 0.001				, ...
@@ -31,6 +32,20 @@ function h = s20150601_plot_threshold_data(varargin)
 	sketch('nTBlock'	, 1:20);
 	sketch('nRepBlock'	, 2:15);
 	sketch('WStrength'	, 0.01:0.001:0.8);
+
+	if numel(h) > 0
+		if ~opt.saveplot
+			fprintf('Skipping save of plot(s) to fig file.\n');
+		else
+			cap_ts		= sort(cap_ts);
+			dirpath		= 'scratchpad/figfiles';
+			prefix		= sprintf('%s_%s',cap_ts{end},stem);
+			kind		= unless(opt.varname,opt.axisvars);
+			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
+			savefig(h(end:-1:1),figfilepath);
+			fprintf('Plot(s) saved to %s\n',figfilepath);
+		end
+	end
 
 	function sketch(testvarName,testvarValues)
 		if ~isempty(opt.varname) && ~strcmp(testvarName,opt.varname)

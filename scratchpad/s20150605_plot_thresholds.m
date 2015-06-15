@@ -19,6 +19,8 @@ function h = s20150605_plot_thresholds(varargin)
 					'noplot'			, []			, ...
 					'plottype'			, []			, ...
 					'savedata'			, []			, ...
+					'saveplot'			, false			, ...
+					'showwork'			, false			, ...
 					'varname'			, []			, ...
 					'xge'				, []			, ...
 					'xle'				, []			, ...
@@ -36,6 +38,16 @@ function h = s20150605_plot_thresholds(varargin)
 	opt.noplot		= unless(opt.noplot,~hasFigwin);
 	opt.savedata	= unless(opt.savedata,~opt.fakedata);
 
+	if opt.showwork
+		opt.plottype	= unless(opt.plottype,{'fit'});
+		opt.varname		= unless(opt.varname,'WStrength');
+	elseif isempty(opt.plottype)
+		opt.plottype	= conditional(isempty(opt.varname),{'fit'},...
+							{'fit','p_snr','p_test','test_snr'});
+	elseif ~iscell(opt.plottype)
+		opt.plottype	= {opt.plottype};
+	end
+
 	timestamp	= FormatTime(nowms,'yyyymmdd_HHMMSS');
 	h			= [];
 	cap_ts		= {};
@@ -45,6 +57,20 @@ function h = s20150605_plot_thresholds(varargin)
 	sketch('nTBlock'	, 1:20);
 	sketch('nRepBlock'	, 2:15);
 	sketch('WStrength'	, 0.2:0.001:0.8);
+
+	if numel(h) > 0
+		if ~opt.saveplot
+			fprintf('Skipping save of plot(s) to fig file.\n');
+		else
+			cap_ts		= sort(cap_ts);
+			dirpath		= 'scratchpad/figfiles';
+			prefix		= sprintf('%s_%s',cap_ts{end},stem);
+			kind		= unless(opt.varname,strjoin(opt.plottype,'+'));
+			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
+			savefig(h(end:-1:1),figfilepath);
+			fprintf('Plot(s) saved to %s\n',figfilepath);
+		end
+	end
 
 	function sketch(testvarName,testvarValues)
 		if ~isempty(opt.varname) && ~strcmp(testvarName,opt.varname)
@@ -78,12 +104,7 @@ function h = s20150605_plot_thresholds(varargin)
 		yle			= unless(opt.yle,+Inf);
 		okpoints	= xge <=[points.x] & [points.x] <= xle & yge <= [points.y] & [points.y] <= yle;
 		points		= points(okpoints);
-		if isempty(opt.plottype)
-			plottype	= conditional(isempty(opt.varname),{'fit'},...
-							{'fit','p_snr','p_test','test_snr'});
-		elseif ~iscell(opt.plottype)
-			plottype	= {opt.plottype};
-		end
+		plottype	= opt.plottype;
 		nAV	= numel(plottype);
 		for kAV=1:nAV
 			switch plottype{kAV}
@@ -98,7 +119,7 @@ function h = s20150605_plot_thresholds(varargin)
 				otherwise
 					error('Unknown plottype ''%s''',plottype{kAV});
 			end
-			h(end+1)		= plotfn(points,pThreshold,testvarName);
+			h(end+1)		= plotfn(points,pThreshold,testvarName,opt.showwork);
 			cap_ts{end+1}	= ts;
 		end
 
@@ -182,7 +203,7 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 	end
 end
 
-function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
+function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 	xvals	= [sPoint.x];
 	yvals	= [sPoint.y];
 	pvals	= max(1e-6,min([sPoint.p],1e6));
@@ -191,15 +212,58 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
 	ploty	= zeros(1,nsnr);
 	ploterr	= zeros(1,nsnr);
 	errfac	= 1;	% For error bars at 50%; TODO: revise
+
+	log10pThreshold	= log10(pThreshold);
+
 	for ks=1:nsnr
-		b	= xvals == snr(ks);
-		if sum(b) < 4
+		b			= xvals == snr(ks);
+		numProbes	= sum(b);
+		if numProbes < 2
 			ploty(ks)	= NaN;
+			ploterr(ks)	= 0;
+			continue;
+		end
+		y			= yvals(b);
+		logp		= log10(pvals(b));
+		sorted_logp	= sort(logp);
+		fourth_logp	= sorted_logp(min(4,end));
+		if numProbes < 6
+			fit1		= (max(y)-min(y))/(max(logp)-min(logp));
+			fit1		= max(0,min(fit1,1e10));
+			fit			= [fit1,min(y)-fit1*min(logp)];
+			[fity,dy]	= deal(NaN);
 		else
-			y			= yvals(b);
-			logp		= log10(pvals(b));
 			[fit,S]		= polyfit(logp,y,1);
-			[fity,dy]	= polyval(fit,log10(pThreshold),S);
+			[fity,dy]	= polyval(fit,log10pThreshold,S);
+		end
+		if notfalse(showwork) && ks < 8
+			% the diagnostic scatter-plot below places the "y" value on the x-axis
+			% and log10(p) on the y-axis, in effect swapping the axes of the polyfit.
+			curr_snr	= num2str(snr(ks));
+			fprintf('Num probes for SNR=%s is %d; ',curr_snr,numProbes);
+			fprintf('slope of fitted line is %s;\n',num2str(1/fit(1)));
+			fprintf('fourth-smallest log is %s\n',num2str(fourth_logp));
+			figure;
+			switch conditional(nottrue(showwork),showwork,'scat')
+				case 'hist'
+					hist(y);
+				case 'scat'
+					scatter(y,logp);
+					xlabel(varname);
+					ylabel('log_{10}(p)');
+					hold;
+					logpSamp	= linspace(min(logp),max(logp),2);
+					plot(polyval(fit,logpSamp),logpSamp);
+					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'red');
+				otherwise
+					error('Unknown showwork type ''%s''',showwork);
+			end
+			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
+		end
+		if numProbes < 20 || fit(1) >= 0 || fourth_logp > log10pThreshold
+			ploty(ks)	= NaN;
+			ploterr(ks)	= 0;
+		else
 			ploty(ks)	= fity;
 			ploterr(ks)	= errfac*dy;
 		end
@@ -214,11 +278,11 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname)
 	h	= hA.hF;
 end
 
-function h = scatter_p_vs_SNR(sPoint,pThreshold,varname)
+function h = scatter_p_vs_SNR(sPoint,pThreshold,varname,~)
 	h	= scatter_p_vs_x('SNR',[sPoint.x],[sPoint.p],varname,[sPoint.y],pThreshold);
 end
 
-function h = scatter_p_vs_test(sPoint,pThreshold,varname)
+function h = scatter_p_vs_test(sPoint,pThreshold,varname,~)
 	h	= scatter_p_vs_x(varname,[sPoint.y],[sPoint.p],'SNR',[sPoint.x],pThreshold);
 end
 
@@ -242,7 +306,7 @@ function h = scatter_p_vs_x(xname,xvals,pvals,colorname,colorvals,pThreshold)
 	title(sprintf('log10(p) vs %s, with low %s as blue, high %s as red/brown',xname,colorname,colorname));
 end
 
-function h = scatter_test_vs_SNR(sPoint,pThreshold,varname)
+function h = scatter_test_vs_SNR(sPoint,pThreshold,varname,~)
 % TODO: This function is redundant with plot_points in ThresholdSketch.
 % Should clean up this redundancy.
 	ratio		= max(1e-6,min([sPoint.p]./pThreshold,1e6));

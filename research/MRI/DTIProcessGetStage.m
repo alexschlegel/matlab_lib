@@ -28,7 +28,7 @@ function [kStage,cSession] = DTIProcessGetStage(cDirSession,varargin)
 %							5:		bedpostx files exist
 %	cSession	- an Nx1 array of the sessions
 % 
-% Updated: 2015-04-17
+% Updated: 2015-06-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -61,9 +61,17 @@ for kS=1:nSession
 		bFilesExist	= true;
 		for kF=1:nFile
 			[strDirCheck,strFilePreCheck,strExtCheck]	= PathSplit(cPathCheck{kF});
-			strFileCheck								= [strFilePreCheck conditional(isempty(strExtCheck),'','.') strExtCheck];
 			
-			if ~FileExists(strDirCheck,strFileCheck) && ~isdir(cPathCheck{kF})
+			if isdir(strDirCheck)
+				if ~isempty(strFilePreCheck) || ~isempty(strExtCheck)
+					strFileCheck	= [strFilePreCheck conditional(isempty(strExtCheck),'','.') strExtCheck];
+					
+					if isempty(FindFiles(strDirCheck,strFileCheck))
+						bFilesExist	= false;
+						break;
+					end
+				end
+			else
 				bFilesExist	= false;
 				break;
 			end

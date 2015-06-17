@@ -13,8 +13,10 @@ function strPathAbs = PathRel2Abs(strPath,varargin)
 % Out:
 % 	strPathAbs	- strPath as an absolute path
 % 
-% Updated:	2011-11-12
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 strDirBase	= ParseArgs(varargin,pwd);
 
 strSlash	= GetSlashType;
@@ -32,7 +34,7 @@ strSlash	= GetSlashType;
 	end
 	
 	if IsPathRelative(strPath)
-		strPathAbs	= [AddSlash(strDirBase,false) strPath];
+		strPathAbs	= [AddSlash(strDirBase) strPath];
 	else
 		strPathAbs	= strPath;
 	end

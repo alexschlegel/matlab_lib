@@ -44,6 +44,6 @@ if nargout>1
 			end
 		end
 	else
-		varargout{1}	= [];
+		[varargout{1:nargout-1}]	= deal([]);
 	end
 end

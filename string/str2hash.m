@@ -30,7 +30,7 @@ opt.method	= CheckInput(opt.method,'method',{'sdbm'});
 opt.output	= CheckInput(opt.output,'output',{'number','string'});
 
 nb	= 4*opt.length;
-s	= double(str);
+s	= uint64(str);
 n	= numel(s);
 
 switch opt.output

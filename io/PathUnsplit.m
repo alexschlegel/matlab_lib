@@ -13,17 +13,15 @@ function strPath = PathUnsplit(varargin)
 % Out:
 %	strPath	- the file path
 % 
-% Updated:	2015-03-10
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 varargin(nargin+1:3)	= {''};
 [strDir,strFile,strExt]	= deal(varargin{1:3});
 
-if ~isempty(strDir)
-	strDir	= AddSlash(strDir,false);
-end
-
-if numel(strExt)
+if ~isempty(strExt)
 	strExt	= ['.' strExt];
 end
 
-strPath	= [strDir strFile strExt];
+strPath	= [AddSlash(strDir) strFile strExt];

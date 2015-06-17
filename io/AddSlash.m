@@ -1,28 +1,22 @@
-function strPath = AddSlash(strPath,varargin)
+function strDir = AddSlash(strDir)
 % AddSlash
 % 
-% Description:	add a trailing slash to a path if one doesn't exist.  note that
-%				nothing is added if strPath is an existing file.
+% Description:	add a trailing slash to a directory path if one doesn't exist
 % 
-% Syntax:	strPath = AddSlash(strPath,[bCheckFile]=true)
+% Syntax:	strDir = AddSlash(strDir)
 %
 % In:
-%	strPath			- a path string
-%	[bCheckFile]	- true to make sure strPath isn't a file before adding a
-%					  slash
+%	strDir	- a directory path string
 % 
 % Out:
-%	strPath	- the path with a trailing slash
+%	strDir	- the directory path with a trailing slash
 %
-% Updated:	2011-03-07
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
-bCheckFile	= nargin<2 || varargin{1};
+% Updated: 2015-06-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+strSlash	= GetSlashType(strDir);
 
-if (~bCheckFile || ~isfile(strPath)) && ~isempty(strPath)
-	strSlash	= GetSlashType(strPath);
-	strPath		= FixSlash(strPath);
-	
-	if strPath(end) ~= strSlash
-		strPath = [strPath strSlash];
-	end
+if ~isempty(strDir) && strDir(end)~=strSlash
+	strDir(end+1) = strSlash;
 end

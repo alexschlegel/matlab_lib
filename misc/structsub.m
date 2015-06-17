@@ -12,8 +12,10 @@ function s = structsub(s,f);
 % Out:
 % 	s	- the specified subset of s
 % 
-% Updated: 2010-07-26
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-03
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 f	= ForceCell(f);
 fn	= fieldnames(s);
 nf	= numel(fn);

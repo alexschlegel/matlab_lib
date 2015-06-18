@@ -187,7 +187,7 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
 				eval(sprintf('%s = dataset;',opt.data_varname));
-				save(path,opt.data_varname,'-v7.3');
+				save(path,opt.data_varname);
 				fprintf('Saved %s to %s\n',opt.data_varname,path);
 			end
 		end

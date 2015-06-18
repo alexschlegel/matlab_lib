@@ -123,7 +123,7 @@ function h = s20150520_plot_SNR_effects(varargin)
 			ts		= new_timestamp;
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
-				save(path,'capsule','-v7.3');
+				save(path,'capsule');
 				fprintf('Saved capsule to %s\n',path);
 			end
 		else

@@ -124,7 +124,7 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 			ts		= unless(opt.timestamp,FormatTime(nowms,'yyyymmdd_HHMMSS'));
 			if opt.savedata
 				path	= sprintf('%s/%s%s',dirpath,ts,suffix);
-				save(path,'dataset','-v7.3');
+				save(path,'dataset');
 				fprintf('Saved dataset to %s\n',path);
 			end
 		end

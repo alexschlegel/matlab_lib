@@ -209,9 +209,9 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 	pvals	= max(1e-6,min([sPoint.p],1e6));
 	snr		= unique(xvals);
 	nsnr	= numel(snr);
-	ploty	= zeros(1,nsnr);
-	ploterr	= zeros(1,nsnr);
-	errfac	= 1;	% For error bars at 50%; TODO: revise
+
+	[ploty,iiploty,ploterr,iiploterr]	= deal(zeros(1,nsnr));
+	errfac								= 1; % For ploterr error bars at 50%; TODO: revise
 
 	log10pThreshold	= log10(pThreshold);
 
@@ -219,22 +219,57 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 		b			= xvals == snr(ks);
 		numProbes	= sum(b);
 		if numProbes < 2
-			ploty(ks)	= NaN;
-			ploterr(ks)	= 0;
+			[ploty(ks),iiploty(ks)]		= deal(NaN);
+			[ploterr(ks),iiploterr(ks)]	= deal(0);
 			continue;
 		end
 		y			= yvals(b);
 		logp		= log10(pvals(b));
+		yRange		= range(y);
+		logpRange	= range(logp);
 		sorted_logp	= sort(logp);
 		fourth_logp	= sorted_logp(min(4,end));
-		if numProbes < 6
-			fit1		= (max(y)-min(y))/(max(logp)-min(logp));
-			fit1		= max(0,min(fit1,1e10));
+		if yRange == 0 || logpRange == 0
+			fit			= [0,mean(y)];
+			ifit		= [0,mean(logp)];
+			iifit		= fit;
+
+			[fity,dy,iifity]	= deal(NaN);
+
+			%{
+			%OLD stuff:
+			fit1		= max(0,min(yRange/logpRange,1e10));
 			fit			= [fit1,min(y)-fit1*min(logp)];
 			[fity,dy]	= deal(NaN);
+			ifit1		= max(0,min(logpRange/yRange,1e10));
+			ifit		= [ifit1,min(logp)-ifit1*(min(y)+0.2)];
+			iifit		= fit;
+			iifity		= fity;
+			%}
 		else
 			[fit,S]		= polyfit(logp,y,1);
 			[fity,dy]	= polyval(fit,log10pThreshold,S);
+			%{
+			m y + b = p
+			m y = p - b
+			y = (p - b)/m
+			y = (1/m)p - b/m
+			%}
+			[ifit,iS]	= polyfit(y,logp,1);
+			iifit		= [1/ifit(1),-ifit(2)/ifit(1)];
+			iifity		= polyval(iifit,log10pThreshold);
+		end
+		if false  % TODO: temporary diagnostic block?
+			yf			= floor(fity);
+			neighbor	= (y == yf | y == yf+1);
+			if sum(neighbor) >= 5
+				ofity		= fity;
+				y			= y(neighbor);
+				logp		= logp(neighbor);
+				[fit,S]		= polyfit(logp,y,1);
+				[fity,dy]	= polyval(fit,log10pThreshold,S);
+				fprintf('neighbor fit %s -> %s\n',num2str(ofity),num2str(fity));
+			end
 		end
 		if notfalse(showwork) && ks < 8
 			% the diagnostic scatter-plot below places the "y" value on the x-axis
@@ -253,27 +288,38 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 					ylabel('log_{10}(p)');
 					hold;
 					logpSamp	= linspace(min(logp),max(logp),2);
+					ySamp		= linspace(min(y),max(y),2);
 					plot(polyval(fit,logpSamp),logpSamp);
+					plot(ySamp,polyval(ifit,ySamp),'green');
 					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'red');
+					logpthreshStr	= sprintf('log(%s)',num2str(pThreshold));
+					legend({'probe','y=f(log(p))','log(p)=g(y)',logpthreshStr});
 				otherwise
 					error('Unknown showwork type ''%s''',showwork);
 			end
 			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
+			if ks == 4
+				alexplot(y,logp,'type','scatter');
+			end
 		end
 		if numProbes < 20 || fit(1) >= 0 || fourth_logp > log10pThreshold
-			ploty(ks)	= NaN;
-			ploterr(ks)	= 0;
+			[ploty(ks),iiploty(ks)]		= deal(NaN);
+			[ploterr(ks),iiploterr(ks)]	= deal(0);
 		else
-			ploty(ks)	= fity;
-			ploterr(ks)	= errfac*dy;
+			ploty(ks)		= fity;
+			iiploty(ks)		= iifity;
+			ploterr(ks)		= errfac*dy;
+			iiploterr(ks)	= 0; %TODO: what should error be in this case?
 		end
 	end
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
+	cLegend		= {'Fitting f(log(p))=y','Fitting g(y)=log(p)'};
 
-	hA	= alexplot(snr,ploty, ...
-			'error'		, ploterr		, ...
-			'title'		, titleStr		, ...
-			'errortype'	, 'bar'			  ...
+	hA	= alexplot(snr,{ploty,iiploty}, ...
+			'error'		, {ploterr,iiploterr}	, ...
+			'title'		, titleStr				, ...
+			'legend'	, cLegend				, ...
+			'errortype'	, 'bar'					  ...
 			);
 	h	= hA.hF;
 end

@@ -289,9 +289,9 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 					hold;
 					logpSamp	= linspace(min(logp),max(logp),2);
 					ySamp		= linspace(min(y),max(y),2);
-					plot(polyval(fit,logpSamp),logpSamp);
-					plot(ySamp,polyval(ifit,ySamp),'green');
-					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'red');
+					plot(polyval(fit,logpSamp),logpSamp,'red');
+					plot(ySamp,polyval(ifit,ySamp),'blue');
+					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'cyan');
 					logpthreshStr	= sprintf('log(%s)',num2str(pThreshold));
 					legend({'probe','y=f(log(p))','log(p)=g(y)',logpthreshStr});
 				otherwise
@@ -299,7 +299,7 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 			end
 			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
 			if ks == 4
-				alexplot(y,logp,'type','scatter');
+				alexplot(y,logp,'type','scatter','color',[0,0,1]);
 			end
 		end
 		if numProbes < 20 || fit(1) >= 0 || fourth_logp > log10pThreshold
@@ -313,11 +313,13 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 		end
 	end
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
-	cLegend		= {'Fitting f(log(p))=y','Fitting g(y)=log(p)'};
+	cLegend		= {'Fit: f(log(p))=y','Fit: g(y)=log(p)'};
 
 	hA	= alexplot(snr,{ploty,iiploty}, ...
 			'error'		, {ploterr,iiploterr}	, ...
 			'title'		, titleStr				, ...
+			'xlabel'	, 'SNR'					, ...
+			'ylabel'	, varname				, ...
 			'legend'	, cLegend				, ...
 			'errortype'	, 'bar'					  ...
 			);

@@ -137,7 +137,7 @@ function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 	ny	= numel(yvar.vals);
 
 	zpt		= struct('x',0,'y',0,'p',0,'summary',struct);
-	sPoint	= repmat(zpt,1,nx+ny);
+	sPoint	= repmat(zpt,1,2*(nx+ny));
 	nPoint	= 0;
 
 	kx	= nx;

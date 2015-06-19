@@ -1,17 +1,16 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 
-% This script is an updated variant of s20150601_plot_threshold_data.m
+% This script is an updated variant of s20150605_plot_thresholds.m
 %
 % Among other differences, the variants of this script use different
 % data formats.  Data files written by one variant can be plotted only
-% by the same variant.  Files written by the earlier variant have
-% names that include the stem s20150601_threshold_data.
+% by the same variant.
 
 % TODO: Comments
 %
 
-function h = s20150605_plot_thresholds(varargin)
-	stem		= 's20150605_thresholds';
+function h = s20150618_plot_thresholds(varargin)
+	stem		= 's20150618_thresholds';
 	opt			= ParseArgs(varargin, ...
 					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
@@ -22,10 +21,6 @@ function h = s20150605_plot_thresholds(varargin)
 					'saveplot'			, false			, ...
 					'showwork'			, false			, ...
 					'varname'			, []			, ...
-					'xge'				, []			, ...
-					'xle'				, []			, ...
-					'yge'				, []			, ...
-					'yle'				, []			, ...
 					'xstart'			, 0.06			, ...
 					'xstep'				, 0.02			, ...
 					'xend'				, 0.34			  ...
@@ -98,12 +93,6 @@ function h = s20150605_plot_thresholds(varargin)
 		points		= capsule.points;
 		pThreshold	= capsule.threshopt.pThreshold;
 
-		xge			= unless(opt.xge,-Inf);
-		xle			= unless(opt.xle,+Inf);
-		yge			= unless(opt.yge,-Inf);
-		yle			= unless(opt.yle,+Inf);
-		okpoints	= xge <=[points.x] & [points.x] <= xle & yge <= [points.y] & [points.y] <= yle;
-		points		= points(okpoints);
 		plottype	= opt.plottype;
 		nAV	= numel(plottype);
 		for kAV=1:nAV

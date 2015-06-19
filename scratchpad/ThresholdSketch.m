@@ -12,7 +12,7 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdSketch(varargin)
 					'xstep'				, 0.001				, ...
 					'xend'				, 0.7				, ...
 					'pThreshold'		, 0.05				, ...
-					'nProbe'			, 200				, ...
+					'nProbe'			, 400				, ...
 					'nOuter'			, 6					, ...
 					'init_npt'			, 7					, ...
 					'npt_growth'		, sqrt(2)			, ...
@@ -51,7 +51,7 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdSketch(varargin)
 	sPoint		= cat(2,cPoint{:});
 
 	if ~threshOpt.noplot && feature('ShowFigureWindows')
-		[h,area,color]	= plot_points(sPoint,threshOpt.pThreshold);
+		[h,area,color]	= plot_points(sPoint,threshOpt.pThreshold,xvar.name,yvar.name);
 	else
 		[h,area,color]	= deal([]);
 	end
@@ -135,43 +135,50 @@ end
 function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 	nx	= numel(xvar.vals);
 	ny	= numel(yvar.vals);
-	kx	= nx;
-	ky	= 1;
 
-	zpt		= struct('x',0,'y',0,'p',0);
+	zpt		= struct('x',0,'y',0,'p',0,'summary',struct);
 	sPoint	= repmat(zpt,1,nx+ny);
 	nPoint	= 0;
 
-	while kx >= 1 && ky <= ny
-		pt.x				= xvar.vals(kx);
-		pt.y				= yvar.vals(ky);
+	kx	= nx;
+	ky	= 1;
+	for retrace=0:1 % i.e., retrace=false, then retrace=true
+		while conditional(~retrace, ...
+				kx >= 1  && ky <= ny	, ... % right-left, bottom-top
+				kx <= nx && ky >= 1		  ... % left-right, top-bottom
+				)
+			pt.x				= xvar.vals(kx);
+			pt.y				= yvar.vals(ky);
 
-		obj					= obj.setopt(xvar.name,pt.x);
-		obj					= obj.setopt(yvar.name,pt.y);
-		%obj.uopt.(xvar.name)	= pt.x;
-		%obj.uopt.(yvar.name)	= pt.y;
-		if tOpt.fakedata
-			summary			= fakeSimulateAllSubjects(obj);
-		else
-			summary			= simulateAllSubjects(obj);
+			obj					= obj.setopt(xvar.name,pt.x);
+			obj					= obj.setopt(yvar.name,pt.y);
+			if tOpt.fakedata
+				summary			= fakeSimulateAllSubjects(obj);
+			else
+				summary			= simulateAllSubjects(obj);
+			end
+
+			pt.p				= summary.alex.p;
+			pt.summary			= summary;
+			nPoint				= nPoint+1;
+			sPoint(nPoint)		= pt;
+
+			meetsThreshold		= pt.p <= tOpt.pThreshold;
+			step				= conditional(meetsThreshold,-1,+1);
+			if meetsThreshold ~= retrace
+				kx	= kx + step;
+			else
+				ky	= ky + step;
+			end
 		end
-
-		pt.p				= summary.alex.p;
-		nPoint				= nPoint+1;
-		sPoint(nPoint)		= pt;
-
-		if pt.p <= tOpt.pThreshold
-			kx	= kx-1;
-		else
-			ky	= ky+1;
-		end
-		%fprintf('Advanced to (%d,%d)\n',kx,ky);
+		kx	= max(1,kx);
+		ky	= min(ky,ny);
 	end
 
 	sPoint	= sPoint(1:nPoint);
 end
 
-function [h,area,color] = plot_points(sPoint,pThreshold)
+function [h,area,color] = plot_points(sPoint,pThreshold,xname,yname)
 	ratio		= max(1e-6,min([sPoint.p]./pThreshold,1e6));
 	area		= 30+abs(60*log(ratio));
 	leThreshold	= [sPoint.p] <= pThreshold;
@@ -181,6 +188,8 @@ function [h,area,color] = plot_points(sPoint,pThreshold)
 	color		= [red green blue];
 	h			= figure;
 	scatter([sPoint.x],[sPoint.y],area,color);
+	xlabel(xname);
+	ylabel(yname);
 end
 
 function summary = fakeSimulateAllSubjects(obj)

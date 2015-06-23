@@ -39,11 +39,11 @@ function h = s20150605_plot_thresholds(varargin)
 	opt.savedata	= unless(opt.savedata,~opt.fakedata);
 
 	if opt.showwork
-		opt.plottype	= unless(opt.plottype,{'fit'});
+		opt.plottype	= unless(opt.plottype,{'dualfit'});
 		opt.varname		= unless(opt.varname,'WStrength');
 	elseif isempty(opt.plottype)
-		opt.plottype	= conditional(isempty(opt.varname),{'fit'},...
-							{'fit','p_snr','p_test','test_snr'});
+		opt.plottype	= conditional(isempty(opt.varname),{'dualfit'},...
+							{'dualfit','p_snr','p_test','test_snr'});
 	elseif ~iscell(opt.plottype)
 		opt.plottype	= {opt.plottype};
 	end
@@ -108,7 +108,7 @@ function h = s20150605_plot_thresholds(varargin)
 		nAV	= numel(plottype);
 		for kAV=1:nAV
 			switch plottype{kAV}
-				case 'fit'
+				case 'dualfit'
 					plotfn	= @linefit_test_vs_SNR;
 				case 'p_snr'
 					plotfn	= @scatter_p_vs_SNR;

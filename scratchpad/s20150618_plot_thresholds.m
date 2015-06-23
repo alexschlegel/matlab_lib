@@ -12,6 +12,7 @@
 function h = s20150618_plot_thresholds(varargin)
 	stem		= 's20150618_thresholds';
 	opt			= ParseArgs(varargin, ...
+					'clip'				, false			, ...
 					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
 					'nogen'				, []			, ...
@@ -34,11 +35,11 @@ function h = s20150618_plot_thresholds(varargin)
 	opt.savedata	= unless(opt.savedata,~opt.fakedata);
 
 	if opt.showwork
-		opt.plottype	= unless(opt.plottype,{'fit'});
+		opt.plottype	= unless(opt.plottype,{'multifit'});
 		opt.varname		= unless(opt.varname,'WStrength');
 	elseif isempty(opt.plottype)
-		opt.plottype	= conditional(isempty(opt.varname),{'fit'},...
-							{'fit','p_snr','p_test','test_snr'});
+		opt.plottype	= conditional(isempty(opt.varname),{'multifit'},...
+							{'multifit','p_snr','p_test','test_snr'});
 	elseif ~iscell(opt.plottype)
 		opt.plottype	= {opt.plottype};
 	end
@@ -61,6 +62,9 @@ function h = s20150618_plot_thresholds(varargin)
 			dirpath		= 'scratchpad/figfiles';
 			prefix		= sprintf('%s_%s',cap_ts{end},stem);
 			kind		= unless(opt.varname,strjoin(opt.plottype,'+'));
+			if opt.clip
+				kind	= [kind '-clipped'];
+			end
 			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
 			savefig(h(end:-1:1),figfilepath);
 			fprintf('Plot(s) saved to %s\n',figfilepath);
@@ -97,7 +101,7 @@ function h = s20150618_plot_thresholds(varargin)
 		nAV	= numel(plottype);
 		for kAV=1:nAV
 			switch plottype{kAV}
-				case 'fit'
+				case 'multifit'
 					plotfn	= @linefit_test_vs_SNR;
 				case 'p_snr'
 					plotfn	= @scatter_p_vs_SNR;
@@ -108,8 +112,8 @@ function h = s20150618_plot_thresholds(varargin)
 				otherwise
 					error('Unknown plottype ''%s''',plottype{kAV});
 			end
-			h(end+1)		= plotfn(points,pThreshold,testvarName,opt.showwork);
-			cap_ts{end+1}	= ts;
+			h(end+1)		= plotfn(points,pThreshold,testvarName,opt); %#ok
+			cap_ts{end+1}	= ts; %#ok
 		end
 
 		function capsule = create_threshCapsule
@@ -192,120 +196,117 @@ function [dataset,ts] = get_dataset(data_label,fcreate_dataset,varargin)
 	end
 end
 
-function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
-	xvals	= [sPoint.x];
-	yvals	= [sPoint.y];
-	pvals	= max(1e-6,min([sPoint.p],1e6));
-	snr		= unique(xvals);
-	nsnr	= numel(snr);
+function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
+	showwork	= conditional(nottrue(opt.showwork),opt.showwork,'scat');
+	xvals		= [sPoint.x];
+	yvals		= [sPoint.y];
+	pvals		= max(1e-6,min([sPoint.p],1e6));
+	summaryvals	= [sPoint.summary];
+	snr			= unique(xvals);
+	nsnr		= numel(snr);
 
-	[ploty,iiploty,ploterr,iiploterr]	= deal(zeros(1,nsnr));
-	errfac								= 1; % For ploterr error bars at 50%; TODO: revise
+	nline			= 5; % At present, five plot lines
+	cploty			= cell(1,nline);
+	cploterr		= cell(1,nline);
+	[cploty{:}]		= deal(NaN(1,nsnr));
+	[cploterr{:}]	= deal(zeros(1,nsnr));
+	errfac			= 1; % For cploterr error bars at 50%; TODO: revise
 
 	log10pThreshold	= log10(pThreshold);
 
 	for ks=1:nsnr
-		b			= xvals == snr(ks);
-		numProbes	= sum(b);
-		if numProbes < 2
-			[ploty(ks),iiploty(ks)]		= deal(NaN);
-			[ploterr(ks),iiploterr(ks)]	= deal(0);
+		b				= xvals == snr(ks);
+		currNProbe		= sum(b);
+		if currNProbe < 2
 			continue;
 		end
 		y			= yvals(b);
 		logp		= log10(pvals(b));
-		yRange		= range(y);
-		logpRange	= range(logp);
+		summary		= summaryvals(b);
 		sorted_logp	= sort(logp);
 		fourth_logp	= sorted_logp(min(4,end));
-		if yRange == 0 || logpRange == 0
-			fit			= [0,mean(y)];
-			ifit		= [0,mean(logp)];
-			iifit		= fit;
 
-			[fity,dy,iifity]	= deal(NaN);
-
-			%{
-			%OLD stuff:
-			fit1		= max(0,min(yRange/logpRange,1e10));
-			fit			= [fit1,min(y)-fit1*min(logp)];
-			[fity,dy]	= deal(NaN);
-			ifit1		= max(0,min(logpRange/yRange,1e10));
-			ifit		= [ifit1,min(logp)-ifit1*(min(y)+0.2)];
-			iifit		= fit;
-			iifity		= fity;
-			%}
-		else
-			[fit,S]		= polyfit(logp,y,1);
-			[fity,dy]	= polyval(fit,log10pThreshold,S);
-			%{
-			m y + b = p
-			m y = p - b
-			y = (p - b)/m
-			y = (1/m)p - b/m
-			%}
-			[ifit,iS]	= polyfit(y,logp,1);
-			iifit		= [1/ifit(1),-ifit(2)/ifit(1)];
-			iifity		= polyval(iifit,log10pThreshold);
-		end
-		if false  % TODO: temporary diagnostic block?
-			yf			= floor(fity);
-			neighbor	= (y == yf | y == yf+1);
-			if sum(neighbor) >= 5
-				ofity		= fity;
-				y			= y(neighbor);
-				logp		= logp(neighbor);
-				[fit,S]		= polyfit(logp,y,1);
-				[fity,dy]	= polyval(fit,log10pThreshold,S);
-				fprintf('neighbor fit %s -> %s\n',num2str(ofity),num2str(fity));
+		uy_at_snr	= unique(y);
+		nuy_at_snr	= numel(uy_at_snr);
+		logp_mean_t	= zeros(size(logp));
+		percentile	= zeros(size(logp));
+		for ky=1:nuy_at_snr
+			b			= (y == uy_at_snr(ky));
+			usummary	= summary(b);
+			tstat		= arrayfun(@(s)s.alex.stats.tstat,usummary);
+			df			= arrayfun(@(s)s.alex.stats.df,usummary);
+			if var(df)==0
+				logp_mean_t(b)	= log10(max(1e-6,min(t2p(mean(tstat),mean(df)),1e6)));
 			end
+			percentile(b)	= 100*sum(arrayfun(@(v) v<=log10pThreshold,logp(b)))/sum(b);
 		end
+
+		[f_logp,g_logp]	= dual_linefit(logp,y,log10pThreshold);
+		[f_mean,g_mean]	= dual_linefit(logp_mean_t,y,log10pThreshold);
+		[f_pct,~]		= dual_linefit(percentile,y,50);
+
+		criterionfit	= g_logp.px2y;
 		if notfalse(showwork) && ks < 8
 			% the diagnostic scatter-plot below places the "y" value on the x-axis
 			% and log10(p) on the y-axis, in effect swapping the axes of the polyfit.
 			curr_snr	= num2str(snr(ks));
-			fprintf('Num probes for SNR=%s is %d; ',curr_snr,numProbes);
-			fprintf('slope of fitted line is %s;\n',num2str(1/fit(1)));
+			fprintf('Num probes for SNR=%s is %d; ',curr_snr,currNProbe);
+			fprintf('slope of fitted line is %s;\n',num2str(1/criterionfit(1)));
 			fprintf('fourth-smallest log is %s\n',num2str(fourth_logp));
+
+			logpthreshStr	= sprintf('log(%s)',num2str(pThreshold));
+			xlabelStr		= sprintf('%s (also referred to here as y)',varname);
 			figure;
-			switch conditional(nottrue(showwork),showwork,'scat')
+			switch showwork
 				case 'hist'
-					hist(y);
+					hist(y); % TODO: use optional args to generate more informative histogram
+				case 'pct'
+					scatter(y,percentile);
+					xlabel(xlabelStr);
+					ylabel(sprintf('%% p <= %s',num2str(pThreshold)));
 				case 'scat'
-					scatter(y,logp);
-					xlabel(varname);
+					scatter(y,logp_mean_t,'red','fill');
+					xlabel(xlabelStr);
 					ylabel('log_{10}(p)');
 					hold;
-					logpSamp	= linspace(min(logp),max(logp),2);
+					scatter(y,logp,'blue');
 					ySamp		= linspace(min(y),max(y),2);
-					plot(polyval(fit,logpSamp),logpSamp,'red');
-					plot(ySamp,polyval(ifit,ySamp),'blue');
-					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'cyan');
-					logpthreshStr	= sprintf('log(%s)',num2str(pThreshold));
-					legend({'probe','y=f(log(p))','log(p)=g(y)',logpthreshStr});
+					f_meanSamp	= getLogpSamp(f_mean,2);
+					f_logpSamp	= getLogpSamp(f_logp,2);
+					plot(ySamp,polyval(g_mean.py2x,ySamp),'red');
+					plot(ySamp,polyval(g_logp.py2x,ySamp),'blue');
+					plot(polyval(f_mean.px2y,f_meanSamp),f_meanSamp,'green');
+					plot(polyval(f_logp.px2y,f_logpSamp),f_logpSamp,'yellow');
+					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'black');
+					legend({'log p(mean t)','all probes','log(p(mean t))=g(y)','log(p)=G(y)','y=f(log(p(mean t)))','y=F(log(p))',logpthreshStr});
 				otherwise
 					error('Unknown showwork type ''%s''',showwork);
 			end
 			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
-			if ks == 4
+			hold off;
+			if strcmp(showwork,'scat') && ks == 4 && false % (omit for now)
 				alexplot(y,logp,'type','scatter','color',[0,0,1]);
 			end
 		end
-		if numProbes < 20 || fit(1) >= 0 || fourth_logp > log10pThreshold
-			[ploty(ks),iiploty(ks)]		= deal(NaN);
-			[ploterr(ks),iiploterr(ks)]	= deal(0);
-		else
-			ploty(ks)		= fity;
-			iiploty(ks)		= iifity;
-			ploterr(ks)		= errfac*dy;
-			iiploterr(ks)	= 0; %TODO: what should error be in this case?
+		if ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold) % TODO: change criterion
+			cploty{1}(ks)	= g_mean.y0;
+			cploty{2}(ks)	= g_logp.y0;
+			cploty{3}(ks)	= f_mean.y0;
+			cploty{4}(ks)	= f_logp.y0;
+			cploty{5}(ks)	= f_pct.y0;
+			cploterr{1}(ks)	= g_mean.dy0;
+			cploterr{2}(ks)	= g_logp.dy0;
+			cploterr{3}(ks)	= f_mean.dy0;
+			cploterr{4}(ks)	= f_logp.dy0;
+			cploterr{5}(ks)	= f_pct.dy0;
 		end
 	end
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
-	cLegend		= {'Fit: f(log(p))=y','Fit: g(y)=log(p)'};
+	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
+	cLegend		= {'Fit: g(y)=log(p(mean t))','Fit: G(y)=log(p)','Fit: f(log(p(mean t)))=y','Fit: F(log(p))=y',pctLegend};
 
-	hA	= alexplot(snr,{ploty,iiploty}, ...
-			'error'		, {ploterr,iiploterr}	, ...
+	hA	= alexplot(snr,cploty, ...
+			'error'		, cploterr				, ...
 			'title'		, titleStr				, ...
 			'xlabel'	, 'SNR'					, ...
 			'ylabel'	, varname				, ...
@@ -313,6 +314,45 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,showwork)
 			'errortype'	, 'bar'					  ...
 			);
 	h	= hA.hF;
+
+	function [f,g] = dual_linefit(x,y,x0)
+		%fprintf('range(x)=%s range(y)=%s\n',num2str(range(x)),num2str(range(y)));
+		xy	= [x(:);y(:)];
+		if range(x) == 0 || range(y) == 0 || any(isnan(xy)) || any(isinf(xy))
+			f.px2y			= [0,mean(y)];
+			f.py2x			= [0,mean(x)];
+			[f.y0,f.dy0]	= deal(NaN);
+			g				= f;
+		else
+			[f.px2y,S]		= polyfit(x,y,1);
+			[f.y0,f.dy0]	= polyval(f.px2y,x0,S);
+			f.y0			= optclip(f.y0);
+			f.dy0			= errfac*f.dy0;
+			f.py2x			= swap_linear_polynomial_axes(f.px2y);
+
+			[g.py2x,~]		= polyfit(y,x,1);
+			g.px2y			= swap_linear_polynomial_axes(g.py2x);
+			g.y0			= polyval(g.px2y,x0);
+			g.y0			= optclip(g.y0);
+			g.dy0			= 0; % TODO: come up with error metric for this direction
+		end
+	end
+
+	function samp = getLogpSamp(linefit,nSamp)
+		ypreimage	= sort(polyval(linefit.py2x,[min(y),max(y)]));
+		samp		= linspace(max(ypreimage(1),min(logp)),min(ypreimage(end),max(logp)),nSamp);
+	end
+
+	function y0 = optclip(y0)
+		if opt.clip
+			y0	= max(min(yvals),min(y0,max(yvals)));
+		end
+	end
+
+	function pswap = swap_linear_polynomial_axes(p)
+		iSlope	= 1/p(1);
+		pswap	= [iSlope,-p(2)*iSlope];
+	end
 end
 
 function h = scatter_p_vs_SNR(sPoint,pThreshold,varname,~)

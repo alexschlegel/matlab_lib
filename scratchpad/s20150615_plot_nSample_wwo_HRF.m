@@ -1,15 +1,49 @@
-% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-
-% This script is loosely based on old_20150403_explore_params.m and
-% plot_20150407_explore_params.m, but also incorporates some of the
-% conventions used by s20150605_plot_thresholds.m.  (The first two of
-% those scripts reside in archived/separated-data-and-plot-scripts/
-% capsule-{creation,plotting}-scripts/{_old/,} as of this writing.)
-
-% TODO: Comments
-%
-
 function h = s20150615_plot_nSample_wwo_HRF(varargin)
+% s20150615_plot_nSample_wwo_HRF
+%
+% Description:	generate data for and/or plot log(p) and accuracy (or
+%				other variables) against nTBlock, subject to assorted
+%				settings of nSamplePerRun, HRF, and deconvTRs
+%
+% Syntax:	h = s20150615_plot_nSample_wwo_HRF(<options>)
+%
+% In:
+%	<options>:
+%		fakedata:	(<auto>) generate fake data (for quick tests)
+%		forcegen:	(false) generate new data even if cached data exists
+%		nogen:		(<auto>) suppress data generation even if no data cached
+%		noplot:		(<auto>) suppress plotting
+%		savedata:	(<auto>) cache generated data; by default true if not fakedata
+%		saveplot:	(false) save plot(s) to fig file
+%		yvarname:	('logp+acc') y-axis plot variable name, or 'logp+acc' to create
+%							plots for both log10(p) and alex-mode accuracy
+%		<other>:	Additional options forwarded to Pipeline.
+%
+% Out:
+% 	h	- figure handle(s)
+%
+% Notes:
+%	When running in an environment with ShowFigureWindows, fakedata and nogen default
+%	to true, and noplot defaults to false; without ShowFigureWindows (thus, in batch
+%	runs), fakedata and nogen default to false, and noplot defaults to true.
+%
+%	This script is loosely based on old_20150403_explore_params.m and
+%	plot_20150407_explore_params.m, but also incorporates some of the
+%	conventions used by s20150605_plot_thresholds.m.  (The first two of
+%	those scripts reside in archived/separated-data-and-plot-scripts/
+%	capsule-{creation,plotting}-scripts/{_old/,} as of this writing.)
+%
+% Example:
+%	h = s20150615_plot_nSample_wwo_HRF('nogen',false);
+%
+% Updated: 2015-06-24
+% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
+% This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+%---------------------------------------------------------------------
+% TODO: More comments
+%---------------------------------------------------------------------
+
 	stem		= 's20150615_nSample_wwo_HRF';
 	opt			= ParseArgs(varargin, ...
 					'fakedata'		, []			, ...

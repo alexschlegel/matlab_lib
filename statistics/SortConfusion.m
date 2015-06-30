@@ -9,7 +9,7 @@ function [cm,kSort,kUnsort] = SortConfusion(cm,varargin)
 % In:
 % 	cm			- a confusion/similarity matrix
 %	[strMode]	- the sorting method, either 'highest' to place higher-valued
-%				  pairs togehter, 'lowest' for lowest-valued pairs
+%				  pairs together, 'lowest' for lowest-valued pairs
 % 
 % Out:
 % 	cm		- the sorted confusion matrix

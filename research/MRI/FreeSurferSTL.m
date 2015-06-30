@@ -22,7 +22,7 @@ function stl = FreeSurferSTL(strDirSubject,cLabel,varargin)
 % Out:
 % 	stl	- the STL struct
 % 
-% Updated: 2015-04-13
+% Updated: 2015-06-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -95,7 +95,10 @@ strDirMRI		= DirAppend(strDirSubject,'mri');
 		M(1:3,1:3)	= M(1:3,1:3)/opt.resample;
 	end
 %STL!
-	[stl,dummy,isoval]	= NIfTI.STL(nii,isoval,'mat',M);
+	stl	= NIfTI.STL(nii,...
+			'isoval'	, isoval	, ...
+			'mat'		, M			  ...
+			);
 %name?
 	if ~isempty(opt.name)
 		nHeader		= numel(stl.Header);

@@ -16,22 +16,28 @@ function str = struct2table(s,varargin)
 %					to false to skip headings
 %		delim:		(9) the delimiter between entries, or 'csv' or 'tsv' for
 %					comma/tab separated variable format
+%		precision:	(<auto>) the precision argument to num2str
 % 
 % Out:
 % 	str	- the ASCII table
 % 
-% Updated: 2012-04-28
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-19
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 opt	= ParseArgs(varargin,...
 		'heading'	, fieldnames(s)	, ...
-		'delim'		, 9				  ...
+		'delim'		, 9				, ...
+		'precision'	, []			  ...
 		);
 
 c	= struct2cell(s);
 
 %convert numeric arrays to cells of strings
 	bNumeric	= ~cellfun(@iscell,c);
-	c(bNumeric)	= cellfun(@(x) arrayfun(@num2str,x,'UniformOutput',false),c(bNumeric),'UniformOutput',false);
+	
+	fNum2Str	= conditional(isempty(opt.precision),@num2str,@(x) num2str(x,opt.precision));
+	c(bNumeric)	= cellfun(@(x) arrayfun(fNum2Str,x,'UniformOutput',false),c(bNumeric),'UniformOutput',false);
 %make sure the rest are strings
 	bCheck		= ~bNumeric;
 	kCheck		= find(bCheck);

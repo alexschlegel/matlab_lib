@@ -25,7 +25,7 @@ function nii = Read(strPathNII,varargin)
 % Out:
 % 	nii	- the NIfTI struct
 % 
-% Updated: 2015-05-07
+% Updated: 2015-06-15
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -61,17 +61,18 @@ function nii = Read(strPathNII,varargin)
 %load the data with the specified method
 	switch opt.method
 		case 'nii_tool'
+			hdr	= NIfTI.ReadHeader(strPathNII);
+			
 			if opt.load || strcmp(strExt,'nii.gz')
 				nii	= nii_tool('load',strPathNII);
 				
+				nii.hdr		= hdr;
 				nii.data	= nii.img;
 				nii			= rmfield(nii,'img');
 			else
-				nii.hdr		= nii_tool('hdr',strPathNII);
-				
-				sz		= nii.hdr.dim(1 + (1:nii.hdr.dim(1)));
-				dType	= nii.hdr.datatype;
-				offset	= nii.hdr.vox_offset;
+				sz		= hdr.dim(1 + (1:hdr.dim(1)));
+				dType	= hdr.datatype;
+				offset	= hdr.vox_offset;
 				
 				nii.data	= file_array(strPathNII,sz,dType,offset);
 			end

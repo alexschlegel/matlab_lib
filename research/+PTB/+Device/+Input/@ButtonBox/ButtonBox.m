@@ -42,8 +42,8 @@ classdef ButtonBox < PTB.Device.Input
 %		buttonbox_alt:	(true) true to set keyboard keys to simulate buttonbox
 %						responses
 % 
-% Updated: 2012-02-14
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-06-12
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 	
@@ -96,7 +96,7 @@ classdef ButtonBox < PTB.Device.Input
 		%----------------------------------------------------------------------%
 		function Start(bb,varargin)
 		%buttonbox start function
-			opt	= ParseArgsOpt(varargin,...
+			opt	= ParseArgs(varargin,...
 					'buttonbox_alt'	, true	  ...
 					);
 			

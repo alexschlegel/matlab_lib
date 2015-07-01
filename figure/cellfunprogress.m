@@ -8,11 +8,11 @@ function varargout = cellfunprogress(f,varargin)
 % In:
 %	<cellfun inputs>:	see cellfun
 %	<options>:	options for cellfun and progress.  In addition:
-%		status:	(false) same as the status option for progress, but can also be
+%		status:	(true) same as the status option for progress, but can also be
 %				an input argument index if each element of that input should be
 %				displayed as a status as that element is processed
 % 
-% Updated: 2015-04-08
+% Updated: 2015-07-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

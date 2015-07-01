@@ -1,39 +1,32 @@
-function x = from(str,varargin)
+function x = from(str)
 % json.from
 % 
 % Description:	convert a JSON string to a MATLAB variable
 % 
-% Syntax:	x = json.from(str,<options>)
+% Syntax:	x = json.from(str)
 % 
 % In:
 % 	str	- a previously-encoded JSON string
-%	<options>:
-%		checkquotes:		(true) true to check for special characters within
-%							strings
-%		checkfieldnames:	(true) true to check for valid field names
 % 
 % Out:
 % 	x	- the MATLAB variable form of str
 % 
-% Updated: 2015-01-11
+% Updated: 2015-07-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-opt	= ParseArgs(varargin,...
-		'checkquotes'		, true	, ...
-		'checkfieldnames'	, true	  ...
-		);
+
+chrSpecialFrom	= '{}[]:';
+chrSpecialTo	= 1:numel(chrSpecialFrom);
 
 %remove line feeds and tabs
 	str	= regexprep(str,'[\n\t]','');
-%escape special characters within strings
-	if opt.checkquotes
-		str	= EscapeInString(str);
-	end
+%temporarily replace escaped backslashes because they might cause problems
+	str	= regexprep(str,'\\\\','ALEXWUZHERENOHEWASNT');
+%hide special characters within strings
+	str	= HideSpecialCharacters(str);
 %make sure we have valid field names
-	if opt.checkfieldnames
-		str	= ValidFieldNames(str);
-	end
+	str	= ValidFieldNames(str);
 %single quotes to double single quotes
 	str	= regexprep(str,'''','''''');
 %non-escaped double quotes to single quotes
@@ -41,14 +34,16 @@ opt	= ParseArgs(varargin,...
 %escaped double quotes to double quotes
 	str	= regexprep(str,'\\"','"');
 %objects to structs
-	str	= regexprep(str,nonesc('{'),'struct(');
-	str	= regexprep(str,nonesc('}'),')');
-	str	= regexprep(str,nonesc(':'),',');
+	str	= regexprep(str,'{','struct(');
+	str	= regexprep(str,'}',')');
+	str	= regexprep(str,':',',');
 %arrays to cells (double because of the annoying struct() cell thing)
-	str	= regexprep(str,nonesc('['),'{{');
-	str	= regexprep(str,nonesc(']'),'}}');
-%unescape special characters within strings
-	str	= regexprep(str,'\\([{}\[\]:])','$1');
+	str	= regexprep(str,'[','{{');
+	str	= regexprep(str,']','}}');
+%restore escaped backslashes
+	str	= regexprep(str,'ALEXWUZHERENOHEWASNT','\\\\');
+%restore special characters within strings
+	str	= RestoreSpecialCharacters(str);
 %convert to a variable
 	x	= serialize.from(str);
 
@@ -56,29 +51,37 @@ opt	= ParseArgs(varargin,...
 	x	= from_simplify(x);
 
 %------------------------------------------------------------------------------%
-function str = EscapeInString(str)
+function str = HideSpecialCharacters(str)
 	%find the non-escaped double quotes
 		kQuote	= regexp(str,nonesc('"'));
 		nQuote	= numel(kQuote);
+	
+	%get the characters that are between quotes
+		kQuoteStart	= kQuote(1:2:nQuote)+1;
+		kQuoteEnd	= kQuote(2:2:nQuote)-1;
 		
-		for kQ=1:2:nQuote
-			kStart	= kQuote(kQ) + 1;
-			kEnd	= kQuote(kQ+1) - 1;
-			
-			strOrig	= str(kStart:kEnd);
-			strNew	= regexprep(strOrig,'([{}\[\]:])','\\$1');
-			
-			nOrig	= numel(strOrig);
-			nNew	= numel(strNew);
-			
-			if nOrig==nNew
-				str(kStart:kEnd)	= strNew;
-			else
-				str	= [str(1:kStart-1) strNew str(kEnd+1:end)];
-				
-				kQuote(kQ+2:end)	= kQuote(kQ+2:end) + nNew - nOrig;
-			end
-		end
+		kInQuote	= arrayfun(@(s,e) s:e,kQuoteStart,kQuoteEnd,'uni',false);
+		kInQuote	= cat(2,kInQuote{:});
+		
+		strInQuote	= str(kInQuote);
+	
+	%hide special characters in this set
+		[bSpecial,kChar]	= ismember(strInQuote,chrSpecialFrom);
+		kCharSpecial		= kChar(bSpecial);
+		
+		strInQuote(bSpecial)	= chrSpecialTo(kCharSpecial);
+	
+	%insert the hidden version back into the string
+		str(kInQuote)	= strInQuote;
+end
+%------------------------------------------------------------------------------%
+function str = RestoreSpecialCharacters(str)
+	%find the hidden characters
+		[bSpecial,kChar]	= ismember(str,chrSpecialTo);
+		kCharSpecial		= kChar(bSpecial);
+	
+	%restore them
+		str(bSpecial)	= chrSpecialFrom(kCharSpecial);
 end
 %------------------------------------------------------------------------------%
 function str = ValidFieldNames(str)

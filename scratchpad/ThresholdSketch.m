@@ -194,17 +194,27 @@ end
 
 function summary = fakeSimulateAllSubjects(obj)
 	obj		= obj.consumeRandomizationSeed;
-	% p-values synthesized here are not intended to be realistic, but
+	% values synthesized here are not intended to be realistic, but
 	% merely to create curve shapes that are useful for testing
-	x		= obj.uopt.SNR;
-	y1		= obj.uopt.nRepBlock;	% default=5
-	y2		= obj.uopt.nRun;		% default=15
-	y3		= obj.uopt.nSubject;	% default=15
-	y4		= obj.uopt.nTBlock;		% default=10
-	if y3 < 2
-		p	= NaN;
-	else
-		p	= 0.05*(1+0.2*15/y3)^randn/((x/0.2+0.3*y2/15)*(y1/5)*(y4/10-0.07));
-	end
-	summary.alex.p	= p;
+	snr		= obj.uopt.SNR;
+	nsubj	= obj.uopt.nSubject;	% default=15
+	y1		= obj.uopt.nTBlock;		% default=10
+	y2		= obj.uopt.nRepBlock;	% default=5
+	y3		= obj.uopt.nRun;		% default=15
+	y4		= obj.uopt.WStrength;	% default=0.5
+	scale	= 0.25*atan((y1-0.5)*y2*sqrt(y3)/120);
+	snoise	= 0.05/y4;
+	bias	= (1 + snoise*randn(nsubj,1))*scale;
+	acc		= 0.5 + (snr*bias + snoise*randn(size(bias)))/(snr+1);
+
+	%summary.bias	= bias;
+	%summary.acc		= acc;
+
+	[h,p_grouplevel,ci,stats]	= ttest(acc,0.5,'tail','right');
+	summary.alex.meanAccAllSubj	= mean(acc);
+	summary.alex.stderrAccAllSu	= stderr(acc);
+	summary.alex.h				= h;
+	summary.alex.p				= p_grouplevel;
+	summary.alex.ci				= ci;
+	summary.alex.stats			= stats;
 end

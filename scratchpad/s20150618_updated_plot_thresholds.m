@@ -1,19 +1,23 @@
-function h = s20150618_plot_thresholds(varargin)
-% s20150618_plot_thresholds
+function h = s20150618_updated_plot_thresholds(varargin)
+% s20150618_updated_plot_thresholds
 %
 % Description:	generate data for and/or plot nRun, nSubject, nTBlock,
 %				nRepBlock, and WStrength threshold values needed to
 %				attain p <= 0.05 at a range of SNR values
 %
-% Syntax:	h = s20150618_plot_thresholds(<options>)
+% Syntax:	h = s20150618_updated_plot_thresholds(<options>)
 %
 % In:
 %	<options>:
-%		clip:		(false) clip linear extrapolations to variable range
+%		clip:		(true) if 'oldclip', clip linear extrapolations to variable range;
+%						if true, remove linear-extrapolation outliers
+%		clipsize:	(5) fewest fit points for inclusion of linear extrapolation (if clip==true)
+%		cliptail:	(0.2) fraction of fit points considered tail at each end (if clip==true)
 %		fakedata:	(<auto>) generate fake data (for quick tests)
 %		forcegen:	(false) generate new data even if cached data exists
 %		nogen:		(<auto>) suppress data generation even if no data cached
 %		noplot:		(<auto>) suppress plotting
+%		plotlines:	(1:5) plot lines to include in multifit plot (if applicable)
 %		plottype:	('multifit') type of plot, or cell of plot types:
 %							'multifit', 'p_snr', 'p_test', 'test_snr';
 %							default changes to all types if varname specified
@@ -47,9 +51,9 @@ function h = s20150618_plot_thresholds(varargin)
 %	Ideally the applicable code would be factored out and shared across scripts.
 %
 % Example:
-%	h = s20150618_plot_thresholds('nogen',false);
+%	h = s20150618_updated_plot_thresholds('nogen',false);
 %
-% Updated: 2015-06-24
+% Updated: 2015-07-18
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -60,11 +64,14 @@ function h = s20150618_plot_thresholds(varargin)
 
 	stem		= 's20150618_thresholds';
 	opt			= ParseArgs(varargin, ...
-					'clip'				, false			, ...
+					'clip'				, true			, ...
+					'clipsize'			, 5				, ...
+					'cliptail'			, 0.2			, ...
 					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
 					'nogen'				, []			, ...
 					'noplot'			, []			, ...
+					'plotlines'			, 1:5			, ...
 					'plottype'			, []			, ...
 					'savedata'			, []			, ...
 					'saveplot'			, false			, ...
@@ -96,6 +103,8 @@ function h = s20150618_plot_thresholds(varargin)
 	h			= [];
 	cap_ts		= {};
 
+	dummySketch;
+
 	sketch('nRun'		, 2:20);
 	sketch('nSubject'	, 1:20);
 	sketch('nTBlock'	, 1:20);
@@ -108,15 +117,32 @@ function h = s20150618_plot_thresholds(varargin)
 		else
 			cap_ts		= sort(cap_ts);
 			dirpath		= 'scratchpad/figfiles';
-			prefix		= sprintf('%s_%s',cap_ts{end},stem);
+			prefix		= sprintf('%s_updated_%s',cap_ts{end},stem);
 			kind		= unless(opt.varname,strjoin(opt.plottype,'+'));
 			if opt.clip
-				kind	= [kind '-clipped'];
+				if strcmp(opt.clip,'oldclip')
+					kind	= [kind '-clipped'];
+				else
+					%TODO: should probably also incorporate clipsize
+					kind	= sprintf('%s-cliptail%s',kind,num2str(opt.cliptail));
+				end
 			end
 			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
 			savefig(h(end:-1:1),figfilepath);
 			fprintf('Plot(s) saved to %s\n',figfilepath);
 		end
+	end
+
+	function dummySketch
+		% issue dummy invocation of ThresholdSketch to provoke error message on bad extraargs
+		ThresholdSketch(...
+			'fakedata'	, true		, ...
+			'noplot'	, true		, ...
+			'yvals'		, 2:9		, ...
+			'nProbe'	, 1			, ...
+			'nOuter'	, 1			, ...
+			extraargs{:} ...
+			);
 	end
 
 	function sketch(testvarName,testvarValues)
@@ -283,8 +309,12 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 			usummary	= summary(b);
 			tstat		= arrayfun(@(s)s.alex.stats.tstat,usummary);
 			df			= arrayfun(@(s)s.alex.stats.df,usummary);
-			if var(df)==0
-				logp_mean_t(b)	= log10(max(1e-6,min(t2p(mean(tstat),mean(df)),1e6)));
+			finite_t	= tstat(-Inf<tstat & tstat<Inf);
+			mean_df		= mean(df);
+			if numel(finite_t)>0 && mean_df>0 && var(df)==0
+				mean_t			= mean(finite_t);
+				% TODO: introduce a function log10_bounded for following idiom:
+				logp_mean_t(b)	= log10(max(1e-6,min(t2p(mean_t,mean_df),1e6)));
 			end
 			percentile(b)	= 100*sum(arrayfun(@(v) v<=log10pThreshold,logp(b)))/sum(b);
 		end
@@ -307,17 +337,26 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 			figure;
 			switch showwork
 				case 'hist'
-					hist(y); % TODO: use optional args to generate more informative histogram
+					if nuy_at_snr >= 2
+						% TODO: would be more correct for step to be gcd of diff(uy_at_snr),
+						% but cannot directly use MATLAB's gcd function for this purpose.
+						bincenters			= min(y):min(diff(uy_at_snr)):max(y);
+					else
+						bincenters			= uy_at_snr;
+					end
+					hist(y,bincenters);
+					xlabel(xlabelStr);
+					ylabel('num probes');
 				case 'pct'
 					scatter(y,percentile);
 					xlabel(xlabelStr);
 					ylabel(sprintf('%% p <= %s',num2str(pThreshold)));
 				case 'scat'
-					scatter(y,logp_mean_t,'red','fill');
+					scatter(y,logp,'blue');
 					xlabel(xlabelStr);
 					ylabel('log_{10}(p)');
 					hold;
-					scatter(y,logp,'blue');
+					scatter(y,logp_mean_t,'red','fill');
 					ySamp		= linspace(min(y),max(y),2);
 					f_meanSamp	= getLogpSamp(f_mean,2);
 					f_logpSamp	= getLogpSamp(f_logp,2);
@@ -326,7 +365,7 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 					plot(polyval(f_mean.px2y,f_meanSamp),f_meanSamp,'green');
 					plot(polyval(f_logp.px2y,f_logpSamp),f_logpSamp,'yellow');
 					plot([min(y),max(y)],[log10pThreshold,log10pThreshold],'black');
-					legend({'log p(mean t)','all probes','log(p(mean t))=g(y)','log(p)=G(y)','y=f(log(p(mean t)))','y=F(log(p))',logpthreshStr});
+					legend({'log p','log p(mean t)','log p(mean t)=g(y)','log p=G(y)','y=f(log p(mean t))','y=F(log p)',logpthreshStr});
 				otherwise
 					error('Unknown showwork type ''%s''',showwork);
 			end
@@ -336,7 +375,12 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 				alexplot(y,logp,'type','scatter','color',[0,0,1]);
 			end
 		end
-		if ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold) % TODO: change criterion
+		if nottrue(opt.clip)
+			accept	= ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold); % TODO: change criterion?
+		else
+			accept	= true; % will have already pruned outliers if opt.clip==true
+		end
+		if accept
 			cploty{1}(ks)	= g_mean.y0;
 			cploty{2}(ks)	= g_logp.y0;
 			cploty{3}(ks)	= f_mean.y0;
@@ -351,14 +395,15 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 	end
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
 	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
-	cLegend		= {'Fit: g(y)=log(p(mean t))','Fit: G(y)=log(p)','Fit: f(log(p(mean t)))=y','Fit: F(log(p))=y',pctLegend};
+	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
+	lines		= opt.plotlines;
 
-	hA	= alexplot(snr,cploty, ...
-			'error'		, cploterr				, ...
+	hA	= alexplot(snr,cploty(lines), ...
+			'error'		, cploterr(lines)		, ...
 			'title'		, titleStr				, ...
 			'xlabel'	, 'SNR'					, ...
 			'ylabel'	, varname				, ...
-			'legend'	, cLegend				, ...
+			'legend'	, cLegend(lines)		, ...
 			'errortype'	, 'bar'					  ...
 			);
 	h	= hA.hF;
@@ -366,7 +411,7 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 	function [f,g] = dual_linefit(x,y,x0)
 		%fprintf('range(x)=%s range(y)=%s\n',num2str(range(x)),num2str(range(y)));
 		xy	= [x(:);y(:)];
-		if range(x) == 0 || range(y) == 0 || any(isnan(xy)) || any(isinf(xy))
+		if numel(x) < 3 || range(x) == 0 || range(y) == 0 || any(isnan(xy)) || any(isinf(xy))
 			f.px2y			= [0,mean(y)];
 			f.py2x			= [0,mean(x)];
 			[f.y0,f.dy0]	= deal(NaN);
@@ -374,15 +419,35 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 		else
 			[f.px2y,S]		= polyfit(x,y,1);
 			[f.y0,f.dy0]	= polyval(f.px2y,x0,S);
-			f.y0			= optclip(f.y0);
+			f.y0			= optclip(f.y0,x0);
 			f.dy0			= errfac*f.dy0;
 			f.py2x			= swap_linear_polynomial_axes(f.px2y);
 
-			[g.py2x,~]		= polyfit(y,x,1);
+			[g.py2x,S]		= polyfit(y,x,1);
 			g.px2y			= swap_linear_polynomial_axes(g.py2x);
 			g.y0			= polyval(g.px2y,x0);
-			g.y0			= optclip(g.y0);
-			g.dy0			= 0; % TODO: come up with error metric for this direction
+			[x0_hat,dx0]	= polyval(g.py2x,g.y0,S);
+
+			assert(abs(x0-x0_hat)<1e-8,'Erroneous linear polynomial inversion');
+
+			g.dy0			= abs(errfac*dx0*g.px2y(1));
+			g.y0			= optclip(g.y0,x0);
+			if strcmp(opt.clip,'oldclip')
+				g.dy0		= min(g.dy0,max(yvals));
+			end
+		end
+
+		function y0 = optclip(y0,x0)
+			if strcmp(opt.clip,'oldclip')
+				y0		= max(min(yvals),min(y0,max(yvals)));
+			elseif opt.clip
+				% TODO: improve clipping criterion below?
+				minN		= opt.clipsize;
+				tailfrac	= opt.cliptail;
+				if isOutlier(y0,y,minN,tailfrac) || isOutlier(x0,x,minN,tailfrac)
+					y0	= NaN;
+				end
+			end
 		end
 	end
 
@@ -391,10 +456,11 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 		samp		= linspace(max(ypreimage(1),min(logp)),min(ypreimage(end),max(logp)),nSamp);
 	end
 
-	function y0 = optclip(y0)
-		if opt.clip
-			y0	= max(min(yvals),min(y0,max(yvals)));
-		end
+	function b = isOutlier(v,vals,minN,tailfrac)
+		vinc	= sort(vals(:));
+		N		= numel(vinc);
+		tailN	= floor(N*(tailfrac+1e-10));
+		b		= N < minN || v < vinc(1+tailN) || v > vinc(N-tailN);
 	end
 
 	function pswap = swap_linear_polynomial_axes(p)

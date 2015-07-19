@@ -50,7 +50,7 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdProbe(varargin)
 % Example:
 %	ThresholdProbe;
 %	ThresholdProbe('yname','nRun','seed',3);
-%	ThresholdProbe('yname','WStrength','yvals',linspace(0.2,0.8,20),'seed',3);
+%	ThresholdProbe('yname','WStrength','yvals',linspace(0.2,0.8,21),'seed',3);
 %	sPoint=ThresholdProbe('noplot',true);
 %
 % Updated: 2015-07-18

@@ -1,6 +1,49 @@
-% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-
 function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
+% ThresholdWeave
+%
+% Description:	For a range of SNRs and a designated parameter, find
+%		least parameter values that bring p-value below a designated
+%		threshold
+%
+% Syntax:	[sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(<options>)
+%
+% In:
+%	<options>:
+%		fakedata:	(true) generate fake data (for quick tests)
+%		noplot:		(false) suppress plotting
+%		yname:		('nSubject') y-axis variable name
+%		yvals:		(1:20) y-axis variable values
+%		xname:		('SNR') x-axis variable name
+%		xstart:		(0.05) lower-bound on x-variable value
+%		xstep:		(0.002) x-variable step amount
+%		xend:		(0.35) upper-bound on x-variable value
+%		nSweep:		(1) number of SNR back-and-forth traversals
+%						per independent survey
+%		nOuter:		(6) number of independent surveys
+%		pThreshold:	(0.05) threshold p-value to be attained
+%
+% Out:
+% 	sPoint		- a struct array of probes (x, y, p, summary)
+%	pipeline	- the Pipeline instance created to perform probes
+%	threshOpt	- struct of options, including defaults for those
+%				  not explicitly specified in arguments
+%	h			- handle for generated plot (if any)
+%	area		- area data for points in generated plot (if any)
+%	color		- color data for points in generated plot (if any)
+%
+% Notes:
+%	See also ThresholdSketch.m and ThresholdProbe.m.
+%
+% Example:
+%	ThresholdWeave;
+%	ThresholdWeave('yname','nRun','seed',3);
+%	ThresholdWeave('yname','WStrength','yvals',linspace(0.2,0.8,21),'seed',3);
+%	sPoint=ThresholdWeave('noplot',true);
+%
+% Updated: 2015-07-18
+% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
+% This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
 	threshOpt	= ParseArgs(varargin, ...
 					'fakedata'			, true				, ...
 					'noplot'			, false				, ...
@@ -35,7 +78,7 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
 	cPoint		= cell(1,nTask);
 	reparg		= @(a) repmat({a},1,nTask);
 	taskarg		= {reparg(obj),cSeed,reparg(xvar),reparg(yvar),reparg(threshOpt)};
-	cPoint		= MultiTask(@thresholdExplore, taskarg	, ...
+	cPoint		= MultiTask(@thresholdSurvey, taskarg	, ...
 					'njobmax'				, obj.uopt.njobmax			, ...
 					'cores'					, obj.uopt.max_cores		, ...
 					'debug'					, obj.uopt.MT_debug			, ...
@@ -52,7 +95,7 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
 	end
 end
 
-function sPoint = thresholdExplore(obj,seed,xvar,yvar,tOpt)
+function sPoint = thresholdSurvey(obj,seed,xvar,yvar,tOpt)
 	assert(isnumeric(seed),'Bug: bad seed');
 	%fprintf('seed is %d\n',seed);
 	obj		= obj.setopt('seed',seed);

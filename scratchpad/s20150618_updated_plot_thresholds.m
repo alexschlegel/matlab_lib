@@ -51,7 +51,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 %	Ideally the applicable code would be factored out and shared across scripts.
 %
 % Example:
-%	h = s20150618_updated_plot_thresholds('nogen',false);
+%	h = s20150618_updated_plot_thresholds;
 %
 % Updated: 2015-07-18
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
@@ -60,7 +60,6 @@ function h = s20150618_updated_plot_thresholds(varargin)
 %---------------------------------------------------------------------
 % TODO: More comments
 %---------------------------------------------------------------------
-
 
 	stem		= 's20150618_thresholds';
 	opt			= ParseArgs(varargin, ...

@@ -1,34 +1,0 @@
-vim insertion macros:
-(1) insert template, fill in date, copy syntax:
-Omo/^functionmf'odd'f"fy$:r COMMENT-TEMPLATEmj/^%kd'j/FuncNameD"fp0Wdf=ix bdwf(D/^% Updated:!!date +Updated:\ \%Y-\%m-\%di% 'f/^% Syntaxf{D"fp0/functiondWf(/varargincw<options>
-(2) convert opt from ParseArgs invocation to opt in comment (repeat per opt):
-0cf'%		f'r: cf,		f r(Ea) C descrip
-(3) convert [] to <auto> (repeat per instance):
-/(\[\]) 2s<auto>
-
-% FuncName
-%
-% Description:	{imperative verb phrase}
-%
-% Syntax:	{ans = FuncName(args,<options>)}
-%
-% In:
-% 	{arg1}	- {noun phrase}
-%	{arg2}	- {noun phrase}
-%	<options>:
-%		{opt}:		({default}) {noun phrase (or verb phrase?)}
-%		{opt}:		(<all>) {noun phrase (or verb phrase?)}
-%
-% Out:
-% 	ans	- {noun phrase}
-%
-% Notes:
-%	notes
-%
-% Example:
-%	example
-%
-% Updated: yyyy-mm-dd
-% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-% This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-

@@ -1,11 +1,11 @@
-function h = s20150618_updated_plot_thresholds(varargin)
-% s20150618_updated_plot_thresholds
+function h = s20150718_plot_thresholds(varargin)
+% s20150718_plot_thresholds
 %
 % Description:	generate data for and/or plot nRun, nSubject, nTBlock,
 %				nRepBlock, and WStrength threshold values needed to
 %				attain p <= 0.05 at a range of SNR values
 %
-% Syntax:	h = s20150618_updated_plot_thresholds(<options>)
+% Syntax:	h = s20150718_plot_thresholds(<options>)
 %
 % In:
 %	<options>:
@@ -28,10 +28,11 @@ function h = s20150618_updated_plot_thresholds(varargin)
 %		varname:	(<auto>) one of 'nRun', 'nSubject', 'nTBlock', 'nRepBlock', or
 %							'WStrength'; if none specified, all variables are used,
 %							except when showwork is specified
-%		xstart:		(0.06) SNR lower bound
-%		xstep:		(0.02) SNR step
-%		xend:		(0.34) SNR upper bound
-%		<other>:	Additional options forwarded to ThresholdSketch and/or Pipeline.
+%		xstart:		(0.05) SNR lower bound
+%		xstep:		(0.002) SNR step
+%		xend:		(0.35) SNR upper bound
+%		seed:		(0) randomization seed (false for none)
+%		<other>:	Additional options forwarded to ThresholdWeave and/or Pipeline.
 %
 % Out:
 % 	h	- figure handle(s)
@@ -51,7 +52,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 %	Ideally the applicable code would be factored out and shared across scripts.
 %
 % Example:
-%	h = s20150618_updated_plot_thresholds('nogen',false);
+%	h = s20150718_plot_thresholds('nogen',false);
 %
 % Updated: 2015-07-18
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
@@ -61,8 +62,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 % TODO: More comments
 %---------------------------------------------------------------------
 
-
-	stem		= 's20150618_thresholds';
+	stem		= 's20150718_thresholds';
 	opt			= ParseArgs(varargin, ...
 					'clip'				, true			, ...
 					'clipsize'			, 5				, ...
@@ -77,9 +77,10 @@ function h = s20150618_updated_plot_thresholds(varargin)
 					'saveplot'			, false			, ...
 					'showwork'			, false			, ...
 					'varname'			, []			, ...
-					'xstart'			, 0.06			, ...
-					'xstep'				, 0.02			, ...
-					'xend'				, 0.34			  ...
+					'xstart'			, 0.05			, ...
+					'xstep'				, 0.002			, ...
+					'xend'				, 0.35			, ...
+					'seed'				, 0				  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 
@@ -109,7 +110,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 	sketch('nSubject'	, 1:20);
 	sketch('nTBlock'	, 1:20);
 	sketch('nRepBlock'	, 2:15);
-	sketch('WStrength'	, 0.2:0.001:0.8);
+	sketch('WStrength'	, linspace(0.2,0.8,21));
 
 	if numel(h) > 0
 		if ~opt.saveplot
@@ -117,7 +118,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 		else
 			cap_ts		= sort(cap_ts);
 			dirpath		= 'scratchpad/figfiles';
-			prefix		= sprintf('%s_updated_%s',cap_ts{end},stem);
+			prefix		= sprintf('%s_%s',cap_ts{end},stem);
 			kind		= unless(opt.varname,strjoin(opt.plottype,'+'));
 			if opt.clip
 				if strcmp(opt.clip,'oldclip')
@@ -134,12 +135,12 @@ function h = s20150618_updated_plot_thresholds(varargin)
 	end
 
 	function dummySketch
-		% issue dummy invocation of ThresholdSketch to provoke error message on bad extraargs
-		ThresholdSketch(...
+		% issue dummy invocation of ThresholdWeave to provoke error message on bad extraargs
+		ThresholdWeave(...
 			'fakedata'	, true		, ...
 			'noplot'	, true		, ...
-			'yvals'		, 2:9		, ...
-			'nProbe'	, 1			, ...
+			'yvals'		, 2:3		, ...
+			'xstep'		, 0.1		, ...
 			'nOuter'	, 1			, ...
 			extraargs{:} ...
 			);
@@ -194,7 +195,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 			start_ms	= nowms;
 
 			[threshPts,pipeline,threshOpt]	...
-						= ThresholdSketch(...
+						= ThresholdWeave(...
 							'fakedata'	, opt.fakedata		, ...
 							'noplot'	, true				, ...
 							'yname'		, testvarName		, ...
@@ -202,7 +203,7 @@ function h = s20150618_updated_plot_thresholds(varargin)
 							'xstart'	, opt.xstart		, ...
 							'xstep'		, opt.xstep			, ...
 							'xend'		, opt.xend			, ...
-							'seed'		, 0					, ...
+							'seed'		, opt.seed			, ...
 							extraargs{:} ...
 							);
 			end_ms		= nowms;
@@ -498,7 +499,7 @@ function h = scatter_p_vs_x(xname,xvals,pvals,colorname,colorvals,pThreshold)
 end
 
 function h = scatter_test_vs_SNR(sPoint,pThreshold,varname,~)
-% TODO: This function is redundant with plot_points in ThresholdSketch.
+% TODO: This function is redundant with plot_points in ThresholdWeave.
 % Should clean up this redundancy.
 	ratio		= max(1e-6,min([sPoint.p]./pThreshold,1e6));
 	area		= 10+abs(60*log(ratio));

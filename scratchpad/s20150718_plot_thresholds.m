@@ -10,7 +10,12 @@ function h = s20150718_plot_thresholds(varargin)
 % In:
 %	<options>:
 %		clip:		(true) if 'oldclip', clip linear extrapolations to variable range;
-%						if true, remove linear-extrapolation outliers
+%						if true, remove linear-extrapolation outliers (see 'cliptail').
+%						Variable in question is one of 'nRun', 'nSubject', 'nTBlock',
+%						'nRepBlock', or 'WStrength', as specified by 'varname' below
+%		cliperr:	(true) logical or numeric:  remove points whose error
+%						exceeds specified fraction of max variable value;
+%						for cliperr==true, fraction is taken as 1 (for now)
 %		clipsize:	(5) fewest fit points for inclusion of linear extrapolation (if clip==true)
 %		cliptail:	(0.2) fraction of fit points considered tail at each end (if clip==true)
 %		fakedata:	(<auto>) generate fake data (for quick tests)
@@ -42,10 +47,11 @@ function h = s20150718_plot_thresholds(varargin)
 %	to true, and noplot defaults to false; without ShowFigureWindows (thus, in batch
 %	runs), fakedata and nogen default to false, and noplot defaults to true.
 %
-%	This script is an updated variant of s20150605_plot_thresholds.m.
+%	This script is an updated variant of s20150618_updated_plot_thresholds.m.
 %	Among other differences, the variants of this script use different
 %	data formats.  Data files written by one variant can be plotted only
-%	by the same variant.
+%	by the same variant.  Additionally, the present script uses ThresholdWeave,
+%	whereas the earlier one used ThresholdSketch.
 %
 %	Option-handling in this script is similar to that of s20150615_plot_nSample_wwo_HRF.m,
 %	but the latter includes a few niceties that the present script currently omits.
@@ -54,7 +60,7 @@ function h = s20150718_plot_thresholds(varargin)
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-18
+% Updated: 2015-07-19
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -65,6 +71,7 @@ function h = s20150718_plot_thresholds(varargin)
 	stem		= 's20150718_thresholds';
 	opt			= ParseArgs(varargin, ...
 					'clip'				, true			, ...
+					'cliperr'			, true			, ...
 					'clipsize'			, 5				, ...
 					'cliptail'			, 0.2			, ...
 					'fakedata'			, []			, ...
@@ -104,13 +111,13 @@ function h = s20150718_plot_thresholds(varargin)
 	h			= [];
 	cap_ts		= {};
 
-	dummySketch;
+	dummyWeave;
 
-	sketch('nRun'		, 2:20);
-	sketch('nSubject'	, 1:20);
-	sketch('nTBlock'	, 1:20);
-	sketch('nRepBlock'	, 2:15);
-	sketch('WStrength'	, linspace(0.2,0.8,21));
+	weave('nRun'		, 2:20);
+	weave('nSubject'	, 1:20);
+	weave('nTBlock'		, 1:20);
+	weave('nRepBlock'	, 2:15);
+	weave('WStrength'	, linspace(0.2,0.8,21));
 
 	if numel(h) > 0
 		if ~opt.saveplot
@@ -125,7 +132,11 @@ function h = s20150718_plot_thresholds(varargin)
 					kind	= [kind '-clipped'];
 				else
 					%TODO: should probably also incorporate clipsize
-					kind	= sprintf('%s-cliptail%s',kind,num2str(opt.cliptail));
+					kind	= sprintf('%s-ta%s',kind,num2str(opt.cliptail));
+				end
+				if notfalse(opt.cliperr)
+					strCliperr	= conditional(isnumeric(opt.cliperr),num2str(opt.cliperr),'T');
+					kind		= sprintf('%s-er%s',kind,strCliperr);
 				end
 			end
 			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
@@ -134,7 +145,7 @@ function h = s20150718_plot_thresholds(varargin)
 		end
 	end
 
-	function dummySketch
+	function dummyWeave
 		% issue dummy invocation of ThresholdWeave to provoke error message on bad extraargs
 		ThresholdWeave(...
 			'fakedata'	, true		, ...
@@ -146,7 +157,7 @@ function h = s20150718_plot_thresholds(varargin)
 			);
 	end
 
-	function sketch(testvarName,testvarValues)
+	function weave(testvarName,testvarValues)
 		if ~isempty(opt.varname) && ~strcmp(testvarName,opt.varname)
 			return;
 		end
@@ -420,8 +431,8 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 		else
 			[f.px2y,S]		= polyfit(x,y,1);
 			[f.y0,f.dy0]	= polyval(f.px2y,x0,S);
-			f.y0			= optclip(f.y0,x0);
 			f.dy0			= errfac*f.dy0;
+			f.y0			= optclip(f.y0,x0,f.dy0);
 			f.py2x			= swap_linear_polynomial_axes(f.px2y);
 
 			[g.py2x,S]		= polyfit(y,x,1);
@@ -432,13 +443,13 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 			assert(abs(x0-x0_hat)<1e-8,'Erroneous linear polynomial inversion');
 
 			g.dy0			= abs(errfac*dx0*g.px2y(1));
-			g.y0			= optclip(g.y0,x0);
+			g.y0			= optclip(g.y0,x0,g.dy0);
 			if strcmp(opt.clip,'oldclip')
 				g.dy0		= min(g.dy0,max(yvals));
 			end
 		end
 
-		function y0 = optclip(y0,x0)
+		function y0 = optclip(y0,x0,dy0)
 			if strcmp(opt.clip,'oldclip')
 				y0		= max(min(yvals),min(y0,max(yvals)));
 			elseif opt.clip
@@ -446,6 +457,12 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 				minN		= opt.clipsize;
 				tailfrac	= opt.cliptail;
 				if isOutlier(y0,y,minN,tailfrac) || isOutlier(x0,x,minN,tailfrac)
+					y0	= NaN;
+				end
+			end
+			if notfalse(opt.cliperr)
+				limit	= conditional(isnumeric(opt.cliperr),opt.cliperr,1)*max(yvals);
+				if ~(0 <= dy0 && dy0 <= limit)
 					y0	= NaN;
 				end
 			end

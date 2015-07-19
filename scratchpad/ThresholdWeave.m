@@ -32,6 +32,65 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
 %	color		- color data for points in generated plot (if any)
 %
 % Notes:
+%	ThresholdWeave searches for (x,y) pairs that yield p-values at or
+%	near the designated p-threshold.  It is assumed that p is (on
+%	average) monotonically decreasing in x for fixed y, and also
+%	monotonically decreasing in y for fixed x.  Thus, if (x,y) pairs
+%	are plotted on a standard 2D graph, we postulate that at points
+%	(x,y) toward the upper-right-hand portion of the graph, where x
+%	and y are both high, the expected p-values should be *less* than
+%	the p-threshold, while at points (x,y) toward the lower-left-hand
+%	portion of the graph, where x and y are both low, the expected
+%	p-values should be *greater* than the p-threshold.  The boundary
+%	separating the large-p and small-p regions runs from somewhere
+%	toward the upper-left-hand corner of the graph to somewhere toward
+%	the lower-right-hand corner.  ThresholdWeave begins its search at
+%	the latter corner; that is, the initial x-value is high, and the
+%	initial y-value is low.  The code gradually scans ("sweeps")
+%	leftward and upward, decreasing x and increasing y, all the while
+%	attempting to cleave close to the boundary between the large-p and
+%	small-p regions.  When the scan reaches either the left-hand or
+%	upper edge of the graph, the code reverses course and scans
+%	rightward and downward until it reaches either the right-hand or
+%	lower edge of the graph.  The entire back-and-forth sweep is
+%	serially repeated nSweep times.  Additionally, the code provides
+%	for parallel execution of nOuter series of sweeps, yielding a
+%	total of nOuter*nSweep back-and-forth sweeps.
+%
+%	To steer close to the boundary between the small-p and large-p
+%	regions of the graph, the scanning code follows a simple rule:  If
+%	the most recent probe point (x,y) yielded a p-value larger than
+%	the threshold, then the next probe point is obtained by nudging
+%	either x or y upward; whereas if the p-value was smaller than or
+%	equal to the threshold, then the next probe point is obtained by
+%	nudging either x or y *downward*.  The code thus attempts to weave
+%	back and forth across the p-threshold boundary.  Because the
+%	probes are highly stochastic, there is no guarantee that
+%	successive probes will in fact cross the boundary, but the further
+%	the probe points stray from it, the greater the likelihood that
+%	the probed p-values will accurately reflect the current region,
+%	and so cause the scan to weave back toward the boundary.
+%
+%	When the scan direction is from lower-right to upper-left, the
+%	rule just stated becomes more specific:  If the most recent probe
+%	point yielded a p-value larger than the threshold, then y (not x)
+%	is nudged upward; otherwise, x (not y) is nudged *downward*.  When
+%	the scan direction is from upper-left to lower-right, the rule is
+%	specialized in the opposite way:  If the most recent probe point
+%	yielded a p-value larger than the threshold, then x (not y) is
+%	nudged upward; otherwise, y (not x) is nudged *downward*.
+%
+%	ThresholdWeave (unlike its predecessor ThresholdSketch) makes a
+%	further provision regarding the scan direction.  Scans in a given
+%	direction include "micro-stitches" in which the scan direction is
+%	temporarily reversed.  For every two steps forward, so to speak, a
+%	backward step is inserted.  The intent of these micro-reversals is
+%	to prevent the scan from getting locked in ruts parallel to
+%	sections of the threshold boundary that are nearly horizontal or
+%	nearly vertical.  However, although the micro-reversals are
+%	conjectured to be beneficial, their effectiveness has not been
+%	established.
+%
 %	See also ThresholdSketch.m and ThresholdProbe.m.
 %
 % Example:
@@ -40,9 +99,13 @@ function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
 %	ThresholdWeave('yname','WStrength','yvals',linspace(0.2,0.8,21),'seed',3);
 %	sPoint=ThresholdWeave('noplot',true);
 %
-% Updated: 2015-07-18
+% Updated: 2015-07-19
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+%---------------------------------------------------------------------
+% TODO: More comments
+%---------------------------------------------------------------------
 
 	threshOpt	= ParseArgs(varargin, ...
 					'fakedata'			, true				, ...

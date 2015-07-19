@@ -1,5 +1,3 @@
-% Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
-
 function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdProbe(varargin)
 % ThresholdProbe
 %

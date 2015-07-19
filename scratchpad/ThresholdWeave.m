@@ -1,23 +1,18 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 
-function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdSketch(varargin)
+function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdWeave(varargin)
 	threshOpt	= ParseArgs(varargin, ...
 					'fakedata'			, true				, ...
 					'noplot'			, false				, ...
-					'threshVerbosity'	, 1					, ...
 					'yname'				, 'nSubject'		, ...
 					'yvals'				, 1:20				, ...
 					'xname'				, 'SNR'				, ...
-					'xstart'			, 0.01				, ...
-					'xstep'				, 0.001				, ...
-					'xend'				, 0.7				, ...
-					'pThreshold'		, 0.05				, ...
-					'nProbe'			, 400				, ...
+					'xstart'			, 0.05				, ...
+					'xstep'				, 0.002				, ...
+					'xend'				, 0.35				, ...
+					'nSweep'			, 1					, ...
 					'nOuter'			, 6					, ...
-					'init_npt'			, 7					, ...
-					'npt_growth'		, sqrt(2)			, ...
-					'kmargin'			, 2					, ...
-					'max_aspect'		, 2					  ...
+					'pThreshold'		, 0.05				  ...
 					);
 	extraargs	= opt2cell(threshOpt.opt_extra);
 	obj			= Pipeline(extraargs{:});
@@ -64,71 +59,10 @@ function sPoint = thresholdExplore(obj,seed,xvar,yvar,tOpt)
 	obj		= obj.consumeRandomizationSeed;
 
 	sPoint	= [];
-	xvar	= initvar(xvar);
-	yvar	= initvar(yvar);
 
-	while numel(sPoint) < tOpt.nProbe
-		xvar.npt	= min(xvar.npt,tOpt.max_aspect*yvar.npt);
-		yvar.npt	= min(yvar.npt,tOpt.max_aspect*xvar.npt);
-		xpick		= pickvals(xvar);
-		ypick		= pickvals(yvar);
-		sPointNew	= thresholdSweep(obj,xpick,ypick,tOpt);
-		xvar		= findrange(xvar,xpick,[sPointNew.x],[sPointNew.p]);
-		yvar		= findrange(yvar,ypick,[sPointNew.y],[sPointNew.p]);
+	for k=1:tOpt.nSweep
+		sPointNew	= thresholdSweep(obj,xvar,yvar,tOpt);
 		sPoint		= [sPoint sPointNew];
-	end
-
-	function var = initvar(var)
-		var.npt		= tOpt.init_npt;
-	end
-
-	function var = pickvals(var)
-		nval	= numel(var.vals);
-		k		= var.npt;
-
-		assert(nval>=k && k>=2,'Bug: bad argument');
-
-		netgap	= nval - 1;
-		ngap	= k - 1;
-		meangap	= floor(netgap/ngap);
-		gap		= randi(meangap,1,ngap);
-		extra	= netgap - sum(gap);
-		quot	= floor(extra/ngap);
-		gap		= gap + quot;
-		ix		= randperm(ngap,extra - ngap*quot);
-		gap(ix) = gap(ix) + 1;
-		kval	= cumsum([1 gap]);
-
-		assert(numel(kval)==k,'Bug: wrong size');
-		assert(kval(1)==1 && kval(end)==nval,'Bug: bad endpoint');
-
-		var.vals	= var.vals(kval);
-		if tOpt.threshVerbosity > 2
-			fprintf('%s count=%d indices:%s\n',var.name,nval,sprintf(' %d',kval));
-			fprintf('    vals:%s\n',sprintf(' %g',var.vals));
-		end
-	end
-
-	function var = findrange(var,varpick,varProbed,pProbed)
-		goodidx		= pProbed <= tOpt.pThreshold; % N.B.: excludes NaN probes!
-
-		mingood		= min(varProbed(goodidx));
-		mingood		= unless(mingood,varpick.vals(1));
-		kminpick	= max(1,find(varpick.vals==mingood)-tOpt.kmargin);
-		kmin		= find(var.vals==varpick.vals(kminpick));
-
-		maxbad		= max(varProbed(~goodidx)); % (includes NaN probes)
-		maxbad		= unless(maxbad,varpick.vals(end));
-		kmaxpick	= min(find(varpick.vals==maxbad)+tOpt.kmargin,numel(varpick.vals));
-		kmax		= find(var.vals==varpick.vals(kmaxpick));
-
-		var.npt		= min(ceil(tOpt.npt_growth*var.npt),kmax-kmin+1);
-		var.vals	= var.vals(kmin:kmax);
-
-		if tOpt.threshVerbosity > 2
-			fprintf('  %s mingood=%g kmin=%d maxbad=%g kmax=%d\n',var.name,mingood,kmin,maxbad,kmax);
-			fprintf('      new npt=%d new min=%g new max=%g\n',var.npt,var.vals(1),var.vals(end));
-		end
 	end
 end
 
@@ -136,17 +70,24 @@ function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 	nx	= numel(xvar.vals);
 	ny	= numel(yvar.vals);
 
-	zpt		= struct('x',0,'y',0,'p',0,'summary',struct);
-	sPoint	= repmat(zpt,1,2*(nx+ny));
-	nPoint	= 0;
+	microStitch	= [false true false];
+	nMicro		= numel(microStitch);
+	zpt			= struct('x',0,'y',0,'p',0,'summary',struct);
+	sPoint		= repmat(zpt,1,2*nMicro*(nx+ny));
+	nPoint		= 0;
 
 	kx	= nx;
 	ky	= 1;
 	for retrace=0:1 % i.e., retrace=false, then retrace=true
+		microIndex		= 1;
 		while conditional(~retrace, ...
 				kx >= 1  && ky <= ny	, ... % right-left, bottom-top
 				kx <= nx && ky >= 1		  ... % left-right, top-bottom
 				)
+			kx	= max(1,min(kx,nx));
+			ky	= max(1,min(ky,ny));
+			%fprintf('[%d] ',kx+ny-ky);
+
 			pt.x				= xvar.vals(kx);
 			pt.y				= yvar.vals(ky);
 
@@ -165,14 +106,14 @@ function sPoint = thresholdSweep(obj,xvar,yvar,tOpt)
 
 			meetsThreshold		= pt.p <= tOpt.pThreshold;
 			step				= conditional(meetsThreshold,-1,+1);
-			if meetsThreshold ~= retrace
+			microRetrace		= xor(retrace,microStitch(microIndex));
+			if meetsThreshold ~= microRetrace
 				kx	= kx + step;
 			else
 				ky	= ky + step;
 			end
+			microIndex			= 1+mod(microIndex,nMicro);
 		end
-		kx	= max(1,kx);
-		ky	= min(ky,ny);
 	end
 
 	sPoint	= sPoint(1:nPoint);

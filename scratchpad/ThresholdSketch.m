@@ -1,6 +1,9 @@
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
+%
+% See ThresholdWeave.m
 
 function [sPoint,pipeline,threshOpt,h,area,color] = ThresholdSketch(varargin)
+% See ThresholdWeave.m
 	threshOpt	= ParseArgs(varargin, ...
 					'fakedata'			, true				, ...
 					'noplot'			, false				, ...

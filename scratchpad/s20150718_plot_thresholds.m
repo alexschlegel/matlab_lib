@@ -60,7 +60,7 @@ function h = s20150718_plot_thresholds(varargin)
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-19
+% Updated: 2015-07-20
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -137,6 +137,10 @@ function h = s20150718_plot_thresholds(varargin)
 				if notfalse(opt.cliperr)
 					strCliperr	= conditional(isnumeric(opt.cliperr),num2str(opt.cliperr),'T');
 					kind		= sprintf('%s-er%s',kind,strCliperr);
+				end
+				strPlotlines	= char(48+opt.plotlines);
+				if ~strcmp(strPlotlines,'12345')
+					kind		= sprintf('%s-li%s',kind,strPlotlines);
 				end
 			end
 			figfilepath	= sprintf('%s/%s-%s-%s.fig',dirpath,prefix,kind,FormatTime(nowms,'mmdd'));
@@ -408,14 +412,21 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
 	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
 	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
-	lines		= opt.plotlines;
 
-	hA	= alexplot(snr,cploty(lines), ...
-			'error'		, cploterr(lines)		, ...
+	noline					= true(1,nline);
+	noline(opt.plotlines)	= false;
+	[cLegend{noline}]		= deal('suppressed');
+	mploty					= cell2mat(cploty.');
+	mploty(noline,:)		= NaN;
+	cploty					= mat2cell(mploty,ones(1,nline),size(mploty,2)).';
+	zorderl					= 1:nline; % (constant for now)
+
+	hA	= alexplot(snr,cploty(zorderl), ...
+			'error'		, cploterr(zorderl)		, ...
 			'title'		, titleStr				, ...
 			'xlabel'	, 'SNR'					, ...
 			'ylabel'	, varname				, ...
-			'legend'	, cLegend(lines)		, ...
+			'legend'	, cLegend(zorderl)		, ...
 			'errortype'	, 'bar'					  ...
 			);
 	h	= hA.hF;

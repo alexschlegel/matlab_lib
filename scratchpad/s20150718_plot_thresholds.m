@@ -28,15 +28,15 @@ function h = s20150718_plot_thresholds(varargin)
 %							default changes to all types if varname specified
 %		savedata:	(<auto>) cache generated data; by default true if not fakedata
 %		saveplot:	(false) save plot(s) to fig file
+%		seed:		(0) randomization seed (false for none)
 %		showwork:	(false) one of false, 'hist', 'pct', or 'scat' (true): display
 %							specified kind of diagnostic plot for each SNR value
 %		varname:	(<auto>) one of 'nRun', 'nSubject', 'nTBlock', 'nRepBlock', or
 %							'WStrength'; if none specified, all variables are used,
 %							except when showwork is specified
+%		xend:		(0.35) SNR upper bound
 %		xstart:		(0.05) SNR lower bound
 %		xstep:		(0.002) SNR step
-%		xend:		(0.35) SNR upper bound
-%		seed:		(0) randomization seed (false for none)
 %		<other>:	Additional options forwarded to ThresholdWeave and/or Pipeline.
 %
 % Out:
@@ -60,7 +60,7 @@ function h = s20150718_plot_thresholds(varargin)
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-20
+% Updated: 2015-07-21
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -82,12 +82,12 @@ function h = s20150718_plot_thresholds(varargin)
 					'plottype'			, []			, ...
 					'savedata'			, []			, ...
 					'saveplot'			, false			, ...
+					'seed'				, 0				, ...
 					'showwork'			, false			, ...
 					'varname'			, []			, ...
-					'xstart'			, 0.05			, ...
-					'xstep'				, 0.002			, ...
 					'xend'				, 0.35			, ...
-					'seed'				, 0				  ...
+					'xstart'			, 0.05			, ...
+					'xstep'				, 0.002			  ...
 					);
 	extraargs	= opt2cell(opt.opt_extra);
 
@@ -306,9 +306,26 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 
 	for ks=1:nsnr
 		b				= xvals == snr(ks);
+		curr_snr		= num2str(snr(ks));
+
+		showwork		= conditional(ks<8,showwork,false);
+		[cFit,accept]	= do_fitlines(b,showwork,curr_snr);
+		for kL=1:nline
+			if accept
+				fit					= cFit{kL};
+				cploty{kL}(ks)		= fit.y0;
+				cploterr{kL}(ks)	= fit.dy0;
+			end
+		end
+	end
+
+	function [cFit,accept] = do_fitlines(b,showwork,curr_snr)
+		cFit		= cell(1,nline);
+		accept		= false;
+
 		currNProbe		= sum(b);
 		if currNProbe < 2
-			continue;
+			return;
 		end
 		y			= yvals(b);
 		logp		= log10(pvals(b));
@@ -339,11 +356,11 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 		[f_mean,g_mean]	= dual_linefit(logp_mean_t,y,log10pThreshold);
 		[f_pct,~]		= dual_linefit(percentile,y,50);
 
+		cFit			= {g_mean,g_logp,f_mean,f_logp,f_pct};
 		criterionfit	= g_logp.px2y;
-		if notfalse(showwork) && ks < 8
+		if notfalse(showwork)
 			% the diagnostic scatter-plot below places the "y" value on the x-axis
 			% and log10(p) on the y-axis, in effect swapping the axes of the polyfit.
-			curr_snr	= num2str(snr(ks));
 			fprintf('Num probes for SNR=%s is %d; ',curr_snr,currNProbe);
 			fprintf('slope of fitted line is %s;\n',num2str(1/criterionfit(1)));
 			fprintf('fourth-smallest log is %s\n',num2str(fourth_logp));
@@ -374,8 +391,8 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 					hold;
 					scatter(y,logp_mean_t,'red','fill');
 					ySamp		= linspace(min(y),max(y),2);
-					f_meanSamp	= getLogpSamp(f_mean,2);
-					f_logpSamp	= getLogpSamp(f_logp,2);
+					f_meanSamp	= getLogpSamp(logp,y,f_mean,2);
+					f_logpSamp	= getLogpSamp(logp,y,f_logp,2);
 					plot(ySamp,polyval(g_mean.py2x,ySamp),'red');
 					plot(ySamp,polyval(g_logp.py2x,ySamp),'blue');
 					plot(polyval(f_mean.px2y,f_meanSamp),f_meanSamp,'green');
@@ -387,32 +404,19 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 			end
 			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
 			hold off;
-			if strcmp(showwork,'scat') && ks == 4 && false % (omit for now)
-				alexplot(y,logp,'type','scatter','color',[0,0,1]);
-			end
 		end
 		if nottrue(opt.clip)
 			accept	= ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold); % TODO: change criterion?
 		else
 			accept	= true; % will have already pruned outliers if opt.clip==true
 		end
-		if accept
-			cploty{1}(ks)	= g_mean.y0;
-			cploty{2}(ks)	= g_logp.y0;
-			cploty{3}(ks)	= f_mean.y0;
-			cploty{4}(ks)	= f_logp.y0;
-			cploty{5}(ks)	= f_pct.y0;
-			cploterr{1}(ks)	= g_mean.dy0;
-			cploterr{2}(ks)	= g_logp.dy0;
-			cploterr{3}(ks)	= f_mean.dy0;
-			cploterr{4}(ks)	= f_logp.dy0;
-			cploterr{5}(ks)	= f_pct.dy0;
-		end
 	end
+
 	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
 	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
 	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
 
+	assert(all(opt.plotlines<=nline),'Invalid plotlines value');
 	noline					= true(1,nline);
 	noline(opt.plotlines)	= false;
 	[cLegend{noline}]		= deal('suppressed');
@@ -480,7 +484,7 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 		end
 	end
 
-	function samp = getLogpSamp(linefit,nSamp)
+	function samp = getLogpSamp(logp,y,linefit,nSamp)
 		ypreimage	= sort(polyval(linefit.py2x,[min(y),max(y)]));
 		samp		= linspace(max(ypreimage(1),min(logp)),min(ypreimage(end),max(logp)),nSamp);
 	end

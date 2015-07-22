@@ -20,6 +20,11 @@ function h = s20150718_plot_thresholds(varargin)
 %		cliptail:	(0.2) fraction of fit points considered tail at each end (if clip==true)
 %		fakedata:	(<auto>) generate fake data (for quick tests)
 %		forcegen:	(false) generate new data even if cached data exists
+%		movavgx:	(1) moving-average window width for smoothing along x-axis:
+%						y-value at x0 is interpolated from the probe points at the
+%						greatest movavgx x-values with x0 as upper bound, together
+%						with the lowest movavgx x-values with x0 as lower bound
+%						(applies to multifit plots)
 %		nogen:		(<auto>) suppress data generation even if no data cached
 %		noplot:		(<auto>) suppress plotting
 %		plotlines:	(1:5) plot lines to include in multifit plot (if applicable)
@@ -60,7 +65,7 @@ function h = s20150718_plot_thresholds(varargin)
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-21
+% Updated: 2015-07-22
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -76,6 +81,7 @@ function h = s20150718_plot_thresholds(varargin)
 					'cliptail'			, 0.2			, ...
 					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
+					'movavgx'			, 1				, ...
 					'nogen'				, []			, ...
 					'noplot'			, []			, ...
 					'plotlines'			, 1:5			, ...
@@ -137,6 +143,9 @@ function h = s20150718_plot_thresholds(varargin)
 				if notfalse(opt.cliperr)
 					strCliperr	= conditional(isnumeric(opt.cliperr),num2str(opt.cliperr),'T');
 					kind		= sprintf('%s-er%s',kind,strCliperr);
+				end
+				if opt.movavgx ~= 1
+					kind		= sprintf('%s-mvx%d',kind,opt.movavgx);
 				end
 				strPlotlines	= char(48+opt.plotlines);
 				if ~strcmp(strPlotlines,'12345')
@@ -296,40 +305,72 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 	nsnr		= numel(snr);
 
 	nline			= 5; % At present, five plot lines
-	cploty			= cell(1,nline);
-	cploterr		= cell(1,nline);
+	cploty			= cell(1,nline);	% TODO: Start with 2D numeric array, convert to cell of vectors later
+	cploterr		= cell(1,nline);	% TODO: Start with 2D numeric array, convert to cell of vectors later
 	[cploty{:}]		= deal(NaN(1,nsnr));
 	[cploterr{:}]	= deal(zeros(1,nsnr));
 	errfac			= 1; % For cploterr error bars at 50%; TODO: revise
 
 	log10pThreshold	= log10(pThreshold);
+	movavgx			= opt.movavgx;
 
-	for ks=1:nsnr
-		b				= xvals == snr(ks);
-		curr_snr		= num2str(snr(ks));
+	assert(0 < movavgx && movavgx < nsnr/2,'Bad movavgx');
+	for ks=movavgx:nsnr+1-movavgx
+		showworkLeft	= conditional(ks < 7+movavgx,showwork,false);
+		showworkRight	= conditional(movavgx > 1,showworkLeft,false);
+		strSNR			= num2str(snr(ks));
+		strSNRLeft		= conditional(movavgx==1,strSNR,[strSNR '-']);
+		strSNRRight		= conditional(movavgx==1,strSNR,[strSNR '+']);
 
-		showwork		= conditional(ks<8,showwork,false);
-		[cFit,accept]	= do_fitlines(b,showwork,curr_snr);
-		for kL=1:nline
-			if accept
-				fit					= cFit{kL};
-				cploty{kL}(ks)		= fit.y0;
-				cploterr{kL}(ks)	= fit.dy0;
+		ptsLeft			= snr(ks+1-movavgx) <= xvals & xvals <= snr(ks);
+		ptsRight		= snr(ks) <= xvals & xvals <= snr(ks+movavgx-1);
+
+		[cFitL,acceptL]	= do_fitlines(ptsLeft,showworkLeft,strSNRLeft);
+		[cFitR,acceptR]	= do_fitlines(ptsRight,showworkRight,strSNRRight);
+		for kline=1:nline
+			if acceptL && acceptR
+				[fitL,fitR]			= deal(cFitL{kline},cFitR{kline});
+				span				= [fitL.y0-fitL.dy0, fitR.y0+fitR.dy0];
+				cploty{kline}(ks)	= mean(span);
+				cploterr{kline}(ks)	= std(span)/sqrt(2);
 			end
 		end
 	end
 
-	function [cFit,accept] = do_fitlines(b,showwork,curr_snr)
+	titleStr	= sprintf('%s vs SNR to achieve p=%s (movavgx=%d)',varname,num2str(pThreshold),movavgx);
+	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
+	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
+
+	assert(all(opt.plotlines<=nline),'Invalid plotlines value');
+	noline					= true(1,nline);
+	noline(opt.plotlines)	= false;
+	[cLegend{noline}]		= deal('suppressed');
+	mploty					= cell2mat(cploty.');
+	mploty(noline,:)		= NaN;
+	cploty					= mat2cell(mploty,ones(1,nline),size(mploty,2)).';
+	zorderl					= 1:nline; % (constant for now)
+
+	hA	= alexplot(snr,cploty(zorderl), ...
+			'error'		, cploterr(zorderl)		, ...
+			'title'		, titleStr				, ...
+			'xlabel'	, 'SNR'					, ...
+			'ylabel'	, varname				, ...
+			'legend'	, cLegend(zorderl)		, ...
+			'errortype'	, 'bar'					  ...
+			);
+	h	= hA.hF;
+
+	function [cFit,accept] = do_fitlines(ptSelector,showwork,strSNR)
 		cFit		= cell(1,nline);
 		accept		= false;
 
-		currNProbe		= sum(b);
+		currNProbe		= sum(ptSelector);
 		if currNProbe < 2
 			return;
 		end
-		y			= yvals(b);
-		logp		= log10(pvals(b));
-		summary		= summaryvals(b);
+		y			= yvals(ptSelector);
+		logp		= log10(pvals(ptSelector));
+		summary		= summaryvals(ptSelector);
 		sorted_logp	= sort(logp);
 		fourth_logp	= sorted_logp(min(4,end));
 
@@ -358,10 +399,16 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 
 		cFit			= {g_mean,g_logp,f_mean,f_logp,f_pct};
 		criterionfit	= g_logp.px2y;
+		if nottrue(opt.clip)
+			accept	= ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold); % TODO: change criterion?
+		else
+			accept	= true; % will have already pruned outliers if opt.clip==true
+		end
+
 		if notfalse(showwork)
 			% the diagnostic scatter-plot below places the "y" value on the x-axis
 			% and log10(p) on the y-axis, in effect swapping the axes of the polyfit.
-			fprintf('Num probes for SNR=%s is %d; ',curr_snr,currNProbe);
+			fprintf('Num probes for SNR=%s is %d; ',strSNR,currNProbe);
 			fprintf('slope of fitted line is %s;\n',num2str(1/criterionfit(1)));
 			fprintf('fourth-smallest log is %s\n',num2str(fourth_logp));
 
@@ -402,38 +449,10 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 				otherwise
 					error('Unknown showwork type ''%s''',showwork);
 			end
-			title(sprintf('Distrib of %s probes at SNR=%s',varname,curr_snr));
+			title(sprintf('Distrib of %s probes at SNR=%s',varname,strSNR));
 			hold off;
 		end
-		if nottrue(opt.clip)
-			accept	= ~(currNProbe < 20 || criterionfit(1) >= 0 || fourth_logp > log10pThreshold); % TODO: change criterion?
-		else
-			accept	= true; % will have already pruned outliers if opt.clip==true
-		end
 	end
-
-	titleStr	= sprintf('%s vs SNR to achieve p=%s',varname,num2str(pThreshold));
-	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
-	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
-
-	assert(all(opt.plotlines<=nline),'Invalid plotlines value');
-	noline					= true(1,nline);
-	noline(opt.plotlines)	= false;
-	[cLegend{noline}]		= deal('suppressed');
-	mploty					= cell2mat(cploty.');
-	mploty(noline,:)		= NaN;
-	cploty					= mat2cell(mploty,ones(1,nline),size(mploty,2)).';
-	zorderl					= 1:nline; % (constant for now)
-
-	hA	= alexplot(snr,cploty(zorderl), ...
-			'error'		, cploterr(zorderl)		, ...
-			'title'		, titleStr				, ...
-			'xlabel'	, 'SNR'					, ...
-			'ylabel'	, varname				, ...
-			'legend'	, cLegend(zorderl)		, ...
-			'errortype'	, 'bar'					  ...
-			);
-	h	= hA.hF;
 
 	function [f,g] = dual_linefit(x,y,x0)
 		%fprintf('range(x)=%s range(y)=%s\n',num2str(range(x)),num2str(range(y)));

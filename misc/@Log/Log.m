@@ -14,15 +14,18 @@ classdef Log < handle
 %				name:	a name to prepend to messages
 % 				level:	the debug level, determines which log messages actually
 %						get logged
+%				ms:		true to show milliseconds
+%				silent:	true to suppress all status messages
 % 
 % In:
 % 	<options>:
 %		name:		([]) the initial value of the name property
 %		level:		('error') the level of log messages (can be 'error', 'warn',
 %					'info', 'most', or 'all')
+%		ms:			(false) true to show milliseconds
 %		silent:		(false) true to suppress all status messages
 % 
-% Updated: 2015-03-27
+% Updated: 2015-06-10
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -31,6 +34,7 @@ classdef Log < handle
 	properties
 		name	= [];
 		level	= [];
+		ms		= [];
 		silent	= [];
 	end
 	%PUBLIC PROPERTIES---------------------------------------------------------%
@@ -67,20 +71,31 @@ classdef Log < handle
 			opt	= ParseArgs(varargin,...
 					'name'		, []		, ...
 					'level'		, 'error'	, ...
+					'ms'		, false		, ...
 					'silent'	, false		  ...
 					);
 			
 			L.name		= opt.name;
 			L.level		= opt.level;
+			L.ms		= opt.ms;
 			L.silent	= opt.silent;
 		end
 		%----------------------------------------------------------------------%
 		function Print(L,str,varargin)
 		%L.Print(str,[level]='info',['exception', me]): print some info at the
 		%specified debug level, optionally including info about an exception
-			[level,opt]	= ParseArgs(varargin,'info',...
-							'exception'	, []	  ...
-							);
+			if numel(varargin)>0
+				level	= varargin{1};
+				
+				if numel(varargin)>2 && strcmp(varargin{2},'exception')
+					opt	= struct('exception',varargin{3});
+				else
+					opt	= struct('exception',[]);
+				end
+			else
+				level	= 'info';
+				opt		= struct('exception',[]);
+			end
 			
 			if L.TestLevel(level)
 				bWarn		= L.TestLevel(level,'warn');
@@ -96,6 +111,7 @@ classdef Log < handle
 				
 				status(str,0,...
 					'warning'	, bWarn		, ...
+					'ms'		, L.ms		, ...
 					'silent'	, L.silent	  ...
 					);
 				
@@ -108,7 +124,11 @@ classdef Log < handle
 		function b = TestLevel(L, level,varargin)
 		%L.TestLevel(level,[levelCompare]=L.level): test whether the specified
 		%	level is at or above the comparison level
-			levelCompare	= ParseArgs(varargin,[]);
+			if numel(varargin)>0
+				levelCompare	= varargin{1};
+			else
+				levelCompare	= [];
+			end
 			
 			if isempty(levelCompare)
 				kLevelCompare	= L.kLevel;
@@ -135,8 +155,9 @@ classdef Log < handle
 	%PRIVATE METHODS-----------------------------------------------------------%
 	methods (Access=private)
 		function [level,kLevel] = CheckLevel(L, level)
-			level	= CheckInput(level,'debug level',L.LEVELS);
-			kLevel	= find(strcmp(level,L.LEVELS));
+			kLevel	= find(strcmp(level,L.LEVELS),1);
+			
+			assert(~isempty(kLevel),'%s is an invalid level',level); 
 		end
 	end
 	%PRIVATE METHODS-----------------------------------------------------------%

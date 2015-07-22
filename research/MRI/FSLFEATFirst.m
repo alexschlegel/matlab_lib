@@ -383,12 +383,16 @@ function b = AnalyzeOne(strPathData,d,strDirOut,param)
 			warning('feat process failed');
 			return;
 		end
-		
-		strDirFEAT	= DirAppend(strDirTemp,'.feat');
 	%copy the data to the output directory
+		strDirFEAT	= DirAppend(strDirTemp,'.feat');
+		
 		if ~FileCopy(strDirFEAT,strDirOut)
-			warning('could not copy temporary feat directory %s to output.',strDirFEAT);
-			return;
+			strDirFEAT	= AddSlash([RemoveSlash(strDirTemp) '.feat']);
+			
+			if ~FileCopy(strDirFEAT,strDirOut)
+				warning('could not copy temporary feat directory %s to output.',strDirFEAT);
+				return;
+			end
 		end
 	%remove the temporary directory
 		[ec,out]	= CallProcess('rm',{'-r',strDirTemp},'silent',param.silent);

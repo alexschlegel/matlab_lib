@@ -1,10 +1,10 @@
-function cm = ReorderConfusion(cm,varargin)
+function [cm,kOrder] = ReorderConfusion(cm,varargin)
 % ReorderConfusion
 % 
 % Description:	reorder a confusion matrix
 % 
-% Syntax:	cm = ReorderConfusion(cm,kOrder) OR
-%			cm = ReorderConfusion(cm,cLabelFrom,cLabelTo)
+% Syntax:	[cm,kOrder] = ReorderConfusion(cm,kOrder) OR
+%			[cm,kOrder] = ReorderConfusion(cm,cLabelFrom,cLabelTo)
 % 
 % In:
 % 	cm			- an NxN confusion matrix
@@ -13,10 +13,13 @@ function cm = ReorderConfusion(cm,varargin)
 %	cLabelTo	- a cell of labels according to the new order
 % 
 % Out:
-% 	cm	- the reordered confusion matrix
+% 	cm		- the reordered confusion matrix
+%	kOrder	- the new order indices
 % 
-% Updated: 2011-11-05
-% Copyright 2011 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-06-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 switch numel(varargin)
 	case 1
 		kOrder	= varargin{1};

@@ -39,8 +39,8 @@ classdef MagicTouch < PTB.Device.Pointer
 %		magictouch_alt_button:	(false) true if left and right arrow keys on a
 %								should also work as left and right buttons 
 % 
-% Updated: 2012-12-07
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-06-12
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 	
@@ -70,7 +70,7 @@ classdef MagicTouch < PTB.Device.Pointer
 		%----------------------------------------------------------------------%
 		function Start(mag,varargin)
 		%magictouch start function
-			opt	= ParseArgsOpt(varargin,...
+			opt	= ParseArgs(varargin,...
 					'magictouch_button_mode'	, 'de'	, ...
 					'magictouch_alt_button'		, false	  ...
 					);

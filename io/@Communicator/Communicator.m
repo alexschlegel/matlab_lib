@@ -10,6 +10,7 @@ classdef Communicator < handle
 %				CheckMessages:	check for messages from the other party
 %				Send:			send a message to the other party
 %				Reply:			reply to a message sent by the other party
+%				SetFlag:		set the value of the flag property
 % 
 % 			properties:
 %				connected:	true if the two parties are connected
@@ -17,6 +18,8 @@ classdef Communicator < handle
 %				msgType:	a cell of valid message types
 %				remote:		a struct of info about the remote partner
 %				timeout:	the number of seconds to wait before timing out
+%				flag:		a flag that can be used for any purpose (e.g. for
+%							forgetful workers in a parfor loop)
 % 
 % In:
 %	port		- the port on which to communicate with the other party
@@ -33,8 +36,8 @@ classdef Communicator < handle
 %					'warn', 'info', 'most', or 'all')
 %		silent:		(false) true to suppress all status messages
 % 
-% Updated: 2014-01-30
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-06-09
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -42,6 +45,7 @@ classdef Communicator < handle
 	properties
 		handler	= [];
 		timeout	= [];
+		flag	= 0;
 	end
 	properties (SetAccess=protected)
 		remote	= dealstruct('ip','port',[]);
@@ -133,6 +137,12 @@ classdef Communicator < handle
 			com.L	= Log('level',opt.debug,'silent',opt.silent);
 			
 			com.Initialize();
+		end
+		function SetFlag(com,value)
+			com.flag	= value;
+		end
+		function value = GetFlag(com)
+			value	= com.flag
 		end
 	end
 	%PUBLIC METHODS------------------------------------------------------------%

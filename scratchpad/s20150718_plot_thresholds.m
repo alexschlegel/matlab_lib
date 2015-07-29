@@ -16,18 +16,22 @@ function h = s20150718_plot_thresholds(varargin)
 %		cliperr:	(true) logical or numeric:  remove points whose error
 %						exceeds specified fraction of max variable value;
 %						for cliperr==true, fraction is taken as 1 (for now)
-%		clipsize:	(5) fewest fit points for inclusion of linear extrapolation (if clip==true)
+%		clipsize:	(5) fewest fit points for inclusion of linear extrapolation (if clip==true);
+%						for meanyline, fewest y values for inclusion of a given x
 %		cliptail:	(0.2) fraction of fit points considered tail at each end (if clip==true)
 %		fakedata:	(<auto>) generate fake data (for quick tests)
 %		forcegen:	(false) generate new data even if cached data exists
-%		movavgx:	(1) moving-average window width for smoothing along x-axis:
+%		meanyline:	(false) plot-line index, or false:  in multifit plot, replace
+%						plot-line indexed by meanyline with mean y of probes at x;
+%						if false, do not replace any of the plot-lines
+%		movavgx:	(1) moving-average window half-width for smoothing along x-axis:
 %						y-value at x0 is interpolated from the probe points at the
 %						greatest movavgx x-values with x0 as upper bound, together
 %						with the lowest movavgx x-values with x0 as lower bound
-%						(applies to multifit plots)
+%						(applies to multifit plots, including meanyline plot-line)
 %		nogen:		(<auto>) suppress data generation even if no data cached
 %		noplot:		(<auto>) suppress plotting
-%		plotlines:	(1:5) plot lines to include in multifit plot (if applicable)
+%		plotlines:	(1:5) plot-lines to include in multifit plot (if applicable)
 %		plottype:	('multifit') type of plot, or cell of plot types:
 %							'multifit', 'p_snr', 'p_test', 'test_snr';
 %							default changes to all types if varname specified
@@ -36,6 +40,7 @@ function h = s20150718_plot_thresholds(varargin)
 %		seed:		(0) randomization seed (false for none)
 %		showwork:	(false) one of false, 'hist', 'pct', or 'scat' (true): display
 %							specified kind of diagnostic plot for each SNR value
+%							in multifit plot
 %		varname:	(<auto>) one of 'nRun', 'nSubject', 'nTBlock', 'nRepBlock', or
 %							'WStrength'; if none specified, all variables are used,
 %							except when showwork is specified
@@ -65,7 +70,7 @@ function h = s20150718_plot_thresholds(varargin)
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-22
+% Updated: 2015-07-28
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
@@ -81,6 +86,7 @@ function h = s20150718_plot_thresholds(varargin)
 					'cliptail'			, 0.2			, ...
 					'fakedata'			, []			, ...
 					'forcegen'			, false			, ...
+					'meanyline'			, false			, ...
 					'movavgx'			, 1				, ...
 					'nogen'				, []			, ...
 					'noplot'			, []			, ...
@@ -143,6 +149,9 @@ function h = s20150718_plot_thresholds(varargin)
 				if notfalse(opt.cliperr)
 					strCliperr	= conditional(isnumeric(opt.cliperr),num2str(opt.cliperr),'T');
 					kind		= sprintf('%s-er%s',kind,strCliperr);
+				end
+				if notfalse(opt.meanyline)
+					kind		= sprintf('%s-mny%d',kind,opt.meanyline);
 				end
 				if opt.movavgx ~= 1
 					kind		= sprintf('%s-mvx%d',kind,opt.movavgx);
@@ -340,6 +349,31 @@ function h = linefit_test_vs_SNR(sPoint,pThreshold,varname,opt)
 	titleStr	= sprintf('%s vs SNR to achieve p=%s (movavgx=%d)',varname,num2str(pThreshold),movavgx);
 	pctLegend	= sprintf('Fit: P(p <= %s)=50%%',num2str(pThreshold));
 	cLegend		= {'Fit: g(y)=log p(mean t)','Fit: G(y)=log p','Fit: f(log p(mean t))=y','Fit: F(log p)=y',pctLegend};
+
+	if notfalse(opt.meanyline)
+		assert(opt.meanyline<=nline,'Invalid meanyline value');
+		[ymean,yerr,isgood]	= deal(zeros(nsnr,1));
+		for ks=1:nsnr
+			y			= yvals(xvals == snr(ks));
+			isgood(ks)	= numel(y) >= opt.clipsize;
+			if isgood(ks)
+				ymean(ks)	= mean(y);
+				yerr(ks)	= stderr(y);
+			end
+		end
+		cDiag	= arrayfun(@(i)diag(isgood(max(1,1+i):min(nsnr,nsnr+i)),i), ...
+					1-opt.movavgx:opt.movavgx-1,'uni',false);
+		D		= sum(cat(3,cDiag{:}),3);
+		ymean	= D*ymean ./ sum(D,2);
+		yerr	= D*yerr ./ sum(D,2);
+
+		ymean(1:opt.movavgx-1)			= NaN;
+		ymean(end+2-opt.movavgx:end)	= NaN;
+
+		cploty{opt.meanyline}	= ymean.';
+		cploterr{opt.meanyline}	= yerr.';
+		cLegend{opt.meanyline}	= 'mean y of probes';
+	end
 
 	assert(all(opt.plotlines<=nline),'Invalid plotlines value');
 	noline					= true(1,nline);

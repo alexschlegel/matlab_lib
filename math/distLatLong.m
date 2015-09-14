@@ -1,9 +1,10 @@
-function d = distLatLong(lat1,long1,lat2,long2)
+function d = distLatLong(varargin)
 % distLatLong
 % 
 % Description:	calculate the distance between two points on Earth
 % 
-% Syntax:	d = distLatLong(lat1,long1,lat2,long2)
+% Syntax:	d = distLatLong(lat1,long1,lat2,long2) OR
+%			d = distLatLong([lat1 long1],[lat2 long2])
 % 
 % In:
 % 	lat1		- the latitude(s) of the first point(s), in degrees
@@ -13,8 +14,21 @@ function d = distLatLong(lat1,long1,lat2,long2)
 % Out:
 % 	d	- the distance between the two (or corresponding) points, in meters
 % 
-% Updated: 2010-05-11
-% Copyright 2010 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-07-17
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+switch nargin
+	case 4
+		[lat1,long1,lat2,long2]	= deal(varargin{:});
+	case 2
+		lat1	= varargin{1}(:,1);
+		long1	= varargin{1}(:,2);
+		lat2	= varargin{2}(:,1);
+		long2	= varargin{2}(:,2);
+	otherwise
+		error('invalid number of inputs');
+end
 
 rEarth	= 6378137;
 
@@ -28,4 +42,3 @@ rEarth	= 6378137;
 	
 	a	= sin((lat2-lat1)/2).^2+cos(lat1).*cos(lat2).*sin((long2-long1)/2).^2;
 	d	= 2.*rEarth.*atan2(sqrt(a),sqrt(1-a));
-	

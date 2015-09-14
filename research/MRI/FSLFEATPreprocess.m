@@ -66,7 +66,7 @@ function [bSuccess,cPathOut,tr,cDirFEAT] = FSLFEATPreprocess(cPathData,varargin)
 %	tr			- the TR of each processed data file
 %	cDirFEAT	- the path/cell of paths to preprocessing feat directories
 % 
-% Updated: 2015-05-01
+% Updated: 2015-09-14
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -164,6 +164,8 @@ opt.standard	= conditional(bRegStandard,opt.standard,'');
 %------------------------------------------------------------------------------%
 function [b,tr] = PreprocessOne(strPathData,strPathStructural,strDirFEATOut,strPathOut,opt)
 	[strDirData,strFileData]	= PathSplit(strPathData,'favor','nii.gz');
+	
+	hdr		= NIfTI.ReadHeader(strPathData);
 	
 	tr		= hdr.pixdim(5);
 	nVol	= hdr.dim(5);

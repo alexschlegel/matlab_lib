@@ -54,7 +54,7 @@ function h = s20150718_plot_thresholds(varargin)
 %
 % Notes:
 %	The Notes section of the comments in ThresholdWeave include a
-%	discussion of the computations used in in the 'multifit' plots.
+%	discussion of the computations used in the 'multifit' plots.
 %
 %	When running in an environment with ShowFigureWindows, fakedata and nogen default
 %	to true, and noplot defaults to false; without ShowFigureWindows (thus, in batch

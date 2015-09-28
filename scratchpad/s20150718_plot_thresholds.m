@@ -53,6 +53,9 @@ function h = s20150718_plot_thresholds(varargin)
 % 	h	- figure handle(s)
 %
 % Notes:
+%	The Notes section of the comments in ThresholdWeave include a
+%	discussion of the computations used in in the 'multifit' plots.
+%
 %	When running in an environment with ShowFigureWindows, fakedata and nogen default
 %	to true, and noplot defaults to false; without ShowFigureWindows (thus, in batch
 %	runs), fakedata and nogen default to false, and noplot defaults to true.
@@ -67,10 +70,12 @@ function h = s20150718_plot_thresholds(varargin)
 %	but the latter includes a few niceties that the present script currently omits.
 %	Ideally the applicable code would be factored out and shared across scripts.
 %
+%	See also ThresholdWeave.m
+%
 % Example:
 %	h = s20150718_plot_thresholds('nogen',false);
 %
-% Updated: 2015-07-28
+% Updated: 2015-09-27
 % Copyright (c) 2015 Trustees of Dartmouth College. All rights reserved.
 % This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 

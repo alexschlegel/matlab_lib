@@ -17,7 +17,7 @@ function [x,k] = randomize(x,varargin)
 % 	x	- x randomized
 %	k	- the randomized indices along dimension dim
 % 
-% Updated: 2015-04-16
+% Updated: 2015-09-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -27,19 +27,13 @@ function [x,k] = randomize(x,varargin)
 							'seed'	, []	  ...
 							);
 	
-	if isempty(opt.seed)
-		opt.seed	= randseed2;
-	end
-	
 	bRows	= isequal(lower(strRows),'rows');
 	
 	s	= size(x);
 	nd	= numel(s);
 
 %seed the random number generator
-	if notfalse(opt.seed)
-		rng(opt.seed,'twister');
-	end
+	rng2(opt.seed);
 
 %get the dimension along which to randomize
 	if isempty(dim)

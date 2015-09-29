@@ -14,8 +14,10 @@ function str = tostring(x,varargin)
 % Out:
 % 	str	- the variable as a string
 % 
-% Updated: 2012-12-28
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated: 2015-09-23
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 persistent optDefault cOptDefault;
 
 if isempty(optDefault)

@@ -41,7 +41,7 @@ switch class(opt)
 			nExist		= numel(kExist);
 			for kE=1:nExist
 				if isempty(cValOld{kExist(kE)})
-					cValOld{kExist(kE)}	= cValExist{kExist(kE)};
+					cValOld{kExist(kE)}	= cValExist{kE};
 				end
 			end
 		

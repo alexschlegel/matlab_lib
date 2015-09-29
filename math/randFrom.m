@@ -19,7 +19,7 @@ function [r,k] = randFrom(x,varargin)
 % 	r	- an array of random elements from x
 %	k	- the indices of the elements of r in x
 % 
-% Updated: 2015-06-02
+% Updated: 2015-09-22
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -32,10 +32,6 @@ function [r,k] = randFrom(x,varargin)
 				'seed'		, []	  ...
 				);
 	
-	if isempty(opt.seed)
-		opt.seed	= randseed2;
-	end
-
 	if numel(s)==1
 		s	= [s 1];
 	end
@@ -54,9 +50,7 @@ function [r,k] = randFrom(x,varargin)
 	nR	= prod(s);
 
 %seed the random number generator
-	if notfalse(opt.seed)
-		rng(opt.seed,'twister');
-	end
+	rng2(opt.seed);
 
 %get the indices of the elements to return
 	if opt.unique

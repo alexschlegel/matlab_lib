@@ -58,7 +58,8 @@ switch opt.method
 				plot2svg(strPathSVG,h);
 			end
 		%convert to PNG
-			CallProcess('svg2png',{'-d',opt.dpi,strPathSVG},'silent',opt.silent);
+			[ec,cOut]	= CallProcess('svg2png',{'-d',opt.dpi,strPathSVG},'silent',opt.silent);
+			assert(~ec,'an error occurred when calling svg2png (%s)',StringTrim(cOut{1}));
 		%move the intermediate SVG files
 			if opt.movesvg
 				cPathMove	= setdiff(FindFiles(strDirOut,['^' strFileOut '.*']),[cPathNoMove; {strPathOut}]);

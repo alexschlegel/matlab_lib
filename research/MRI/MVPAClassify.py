@@ -471,7 +471,7 @@ def feature_match(x, y, x_match=None, partition_attr=None, metric='correlation',
 
 def regr_residual(x, y):
 	"""calculate the variance of the residual obtained by using linear
-	retression to predict 1-D signal x from 2-D set of signals y"""
+	regression to predict 1-D signal x from 2-D set of signals y"""
 	regr = linear_model.LinearRegression()
 	regr.fit(x, y)
 	err = regr.predict(x) - y
@@ -535,8 +535,8 @@ def granger_causality(src, dst, lags=1, idx_sample=None):
 	  the number of lags to use in the granger causality calculation
 	idx_sample : array, optional
 	  an array specifying the indices of interest in the array (i.e. the
-	  indices to use for the unlagged signal). default to the entire signal
-	  (starting from idx==lags)
+	  indices to use for the unlagged signal). defaults to the entire signal
+	  (starting from idx==lags).
 	
 	Returns
 	-------
@@ -556,7 +556,7 @@ def granger_causality(src, dst, lags=1, idx_sample=None):
 	res_reduced = regr_residual(dst_past, dst_next)
 	res_full = regr_residual(hstack((dst_past, src_past)), dst_next)
 	
-	#granger causality is the log of the ratios of the residuals
+	#granger causality is the log of the ratio of the residuals
 	return np.log(res_reduced / res_full) if res_reduced>0 and res_full>0 else 0
 
 
@@ -629,7 +629,7 @@ def compute_directed_connectivity_patterns(ds1, ds2, method='granger', lags=1,
 		for idx_target in range(0,num_targets):
 			#samples for the current chunk and target
 			loc_sample = chunk_samples[idx_chunk] & target_samples[idx_target]
-			#make sure we don't get anything the will go out of bounds
+			#make sure we don't get anything that will go out of bounds
 			loc_sample[-lags:] = False
 			#get the sample indices
 			idx_sample = np.where( loc_sample )[0]

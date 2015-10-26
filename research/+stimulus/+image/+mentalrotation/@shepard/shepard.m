@@ -71,7 +71,7 @@ classdef shepard < stimulus.image.base
 				%set some parameter defaults
 					add(obj.param,'figure','list',{1:obj.N_FIGURE});
 					add(obj.param,'tx','generic',{''});
-					add(obj.param,'view','generic',{[-60 150 0]});
+					add(obj.param,'view','generic',{[-60 15 0]});
 					add(obj.param,'axis_radius','generic',{3.5});
 					add(obj.param,'edge','generic',{[0 0 0]});
 					add(obj.param,'thickness','generic',{0.5});

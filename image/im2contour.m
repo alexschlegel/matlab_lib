@@ -3,42 +3,48 @@ function [y,x] = im2contour(b,varargin)
 % 
 % Description:	reconstruct a contour from a binary contour image
 % 
-% Syntax:	[y,x] = im2contour(b,[ySeed]=<auto>,[xSeed]=<auto>,<options>)
+% Syntax:	[y,x] = im2contour(b,<options>)
 % 
 % In:
-% 	b		- a binary contour image, such as that returned by contour2im
-%	[ySeed]	- the y-value of a point on the contour
-%	[xSeed]	- the x-value of that point
+% 	b	- a binary contour image, such as that returned by contour2im
 %	<options>:
+%		seed:	(<auto>) a point on the contour (as [y x])
 %		gap:	(0) the maximum gap size to allow
 % 
 % Out:
 % 	y	- the y values of the contour
 %	x	- the x values of the contour
 % 
-% Updated: 2013-05-17
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-11-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
-[ySeed,xSeed,opt]	= ParseArgs(varargin,[],[],...
-						'gap'	, 0		, ...
-						'debug'	, false	  ...
-						);
-[sY,sX]	= size(b);
+
+%parse the inputs
+	opt	= ParseArgs(varargin,[],[],...
+			'seed'	, []	, ...
+			'gap'	, 0		, ...
+			'debug'	, false	  ...
+			);
+	
+	[sY,sX]	= size(b);
 
 [y,x]	= deal([]);
 
 %get the seed point
-	if isempty(ySeed) || isempty(xSeed)
+	if isempty(opt.seed)
 		[ySeed,xSeed]	= find(b,1);
 		
 		if isempty(ySeed)
 			return;
 		end
+	else
+		ySeed	= opt.seed(1);
+		xSeed	= opt.seed(2);
 	end
 %follow the seed point until we run out of contour
 	if opt.debug
-		bDebug				= false(size(b));
+		bDebug	= false(size(b));
 	end
 	
 	bFound	= true;

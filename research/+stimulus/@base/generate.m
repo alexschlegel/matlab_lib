@@ -8,7 +8,6 @@ function [stim,ifo] = generate(obj,varargin)
 % In:
 %	[paramK]	- the Kth parameter whose value should be overridden
 %	[valK]		- the new explicit value of parameter paramK
-
 % 
 % Out:
 %	stim	- the stimulus
@@ -20,33 +19,8 @@ function [stim,ifo] = generate(obj,varargin)
 % License.
 ifo	= struct;
 
-%seed the random number generator
-	rSeed	= obj.param.seed;
-	
-	rng2(rSeed);
-
-%update the excluded values
-	sExclude	= obj.param.exclude;
-	
-	assert(isstruct(sExclude),'exclude parameter must be a struct');
-	
-	cField	= fieldnames(sExclude);
-	nField	= numel(cField);
-	
-	for kF=1:nField
-		strParam	= cField{kF};
-		
-		obj.param.(strParam).exclude	= sExclude.(strParam);
-	end
-
-%get a set of parameter values
-	ifo.param	= fill(obj.param,'values',varargin,'store',false);
-	
-	ifo.param.seed		= rSeed;
-	ifo.param.exclude	= sExclude;
-
-%validate the parameter values
-	ifo.param	= obj.validate(ifo.param);
+%get the parameter values
+	ifo.param	= obj.get_parameters(varargin{:});
 
 %generate the stimulus
 	[stim,ifo]	= obj.generate_inner(ifo);

@@ -11,8 +11,8 @@ function p_PrepareNextStimulus(drw,tNow,tFlip,tStart)
 %	tFlip	- the next flip time
 %	tStart	- the start time
 % 
-% Updated: 2012-11-29
-% Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2015-11-16
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 global PTBIFO
@@ -186,7 +186,11 @@ function [im,rCon] = GetImageDraw()
 		pCon	= pPen - repmat(pMin - szPen([2 1]),[nHist 1]);
 		sCon	= 2*szPen + range(pCon(:,[2 1]));
 		
-		bCon	= contour2im(pCon(:,2),pCon(:,1),sCon,kStart,nHist);
+		bCon	= contour2im(pCon(:,2),pCon(:,1),...
+					'size'	, sCon		, ...
+					'start'	, kStart	, ...
+					'end'	, nHist		  ...
+					);
 		bCon	= applypen(bCon,pen);
 		
 		im	= arrayfun(@(c) c.*bCon,double(col),'UniformOutput',false);

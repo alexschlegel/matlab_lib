@@ -12,13 +12,13 @@ classdef pitch < stimulus.sound.base
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				n: (3) the number of tones in the sequence
+%				n: (5) the number of tones in the sequence
 %				instrument: ('sin') the name of an instrument function to use.
 %					the function should accept a t parameter and return a
 %					periodic value with period 2*pi. note that this should be
 %					the string name of the function, rather than a function
 %					handle.
-%				fmin: (100) the minimum frequency from which to choose
+%				fmin: (200) the minimum frequency from which to choose
 %				fmax: (2000) the maximum frequency from which to choose
 %				f: (<random>) an array of pitch frequencies to step through.
 %					overrides <n>, <fmin>, and <fmax>.
@@ -31,7 +31,7 @@ classdef pitch < stimulus.sound.base
 %	[valK]		- the explicit value of parameter paramK (or empty to skip
 %				  skip setting the value)
 % 
-% Updated:	2015-10-06
+% Updated:	2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -43,11 +43,12 @@ classdef pitch < stimulus.sound.base
 				obj = obj@stimulus.sound.base();
 				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{3});
+					add(obj.param,'n','generic',{5});
 					add(obj.param,'instrument','generic',{'sin'});
-					add(obj.param,'fmin','generic',{100});
+					add(obj.param,'fmin','generic',{200});
 					add(obj.param,'fmax','generic',{2000});
-					add(obj.param,'f','range',{@() [obj.param.fmin obj.param.fmax],'size',@() [obj.param.n 1]});
+					%add(obj.param,'f','range',{@() [obj.param.fmin obj.param.fmax],'size',@() [obj.param.n 1]});
+					add(obj.param,'f','generic',{@() get_pitches(obj)});
 					add(obj.param,'interp','generic',{'nearest'});
 				
 				%parse the inputs
@@ -58,6 +59,7 @@ classdef pitch < stimulus.sound.base
 	%PRIVATE
 		methods (Access=protected)
 			[stim,ifo] = generate_sound(obj,ifo)
+			f = get_pitches(obj)
 		end
 %/METHODS-----------------------------------------------------------------------
 

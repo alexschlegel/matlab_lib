@@ -7,6 +7,7 @@ classdef base < handle
 % 
 % Methods:
 %	generate:	generate a stimulus
+%	distractor:	generate a distractor stimulus
 %	validate:	validate a set of parameter values
 % 
 % Properties:
@@ -72,6 +73,7 @@ classdef base < handle
 			end
 			
 			[stim,ifo] = generate_inner(obj,ifo)
+			ifo = get_parameters(obj)
 		end
 %/METHODS-----------------------------------------------------------------------
 

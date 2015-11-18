@@ -28,7 +28,7 @@ function varargout = ParseArgs(vargin,varargin)
 %		explicitly set in the options section, then vN-1 will be confused with
 %		the option.
 % 
-% Updated: 2015-03-06
+% Updated: 2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -57,6 +57,165 @@ else
 end
 
 %------------------------------------------------------------------------------%
+function out = DoParseOpt
+	%split the input between optional arguments and options
+		%split the defaults between optional arguments and options
+			defArgument	= varargin(1:nArgument);
+			defOptKey	= varargin(nArgument+1:2:nDefault);
+			defOptVal	= varargin(nArgument+2:2:nDefault);
+		%split user input between optional arguments and options
+			if nUser>0
+			%the user specified arguments explicitly
+				%head backward to find the earliest user argument that might be
+				%an option key
+					%last possible option key is one from the end
+						kChar	= nUser - 1;
+					%find the first argument going backward that isn't a string
+						while kChar>0 && ischar(vargin{kChar})
+							kChar	= kChar - 2;
+						end
+					%earliest possible option key is two forward from that
+						kChar	= kChar + 2;
+				%what do we have?
+					if kChar<1 || kChar>nUser || ~ischar(vargin{kChar})
+					%no options were specified
+						kFirstOptKey	= nUser+1;
+						
+						optKey	= defOptKey;
+						optVal	= defOptVal;
+						[optKeyExtra,optValExtra]	= deal({});
+					else
+						kKeyUserPossible	= kChar:2:nUser-1;
+						optKeyUserPossible	= vargin(kKeyUserPossible);
+						optValUserPossible	= vargin(kKeyUserPossible+1);
+						
+						%which strings match default options?
+						[bOptKeyUserMatch,kDefOptKey]	= ismembercellstr(optKeyUserPossible,defOptKey);
+						
+						%the first user opt key is either:
+						%	a) the first possible key that matches a default key
+						%	b) the first possible key after the number of
+						%	   optional arguments,
+						%whichever comes earlier.
+						%
+						%in case of b, shift back by one key/value pair if that
+						%would leave dangling values in between the last
+						%optional argument and the first option key
+						
+						%position in user vargin of first matching option key
+							kFirstOptKeyUserMatch	= kChar + 2*(find(bOptKeyUserMatch,1)-1);
+							if isempty(kFirstOptKeyUserMatch)
+								kFirstOptKeyUserMatch	= inf;
+							end
+						
+						%position of first option key based on optional
+						%arguments
+							kFirstOptKeyFromArgument	= max(kChar,nArgument+1);
+						
+						if kFirstOptKeyUserMatch <= kFirstOptKeyFromArgument
+						%case a above
+							kFirstOptKey	= kFirstOptKeyUserMatch;
+						else
+						%case b above
+							if kFirstOptKeyFromArgument>nUser
+							%no options specified
+								kFirstOptKey	= nUser+1;
+							elseif ~ischar(vargin{kFirstOptKeyFromArgument})
+							%we landed on an opt value rather than an opt key.
+							%push one index backward.
+								kFirstOptKey	= kFirstOptKeyFromArgument - 1;
+							else
+								kFirstOptKey	= kFirstOptKeyFromArgument;
+							end
+						end
+						
+						%separate the matching and extra options
+							%first just get the actual option key/value pairs
+								kOptFirst	= find(kKeyUserPossible>=kFirstOptKey,1);
+								kOptKeep	= kOptFirst:numel(kKeyUserPossible);
+								
+								userOptKey			= optKeyUserPossible(kOptKeep);
+								userOptVal			= optValUserPossible(kOptKeep);
+								bOptKeyUserMatch	= bOptKeyUserMatch(kOptKeep);
+								kDefOptKey			= kDefOptKey(kOptKeep);
+							
+							%now extract the ones that don't match
+								bOptKeyUserNoMatch	= ~bOptKeyUserMatch;
+								optKeyExtra			= userOptKey(bOptKeyUserNoMatch);
+								optValExtra			= userOptVal(bOptKeyUserNoMatch);
+								
+								userOptKey(bOptKeyUserNoMatch)	= [];
+								userOptVal(bOptKeyUserNoMatch)	= [];
+								kDefOptKey(bOptKeyUserNoMatch)	= [];
+						
+						%eliminate explicitly unspecified options
+							bUserUnspecified	= cellfun(@isempty,userOptVal);
+							
+							userOptKey(bUserUnspecified)	= [];
+							userOptVal(bUserUnspecified)	= [];
+							kDefOptKey(bUserUnspecified)	= [];
+						
+						%replace default options with user specified options
+							optKey	= defOptKey;
+							optVal	= defOptVal;
+							
+							nUserOpt	= numel(userOptKey);
+							for kO=1:nUserOpt
+								optVal{kDefOptKey(kO)}	= userOptVal{kO};
+							end
+					end
+				
+				%user optional arguments
+					userArgument	= vargin(1:min(nArgument,kFirstOptKey-1));
+			else
+			%user didn't specify any arguments, just use the defaults
+				if ~isempty(defOptVal)
+					opt	= cell2struct(defOptVal,defOptKey);
+				else
+					opt	= struct;
+				end
+				
+				opt	= optstruct(opt);
+				out	= [defArgument; opt];
+				
+				return;
+			end
+	
+	%parse optional arguments
+		out				= defArgument;
+		bOmitted		= cellfun(@isempty,userArgument);
+		out(~bOmitted)	= userArgument(~bOmitted);
+	%parse the options
+		if ~isempty(optVal)
+			opt	= cell2struct(optVal,optKey);
+		else
+			opt	= struct;
+		end
+		
+		%get the extra options specified by the user
+		if ~isempty(optKeyExtra)
+			try
+			%first assume there are no duplicate field names
+				opt_extra	= cell2struct(optValExtra, optKeyExtra);
+			catch me
+				switch me.identifier
+					case 'MATLAB:DuplicateFieldName'
+					%ok, this will be a bit slower
+						[optKeyExtra,kUnique]	= unique(ptKeyExtra);
+						optValExtra				= optValExtra(kUnique);
+						opt_extra				= cell2struct(optValExtra, optKeyExtra);
+					otherwise
+						disp(errID);
+						rethrow(me);
+				end
+			end
+		else
+			opt_extra	= struct;
+		end
+		
+		out{end+1}	= optstruct(opt,opt_extra); 
+end
+%------------------------------------------------------------------------------%
 function out = DoParse
 	out	= vargin;
 	if nUser<nArgument
@@ -68,108 +227,6 @@ function out = DoParse
 			out{k}	= varargin{k};
 		end
 	end
-end
-%------------------------------------------------------------------------------%
-function out = DoParseOpt
-	%split the input between optional arguments and options
-		%split the defaults between optional arguments and options
-			defArgument	= varargin(1:nArgument);
-			defOptKey	= varargin(nArgument+1:2:nDefault);
-			defOptVal	= varargin(nArgument+2:2:nDefault);
-		%split user input between optional arguments and options
-			if nUser
-				%find the last possibility heading backward that's a string
-					for kChar=nUser-1:-2:1
-						if ~ischar(vargin{kChar})
-							kChar	= kChar+2;
-							break;
-						end
-					end
-				%find the user-defined options
-					%backwards so later options take precedent
-						userOptKey	= vargin(nUser-1:-2:kChar);
-						userOptVal	= vargin(nUser:-2:kChar);
-					
-					[bOverridden,kUserOption]	= ismembercellstr(defOptKey,userOptKey);
-					kOverridden					= find(bOverridden);
-					kUserOption					= kUserOption(bOverridden);
-				%split
-					bUserOption	= ~isempty(kUserOption) || nUser>nArgument;
-					if bUserOption
-						userOptKeyExtra	= userOptKey;
-						userOptValExtra	= userOptVal;
-						userOptKeyExtra(kUserOption)	= [];
-						userOptValExtra(kUserOption)	= [];
-						
-						userOptKey	= userOptKey(kUserOption);
-						userOptVal	= userOptVal(kUserOption);
-						
-						if ~isempty(kUserOption)
-							kUserArgEnd		= nUser - 2*max(kUserOption);
-						else
-							kUserArgEnd		= nUser; 
-						end
-						
-						
-						userArgument	= vargin(1:min(nArgument,kUserArgEnd));
-						
-						%eliminate explicitly unspecified options
-							bUserUnspecified	= cellfun(@isempty,userOptVal);
-							bOverridden(kOverridden(bUserUnspecified))	= false;
-							
-							userOptKey(bUserUnspecified)	= [];
-							userOptVal(bUserUnspecified)	= [];
-					else
-						userArgument			= vargin(1:min(nArgument,nUser));
-						
-						[userOptKey,userOptVal,userOptKeyExtra,userOptValExtra]	= deal({});
-					end
-			else
-				opt	= optstruct(cell2struct(defOptVal,defOptKey));
-				out	= [defArgument; opt];
-				
-				return;
-			end
-	
-	%parse optional arguments
-		out				= defArgument;
-		bOmitted		= cellfun(@isempty,userArgument);
-		out(~bOmitted)	= userArgument(~bOmitted);
-	%parse the options
-		if bUserOption
-			%concatenate the default options with the specified options
-				optKey	= [defOptKey(~bOverridden); userOptKey];
-				optVal	= [defOptVal(~bOverridden); userOptVal];
-		else
-			optKey	= defOptKey;
-			optVal	= defOptVal;
-		end
-		
-		opt	= cell2struct(optVal,optKey);
-		
-		%get the extra options specified by the user
-		if ~isempty(userOptKeyExtra)
-			try
-			%first assume there are no duplicate field names
-				opt_extra	= cell2struct(userOptValExtra, userOptKeyExtra);
-			catch me
-				[errMsg,errID]	= lasterr;
-				switch errID
-					case 'MATLAB:DuplicateFieldName'
-					%ok, this will be a bit slower
-						[userOptKeyExtra,kUnique]	= unique(userOptKeyExtra);
-						userOptValExtra				= userOptValExtra(kUnique);
-						opt_extra				= cell2struct(userOptValExtra, userOptKeyExtra);
-					otherwise
-						disp(errID);
-						rethrow(me);
-				end
-			end
-		else
-			opt_extra	= struct;
-		end
-		
-		out{end+1}	= optstruct(opt,opt_extra); 
 end
 %------------------------------------------------------------------------------%
 

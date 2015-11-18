@@ -66,7 +66,7 @@ function varargout = alexplot(varargin)
 %		ymax:				(<auto>) the y upper bound
 %		axistype:			('L') either 'box', 'L', 'zero', or 'off' to specify
 %							how the axes are shown
-%		minortick:			(<true iff ~showgrid>) true to show minor ticks
+%		minortick:			(false) true to show minor ticks
 %		axiswidth:			(2) the axis width
 %		linewidth:			(2) the default line width
 %		vlinewidth:			(<linewidth>) vline width(s)
@@ -115,8 +115,11 @@ function varargout = alexplot(varargin)
 % Out:
 % 	h	- a struct of relevant handles and parameters
 % 
-% Updated: 2013-07-15
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-11-12
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
+
 
 %parse the input
 	[x,h.opt,vargin]	= ParseInput(varargin);
@@ -214,7 +217,7 @@ function [x,opt,vargin] = ParseInput(v)
 			'ymin'				, []				, ...
 			'ymax'				, []				, ...
 			'axistype'			, optD.axistype		, ...
-			'minortick'			, []				, ...
+			'minortick'			, false				, ...
 			'axiswidth'			, optD.axiswidth	, ...
 			'linewidth'			, 2					, ...
 			'vlinewidth'		, []				, ...
@@ -479,8 +482,8 @@ function [xLim,yLim,xTick,yTick] = SetPlotLimits()
 	
 	%get the extrema
 		if ~isempty(err)
-			vMin	= nanmin(cellfun(@(x,e) unless(min(x-e),NaN),v,err));
-			vMax	= nanmax(cellfun(@(x,e) unless(max(x+e),NaN),v,err));
+			vMin	= nanmin(cellfun(@(x,e) unless(min(x-e(:,1)),NaN),v,err));
+			vMax	= nanmax(cellfun(@(x,e) unless(max(x+e(:,2)),NaN),v,err));
 		else
 			vMin	= nanmin(cellfun(@(x) unless(min(x),NaN),v));
 			vMax	= nanmax(cellfun(@(x) unless(max(x),NaN),v));

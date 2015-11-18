@@ -1,21 +1,21 @@
-classdef instrument < stimulus.sound.rhythm
-% stimulus.sound.rhythm.instrument
+classdef wave < stimulus.image.scribble
+% stimulus.image.scribble.wave
 % 
-% Description:	generate rhythm stimuli with a regular sequence of random
-%				instruments
+% Description:	create a scribble wave figure
 % 
-% Syntax: obj = stimulus.sound.rhythm.instrument([param1,val1,...,paramN,valN])
+% Syntax: obj = stimulus.image.scribble.wave([param1,val1,...,paramN,valN])
 % 
 % Methods:
 %	generate:	generate a stimulus
+%	distractor:	generate a distractor stimulus
 %	validate:	validate a set of parameter values
 % 
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				instrument: ({'sin' 'sawtooth'}) see stimulus.sound.rhythm
-%				pattern: ('uniform') see stimulus.sound.rhythm
-%			<see also stimulus.sound.rhythm>
+%				x_type:	('increase') (see stimulus.image.scribble)
+%				y_type:	('random') (see stimulus.image.scribble)
+%			<see also stimulus.image.scribble>
 % 
 % In:
 %	[paramK]	- the Kth parameter whose value should be set explicitly
@@ -30,15 +30,15 @@ classdef instrument < stimulus.sound.rhythm
 %METHODS------------------------------------------------------------------------
 	%CONSTRUCTOR
 		methods (Access=public)
-			function obj = instrument(varargin)
-				obj = obj@stimulus.sound.rhythm();
+			function obj = wave(varargin)
+				obj = obj@stimulus.image.scribble();
 				
 				%set some parameter defaults
-					add(obj.param,'instrument','generic',{{'sin','square'}});
-					add(obj.param,'pattern','generic',{'uniform'});
+					add(obj.param,'x_type','generic',{'increase'});
+					add(obj.param,'y_type','generic',{'random'});
 				
 				%parse the inputs
-					obj.parseInputs(varargin{:})
+					obj.parseInputs(varargin{:});
 			end
 		end
 %/METHODS-----------------------------------------------------------------------

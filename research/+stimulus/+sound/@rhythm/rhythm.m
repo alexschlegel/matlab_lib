@@ -12,7 +12,7 @@ classdef rhythm < stimulus.sound.base
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				n: (3) the number of tones in the sequence
+%				n: (5) the number of tones in the sequence
 %				instrument: ('sin') the name of an instrument function to use,
 %					or a sound sample, or a cell array of such to choose from
 %					multiple instruments for each beat of the rhythm sequence.
@@ -36,7 +36,7 @@ classdef rhythm < stimulus.sound.base
 %	[valK]		- the explicit value of parameter paramK (or empty to skip
 %				  skip setting the value)
 % 
-% Updated:	2015-10-07
+% Updated:	2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -48,7 +48,7 @@ classdef rhythm < stimulus.sound.base
 				obj = obj@stimulus.sound.base();
 				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{3});
+					add(obj.param,'n','generic',{5});
 					add(obj.param,'instrument','generic',{{'sin'}});
 					add(obj.param,'f','generic',{400});
 					add(obj.param,'pattern','generic',{'random'});

@@ -34,7 +34,8 @@ function h = alexplot_bar(x,h,vargin)
 %		legendorientation:	('horizontal') the legend orientation, either
 %							'horizontal' or 'vertical'
 %		barlinewidth:		(0) the bar edge width
-%		error:				(<none>) an nGroup x nBar array of error values
+%		error:				(<none>) an nGroup x nBar[ x 2] array of error
+%							values
 %		errorcap:			(false) true to cap error bars
 %		sig:				(<don't show>) an nGroup x 1 boolean array signifying
 %							which groups show significant differences, or an
@@ -59,8 +60,10 @@ function h = alexplot_bar(x,h,vargin)
 %		groupspace:			(<best>) spacing between each bar group, as a
 %							fraction of the overall axes width
 % 
-% Updated: 2013-07-25
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-11-12
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the input
 	colEdge	= h.opt.textcolor;
@@ -150,6 +153,20 @@ function [y,nGroup,nBar,strColorFill,sFont] = ProcessInput()
 					'barspace'				, []				, ...
 					'groupspace'			, []				  ...
 					));
+	%reshape the error data
+		if ~isempty(h.opt.error)
+			sy	= size(y);
+			se	= size(h.opt.error);
+			
+			if sy(2)==1 && se(2)==2
+				h.opt.error	= permute(h.opt.error,[1 3 2]);
+				se			= [se(1) 1 se(2)];
+			end
+			
+			if se(end)~=2
+				h.opt.error	= repmat(h.opt.error,[1 1 2]);
+			end
+		end
 	%process the labels and data
 		[h.opt.grouplabel,h.opt.barlabel]	= ForceCell(h.opt.grouplabel,h.opt.barlabel);
 		if numel(h.opt.barlabel)>0 && ~iscell(h.opt.barlabel{1})
@@ -300,8 +317,8 @@ function AddErrorBars()
 					);
 		
 		%update the y position
-			yBar	= yBar + h.opt.error;
-			hBar	= yBar - min(0,yBar-h.opt.error);
+			yBar	= yBar + h.opt.error(:,:,2);
+			hBar	= yBar - min(0,yBar-h.opt.error(:,:,1));
 	end
 end
 %------------------------------------------------------------------------------%

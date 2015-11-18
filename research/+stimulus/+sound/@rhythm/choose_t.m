@@ -13,13 +13,13 @@ function t = choose_t(obj,n,dur,strPattern)
 % Out:
 %	t	- an array of beat times
 % 
-% Updated:	2015-10-07
+% Updated:	2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 durBeat		= dur/(4*n);
-tBeatMax	= dur - durBeat;
+tBeatMax	= dur - 2*durBeat;
 
 switch strPattern
 	case 'random'

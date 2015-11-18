@@ -13,7 +13,7 @@ function opt = optreplace(opt,varargin)
 % Out:
 % 	opt	- the updated opt struct/varargin cell
 % 
-% Updated: 2015-03-19
+% Updated: 2015-10-26
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -39,7 +39,7 @@ switch class(opt)
 			kExist		= kExist(bExist);
 			nExist		= numel(kExist);
 			for kE=1:nExist
-				cValOld{kExist(kE)}	= cValExist{kExist(kE)};
+				cValOld{kExist(kE)}	= cValExist{kE};
 			end
 		
 		cSize	= switch2(size(opt,1),1,{1,[]},{[],1});

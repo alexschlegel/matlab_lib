@@ -17,8 +17,8 @@ function h = alexplot_scatter(x,h,vargin)
 %									markersize:	(20)
 %								'bw':
 %									color:		(see GetPlotColors)
-%									marker:		(see GetMarkers)
-%									markersize	(10)
+%									marker:		('.')
+%									markersize	(15)
 %		error:				(<none>) a vector or cell of vectors of y-error
 %							values
 %		errorcap:			(true) true to cap error bars
@@ -40,8 +40,10 @@ function h = alexplot_scatter(x,h,vargin)
 %		bestfit_twotail:	(true) true to calculate a two-tailed p-value for
 %							the correlation
 % 
-% Updated: 2014-03-10
-% Copyright 2014 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-10-26
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the extra options
 	strStyle	= getfield(ParseArgs(vargin,'substyle','color'),'substyle');
@@ -83,7 +85,7 @@ function h = alexplot_scatter(x,h,vargin)
 	h.opt.linestyle		= repmat({h.opt.linestyle},[nPlot 1]);
 	h.opt.type			= 'line';
 	h.opt.location		= h.hA;
-	
+%add data for the best fit line plot
 	if h.opt.bestfit
 		[r,stat]	= cellfun(@(x,y) corrcoef2(reshape(x,[],1),reshape(y,1,[]),'twotail',h.opt.bestfit_twotail),h.data.x,h.data.y,'UniformOutput',false);
 		
@@ -102,10 +104,9 @@ function h = alexplot_scatter(x,h,vargin)
 		h.opt.marker	= [reshape(h.opt.marker,[],1); repmat({'none'},[nPlot 1])];
 		h.opt.linestyle	= [h.opt.linestyle; repmat({'-'},[nPlot 1])];
 	end
-	
+%plot the scatters!
 	opt				= h.opt;
-	opt.axistype	= 'off';
-	cOpt			= opt2cell(opt);
+	cOpt			= optreplace(opt2cell(opt),'axistype','off');
 	h				= alexplot(h.data.x,h.data.y,cOpt{:});
 	h.opt			= opt;
 	
@@ -189,8 +190,8 @@ function optD = GetStyleDefaults(strStyle)
 		case 'bw'
 			optD	= struct(...
 						'color'			, 'bw'	, ...
-						'marker'		, []	, ...
-						'markersize'	, 10	  ...
+						'marker'		, '.'	, ...
+						'markersize'	, 15	  ...
 						);
 			
 			strMarkerFill	= 'random';

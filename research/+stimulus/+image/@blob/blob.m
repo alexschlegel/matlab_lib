@@ -14,7 +14,7 @@ classdef blob < stimulus.image.base
 %			use to generate the stimulus. includes:
 %				n: (5) the number of control points to use in constructing the
 %					blob. more control points lead to a more complex figure.
-%				rmin: (0.25) the minimum control point radius, as a fraction of
+%				rmin: (0.1) the minimum control point radius, as a fraction of
 %					the blob size
 %				rmax: (1) the maximum control point radius, as a fraction of the
 %					blob size
@@ -33,7 +33,7 @@ classdef blob < stimulus.image.base
 %	[valK]		- the explicit value of parameter paramK (or empty to skip
 %				  skip setting the value)
 % 
-% Updated:	2015-09-29
+% Updated:	2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -46,10 +46,11 @@ classdef blob < stimulus.image.base
 				
 				%set some parameter defaults
 					add(obj.param,'n','generic',{5});
-					add(obj.param,'rmin','generic',{0.25});
+					add(obj.param,'rmin','generic',{0.1});
 					add(obj.param,'rmax','generic',{1});
 					add(obj.param,'a','range',{[0 2*pi],'size',@() [obj.param.n 1]});
-					add(obj.param,'r','range',{@() [obj.param.rmin obj.param.rmax],'size',@() [obj.param.n 1]});
+					%add(obj.param,'r','range',{@() [obj.param.rmin obj.param.rmax],'size',@() [obj.param.n 1]});
+					add(obj.param,'r','generic',{@() get_radii(obj)});
 					add(obj.param,'interp','generic',{'pchip'});
 					add(obj.param,'interp_space','generic',{'polar'});
 				
@@ -61,6 +62,7 @@ classdef blob < stimulus.image.base
 	%PRIVATE
 		methods (Access=protected)
 			[mask,ifo] = generate_mask(obj,ifo)
+			r = get_radii(obj)
 		end
 %/METHODS-----------------------------------------------------------------------
 

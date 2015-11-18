@@ -19,6 +19,10 @@ function opt = optstruct(varargin)
 if nargin>0
 	opt	= varargin{1};
 	
+	if isempty(opt)
+		opt	= struct;
+	end
+	
 	opt.isoptstruct	= true;
 	
 	if nargin>1

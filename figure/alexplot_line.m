@@ -29,8 +29,10 @@ function h = alexplot_line(x,h,vargin)
 %		marker:		(<see subtype>) the marker style(s) (see plot)
 %		markersize:	(10) the size of point markers, if they are specified
 % 
-% Updated: 2013-11-25
-% Copyright 2013 Alex Schlegel (schlegel@gmail.com).  All Rights Reserved.
+% Updated:	2015-11-12
+% Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
+% under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+% License.
 
 %parse the extra options
 	strStyle	= getfield(ParseArgs(vargin,'substyle','color'),'substyle');
@@ -59,10 +61,15 @@ function h = alexplot_line(x,h,vargin)
 	end
 	clear x;
 	
-	[h.data.x,h.data.y,h.data.yerr,h.opt.linestyle]	= FillSingletonArrays(ForceCell(h.data.x),ForceCell(h.data.y),ForceCell(h.opt.error),ForceCell(h.opt.linestyle));
-	h.data.x											= cellfun(@(x,y) unless(x,reshape(1:numel(y),size(y))),h.data.x,h.data.y,'UniformOutput',false);
-	h.data												= structfun2(@(x) reshape(cellfun(@(y) reshape(y,[],1),x,'UniformOutput',false),[],1),h.data);
-	h.data.xerr											= [];
+	[h.data.x,h.data.y,h.data.yerr,h.opt.linestyle]	= ForceCell(h.data.x,h.data.y,h.opt.error,h.opt.linestyle);
+	[h.data.x,h.data.y,h.data.yerr,h.opt.linestyle]	= FillSingletonArrays(h.data.x,h.data.y,h.data.yerr,h.opt.linestyle);
+	
+	h.data.xerr	= [];
+	
+	%fill in default x values
+		h.data.x	= cellfun(@(x,y) unless(x,reshape(1:numel(y),size(y))),h.data.x,h.data.y,'uni',false);
+	%reshape the data
+		[h.data.x,h.data.y,h.data.yerr]	= cellfun(@ReshapeData,h.data.x,h.data.y,h.data.yerr,'uni',false);
 	
 	nPlot	= numel(h.data.x);
 %fill in the xmin and xmax
@@ -135,6 +142,29 @@ function h = alexplot_line(x,h,vargin)
 		h.data.yerr	= [];
 	end
 
+%-------------------------------------------------------------------------------
+function [x,y,err] = ReshapeData(x,y,err)
+%reshape data to Nx1 and make sure we have + and - values for error bars
+	se	= size(err);
+	sx	= size(x);
+	sx	= [sx ones(1,numel(se) - numel(sx))];
+	
+	if ~isempty(err)
+		if any(sx~=se)
+			kDim	= find(se~=sx);
+			assert(numel(kDim)==1,'dimension mismatch');
+			assert(se(kDim)==2 && sx(kDim)==1,'no more than two error values can be specified for each y-value');
+			
+			[x,y,err]	= varfun(@(z) permute(z,[1:kDim-1 kDim+1:numel(sx) kDim]),x,y,err);
+			err			= reshape(err,[],2);
+		else
+			err	= repmat(reshape(err,[],1),[1 2]);
+		end
+	end
+	
+	x	= reshape(x,[],1);
+	y	= reshape(y,[],1);
+end
 %------------------------------------------------------------------------------%
 function optD = GetStyleDefaults(strStyle)
 	switch lower(strStyle)

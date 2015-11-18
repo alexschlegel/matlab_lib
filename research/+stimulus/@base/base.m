@@ -13,6 +13,10 @@ classdef base < handle
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
+%			d:	(0.25) the difficulty of the stimulus to generate. ranges from 0
+%				to 1. at stimulus generation, this will be used to determine the
+%				value of the difficulty-linked parameter, if one is specified
+%				for the stimulus class.
 %			exclude: (struct) a struct specifying the values to exclude when
 %				choosing parameter values. e.g. if a stimulus class includes a
 %				parameter called 'orientation' that is chosen at random from a
@@ -28,7 +32,7 @@ classdef base < handle
 %	[valK]		- the explicit value of parameter paramK (or empty to skip
 %				  skip setting the value)
 % 
-% Updated:	2015-09-29
+% Updated:	2015-11-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -36,7 +40,11 @@ classdef base < handle
 %PROPERTIES---------------------------------------------------------------------
 	%READ-ONLY
 		properties (SetAccess=protected, GetAccess=public)
-			param = [];
+			param					= [];
+			difficulty_param		= [];
+			difficulty_param_min	= 0;
+			difficulty_param_max	= 1;
+			difficulty_param_round	= false;
 		end
 %/PROPERTIES--------------------------------------------------------------------
 
@@ -50,6 +58,7 @@ classdef base < handle
 					obj.param	= stimulus.property.collection;
 				
 				%set some parameter defaults
+					add(obj.param,'d','generic',{0.25});
 					add(obj.param,'exclude','generic',{struct});
 					add(obj.param,'seed','generic',{@() randseed2});
 				

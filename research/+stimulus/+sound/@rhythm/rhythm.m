@@ -47,13 +47,18 @@ classdef rhythm < stimulus.sound.base
 			function obj = rhythm(varargin)
 				obj = obj@stimulus.sound.base();
 				
+				obj.difficulty_param		= 'n';
+				obj.difficulty_param_min	= 3;
+				obj.difficulty_param_max	= 20;
+				obj.difficulty_param_round	= true;
+				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{5});
+					add(obj.param,'n','generic',{@() obj.get_difficulty_param_value(obj.param.d)});
 					add(obj.param,'instrument','generic',{{'sin'}});
 					add(obj.param,'f','generic',{400});
 					add(obj.param,'pattern','generic',{'random'});
 					add(obj.param,'t','generic',{@() obj.choose_t(obj.param.n,obj.param.dur,obj.param.pattern)});
-					add(obj.param,'sequence','generic',{@() randFrom(1:numel(ForceCell(obj.param.instrument)),[obj.param.n 1],'unique',false,'seed',false)});
+					add(obj.param,'sequence','generic',{@() obj.choose_sequence(obj.param.n,obj.param.instrument)});
 				
 				%parse the inputs
 					obj.parseInputs(varargin{:})

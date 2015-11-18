@@ -12,8 +12,9 @@ classdef blob < stimulus.image.base
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				n: (5) the number of control points to use in constructing the
-%					blob. more control points lead to a more complex figure.
+%				n: (<from d>) the number of control points to use in
+%					constructing the blob. more control points lead to a more
+%					complex figure.
 %				rmin: (0.1) the minimum control point radius, as a fraction of
 %					the blob size
 %				rmax: (1) the maximum control point radius, as a fraction of the
@@ -44,8 +45,13 @@ classdef blob < stimulus.image.base
 			function obj = blob(varargin)
 				obj = obj@stimulus.image.base();
 				
+				obj.difficulty_param		= 'n';
+				obj.difficulty_param_min	= 3;
+				obj.difficulty_param_max	= 50;
+				obj.difficulty_param_round	= true;
+				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{5});
+					add(obj.param,'n','generic',{@() obj.get_difficulty_param_value(obj.param.d)});
 					add(obj.param,'rmin','generic',{0.1});
 					add(obj.param,'rmax','generic',{1});
 					add(obj.param,'a','range',{[0 2*pi],'size',@() [obj.param.n 1]});

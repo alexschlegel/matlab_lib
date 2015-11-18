@@ -16,5 +16,9 @@ function param = validate(obj,param)
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
+%d
+	assert(isscalar(param.d),'d must be a scalar');
+	assert(param.d>=0 && param.d<=1,'d must be between 0 and 1');
+
 %seed
 	assert(isscalar(param.seed),'seed parameter must be a scalar');

@@ -13,9 +13,9 @@ classdef scribble < stimulus.image.base
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				n: (10) the number of control points to use in constructing the
-%					scribble. more control points lead to a more complex figure.
-%					must be at least 3.
+%				n: (<from d>) the number of control points to use in
+%					constructing the scribble. more control points lead to a
+%					more complex figure. must be at least 3.
 %				x_type:	('random') a method for choosing x values. one of the
 %					following:
 %						'random':	randomly choose each value (from a uniform
@@ -66,8 +66,13 @@ classdef scribble < stimulus.image.base
 			function obj = scribble(varargin)
 				obj = obj@stimulus.image.base();
 				
+				obj.difficulty_param		= 'n';
+				obj.difficulty_param_min	= 3;
+				obj.difficulty_param_max	= 50;
+				obj.difficulty_param_round	= true;
+				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{10});
+					add(obj.param,'n','generic',{@() obj.get_difficulty_param_value(obj.param.d)});
 					add(obj.param,'x_type','generic',{'random'});
 					add(obj.param,'y_type','generic',{'random'});
 					add(obj.param,'x','generic',{@() get_coordinates(obj,'x')});

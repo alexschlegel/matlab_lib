@@ -12,7 +12,7 @@ classdef pitch < stimulus.sound.base
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				n: (5) the number of tones in the sequence
+%				n: (<from d>) the number of tones in the sequence
 %				instrument: ('sin') the name of an instrument function to use.
 %					the function should accept a t parameter and return a
 %					periodic value with period 2*pi. note that this should be
@@ -42,8 +42,13 @@ classdef pitch < stimulus.sound.base
 			function obj = pitch(varargin)
 				obj = obj@stimulus.sound.base();
 				
+				obj.difficulty_param		= 'n';
+				obj.difficulty_param_min	= 3;
+				obj.difficulty_param_max	= 40;
+				obj.difficulty_param_round	= true;
+				
 				%set some parameter defaults
-					add(obj.param,'n','generic',{5});
+					add(obj.param,'n','generic',{@() obj.get_difficulty_param_value(obj.param.d)});
 					add(obj.param,'instrument','generic',{'sin'});
 					add(obj.param,'fmin','generic',{200});
 					add(obj.param,'fmax','generic',{2000});

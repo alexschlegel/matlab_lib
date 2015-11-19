@@ -28,6 +28,14 @@ function param = validate(obj,param)
 	
 	param.fInstrument	= cell(nInstrument,1);
 	for kI=1:nInstrument
+		%replace preset indices with their samples
+		if isscalar(param.instrument{kI})
+			nPreset	= numel(obj.presetSample);
+			assert(param.instrument{kI}<=nPreset,'preset instrument index must be between 1 and %d',nPreset);
+			
+			param.instrument{kI}	= obj.presetSample{kI};
+		end
+		
 		switch class(param.instrument{kI})
 			case 'char'
 				try

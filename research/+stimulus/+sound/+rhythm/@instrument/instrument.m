@@ -34,7 +34,7 @@ classdef instrument < stimulus.sound.rhythm
 				obj = obj@stimulus.sound.rhythm();
 				
 				%set some parameter defaults
-					add(obj.param,'instrument','generic',{{'sin','square'}});
+					add(obj.param,'instrument','generic',{{1,2}});
 					add(obj.param,'pattern','generic',{'uniform'});
 				
 				%parse the inputs

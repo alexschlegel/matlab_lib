@@ -13,13 +13,15 @@ classdef rhythm < stimulus.sound.base
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
 %				n: (5) the number of tones in the sequence
-%				instrument: ('sin') the name of an instrument function to use,
-%					or a sound sample, or a cell array of such to choose from
-%					multiple instruments for each beat of the rhythm sequence.
-%					each function should accept a t parameter and return a
-%					periodic value with period 2*pi. note that each item should
-%					be the string name of the function, rather than a function
-%					handle.
+%				instrument: (1) the name of an instrument function to use
+%					(e.g. 'sin'), a sound sample, an integer from 1 to 2 to use
+%					a preset sound sample, or a cell array of such to choose
+%					from multiple instruments for each beat of the rhythm
+%					sequence. each function should accept a t parameter and
+%					return a periodic value with period 2*pi. note that each
+%					item should be the string name of the function, rather than
+%					a function handle. note that preset sound samples require
+%					rate to be 44100.
 %				f: (400) for instrument functions, the frequency of the beat,
 %					in Hz
 %				pattern: ('random') the type of rhythm pattern to use:
@@ -36,10 +38,17 @@ classdef rhythm < stimulus.sound.base
 %	[valK]		- the explicit value of parameter paramK (or empty to skip
 %				  skip setting the value)
 % 
-% Updated:	2015-11-17
+% Updated:	2015-11-18
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
+
+%PROPERTIES---------------------------------------------------------------------
+	%PRIVATE
+		properties (SetAccess=protected, GetAccess=protected)
+			presetSample = load_preset_samples();
+		end
+%/PROPERTIES--------------------------------------------------------------------
 
 %METHODS------------------------------------------------------------------------
 	%CONSTRUCTOR
@@ -71,4 +80,12 @@ classdef rhythm < stimulus.sound.base
 		end
 %/METHODS-----------------------------------------------------------------------
 
+end
+
+function cSample = load_preset_samples()
+	nPreset		= 2;
+	strDirClass	= PathGetDir(mfilename('fullpath'));
+	
+	cPathPreset	= arrayfun(@(k) PathUnsplit(strDirClass,sprintf('beat%d',k),'wav'),(1:nPreset)','uni',false);
+	cSample		= cellfun(@wavread,cPathPreset,'uni',false);
 end

@@ -13,6 +13,7 @@ classdef beat < stimulus.sound.rhythm
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
+%				instrument: ({1}) see stimulus.sound.rhythm
 %			<see also stimulus.sound.rhythm>
 % 
 % In:
@@ -29,7 +30,13 @@ classdef beat < stimulus.sound.rhythm
 	%CONSTRUCTOR
 		methods (Access=public)
 			function obj = beat(varargin)
-				obj = obj@stimulus.sound.rhythm(varargin{:});
+				obj = obj@stimulus.sound.rhythm();
+				
+				%set some parameter defaults
+					add(obj.param,'instrument','generic',{{1}});
+				
+				%parse the inputs
+					obj.parseInputs(varargin{:})
 			end
 		end
 %/METHODS-----------------------------------------------------------------------

@@ -19,7 +19,7 @@ function [mask,ifo] = generate_mask(obj,ifo)
 
 p	= [reshape(ifo.param.y,1,[]); reshape(ifo.param.x,1,[])];
 v	= spcrv(p,3);
-vIm	= MapValue(v',min(v(:)),max(v(:)),ifo.param.pen_size,ifo.param.size-ifo.param.pen_size);
+vIm	= MapValue(v',min(v(:)),max(v(:)),ifo.param.pen_size_px,ifo.param.size-ifo.param.pen_size_px);
 
 mask	= contour2im(vIm(:,1),vIm(:,2),...
 			'size'	, ifo.param.size	, ...

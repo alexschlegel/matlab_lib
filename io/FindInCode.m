@@ -15,7 +15,7 @@ function [cPathFound,cPathSearch,cDirSearch] = FindInCode(str,varargin)
 % Out:
 %	cPathFound	- a cell of code paths in which the search string was found
 % 
-% Updated: 2015-04-28
+% Updated: 2015-12-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -63,12 +63,12 @@ function cDir = GetDirectories(cDir)
 	while kD<=nDir
 		strDir	= cDir{kD};
 		
-		%get the non-old subdirectories
+		%exclude some subdirectories
 			d	= dir(strDir);
 			d	= d([d.isdir]);
 			d	= reshape({d.name},[],1);
 			
-			cExclude	= {'_old';'.';'..';'data'};
+			cExclude	= {'_old';'.';'..';'data';'analysis'};
 			bKeep		= cellfun(@(d) ~any(strcmpi(d,cExclude)),d);
 			d			= d(bKeep);
 			

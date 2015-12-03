@@ -45,7 +45,7 @@ function hE = ErrorBars(x,y,err,varargin)
 	[x,y,err]	= FillSingletonArrays(x,y,err);
 	
 	nPlot	= numel(x);
-	kPlot	= (1:nPlot)';
+	kPlot	= reshape(1:nPlot,size(x));
 	
 	[x,y,err]	= cellfun(@ReshapeData,x,y,err,'uni',false);
 

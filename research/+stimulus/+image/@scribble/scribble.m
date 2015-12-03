@@ -32,7 +32,8 @@ classdef scribble < stimulus.image.base
 %					-1 and 1. overrides <x_type>.
 %				y:	(<from y_type>) an array of control point y values between
 %					-1 and 1. overrides <y_type>.
-%				pen_size:	(25) the size of the pen to apply
+%				pen_size:	(0.0625) the size of the pen to apply, as a fraction
+%							of the stimulus size
 %				pen:	('calligraphy') the type of pen to use. one of the
 %					following:
 %						'calligraphy':	use a line as a pen to mimic the effect
@@ -77,7 +78,7 @@ classdef scribble < stimulus.image.base
 					add(obj.param,'y_type','generic',{'random'});
 					add(obj.param,'x','generic',{@() get_coordinates(obj,'x')});
 					add(obj.param,'y','generic',{@() get_coordinates(obj,'y')});
-					add(obj.param,'pen_size','generic',{25});
+					add(obj.param,'pen_size','generic',{0.0625});
 					add(obj.param,'pen','generic',{'calligraphy'});
 					add(obj.param,'step_size','generic',{0.1});
 					add(obj.param,'calligraphy_angle','generic',{0});

@@ -46,17 +46,19 @@ function param = validate(obj,param)
 %pen
 	assert(isscalar(param.pen_size),'pen_size must be scalar');
 	
+	param.pen_size_px	= round(param.pen_size*param.size);
+	
 	switch class(param.pen)
 		case 'char'
 			param.pen	= CheckInput(param.pen,'pen',{'calligraphy','round','random'});
 			
 			switch param.pen
 				case 'calligraphy'
-					param.pen	= imrotate(true(param.pen_size,2),-param.calligraphy_angle);
+					param.pen	= imrotate(true(param.pen_size_px,2),-param.calligraphy_angle);
 				case 'round'
-					param.pen	= MaskCircle(param.pen_size);
+					param.pen	= MaskCircle(param.pen_size_px);
 				case 'random'
-					param.pen	= @(t,T) rand(param.pen_size)>=0.99;
+					param.pen	= @(t,T) rand(param.pen_size_px)>=0.99;
 			end
 		case 'logical'
 			assert(numel(size(param.pen))==2,'logical pens must be 2D');

@@ -1,41 +1,69 @@
 classdef base < handle
 % subject.assess.base
 % 
-% Description:	base class for assessing subject performance on a task whose
-%				difficulty ranges from 0 to 1
+% Description:	base class for assessing subject performance on a set of tasks
 % 
 % Syntax: obj = subject.assess.base(f,<options>)
 %
 % In:
 %	f	- the value of the <f> property
 %	<options>:
+%		estimate:	(0.5) an initial estimate of the <ability> property
 %		target:		(0.75) the value of the <target> property
 %		chance:		(0.5) the value of the <chance> property
-%		estimate:	(0.5) an initial estimate of the subject's ability
+%		lapse:		(0.03) the initial estimate of the <lapse> property
 %		d:			(0:0.05:1) the value of the <d> property
 % 
 % Methods:
-%	Step:	run one step of the assessment
-%	Run:	run a full assessment
+%	GetTaskInfo:	get information about a task
+%	Plot:			plot a task's assessment results
+%	Run:			run a full assessment
+%	SimulateProbe:	simulate a subject response
+%	Step:			run one step of the assessment
 % 
 % Properties:
-%	f:	(r) a function that takes a difficulty value between 0 and 1, 0 being
-%		the easiest, as an input, presents the subject with a task at the
-%		specified difficulty, and returns true if the subject was correct, or
-%		false otherwise. see also the SimulateProbe class method
-%	d:	(r) allowed values of d
-%	target:	(r) the target subject performance, as fraction of tasks correct
-%	chance:	(r) the chance level of subject performance
+%	f:	(r) the handle to a function that takes a difficulty value from 0 to 1
+%		(0==easiest) and a parameter struct as an input, presents the subject
+%		with a task at the specified difficulty, and returns true if the subject
+%		was correct, or false if the subject was incorrect. can also be a cell
+%		of handles to such functions if multiple tasks (e.g. multiple
+%		conditions) should be assessed simultaneously. in this case, probes will
+%		alternate randomly between the tasks. the SimulateProbe class method can
+%		be used here to simulate an assessment. the parameter struct consists of
+%		fields added manually during the call to the Step or Run methods, and
+%		additionally the following fields:
+%			kProbe:		the probe number for the task
+%			kProbTotal:	the probe number over all tasks
+%			estimate:	a struct array specifying the current estimate for each
+%						task (see GetTaskEstimate). e.g.
+%						param.estimate(3).ability is the current estimate of the
+%						subject's ability on the 3rd task.
 %	ability:	(r) the current estimate of the difficulty value at which the
-%		subject will perform according to the target
-%	steepness:	(r) the current estimate of the steepness of the subject's
-%		psychometric curve
-%	rmse:	(r) the root mean square error between the fit and the data
-%	r2:	(r) the degree of freedom adjusted r^2 between the fit and the data
+%		subject will perform according to the target, or an array of ability
+%		estimates for multiple tasks (see <f>)
+%	slope:	(r) the current estimate of the slope of the subject's psychometric
+%		curve, or an array of slopes for multiple tasks (see <f>)
+%	target:	(r) the target subject performance, as a fraction of tasks correct
+%	chance:	(r) the chance level of subject performance (0->1)
+%	lapse:	(r) the current estimate of subject's lapse rate (0->1), or an array
+%		of lapse rates
+%	d:	(r) allowed values of d
+%	rmse:	(r) the root mean square error between the fit and the data, or an
+%		array of rmses
+%	r2:	(r) the degree of freedom adjusted r^2 between the fit and the data, or
+%		an array of r^2s
 %	history:	(r) a struct recording the performance history and ability
 %		estimates
+%
+% Example:
+%	simAbility = [0.2; 0.4; 0.6];
+%	chance = 0.25;
+%	f = arrayfun(@(a) @(d,param) subject.assess.base.SimulateProbe(d,param,'ability',a,'chance',chance),simAbility,'uni',false);
+%	a = subject.assess.base(f,'chance',chance);
+%	sEstimate = a.Run('max',50,'rmse',0.2,'silent',false);
+%	h = a.Plot(1);
 % 
-% Updated:	2015-12-02
+% Updated:	2015-12-04
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -44,19 +72,22 @@ classdef base < handle
 	%READ-ONLY
 		properties (SetAccess=protected, GetAccess=public)
 			f			= [];
-			d			= [];
+			ability		= NaN;
+			slope		= 5;
 			target		= NaN;
 			chance		= NaN;
-			ability		= NaN;
-			steepness	= 5;
+			lapse		= NaN;
+			d			= [];
 			rmse		= NaN;
 			r2			= NaN;
-			history		= struct;
 		end
 	
 	%PRIVATE
 		properties (SetAccess=protected, GetAccess=protected)
+			history		= struct;
 			
+			taskSequence 	= [];
+			nProbe			= [];
 		end
 %/PROPERTIES--------------------------------------------------------------------
 
@@ -78,20 +109,32 @@ classdef base < handle
 				obj = obj@handle();
 				
 				opt	= ParseArgs(varargin,...
+						'estimate'	, 0.5 		, ...
 						'target'	, 0.75		, ...
 						'chance'	, 0.5		, ...
-						'estimate'	, 0.5 		, ...
+						'lapse'		, 0.03		, ...
 						'd'			, 0:0.05:1	  ...
 						);
 				
+				f		= reshape(ForceCell(f),[],1);
+				nTask	= numel(f);
+				
 				obj.f		= f;
-				obj.d		= sort(reshape(opt.d,[],1));
 				obj.target	= opt.target;
 				obj.chance	= opt.chance;
-				obj.ability	= opt.estimate;
+				obj.d		= sort(reshape(opt.d,[],1));
 				
-				obj.history			= dealstruct('d','f','n',[]);
-				obj.history.record	= repmat(dealstruct('d','result','ability','steepness','rmse','r2',[]),[0 0]);
+				obj.ability	= repto(opt.estimate,[nTask 1]);
+				obj.slope	= repto(obj.slope,[nTask 1]);
+				obj.lapse	= repto(opt.lapse,[nTask 1]);
+				
+				obj.rmse	= repto(obj.rmse,[nTask 1]);
+				obj.r2		= repto(obj.r2,[nTask 1]);
+				
+				obj.history		= repmat(dealstruct('d','result','ability','slope','lapse','rmse','r2',[]),[nTask 1]);
+				
+				obj.nProbe			= zeros(nTask,1);
+				obj.taskSequence	= zeros(nTask,1);
 			end
 		end
 	
@@ -102,10 +145,16 @@ classdef base < handle
 	
 	%PRIVATE
 		methods (Access=protected)
-			d = GetNextProbe(obj);
-			AppendProbe(obj,d,b);
-			[a,s,rmse,r2] = EstimateAbility(obj,d,f,n);
-			[dFit,fFit,nFit] = GetFitValues(obj,d,b)
+			sEstimate = AppendProbe(obj,kTask,d,result);
+			AppendTaskHistory(obj,kTask,d,result);
+			[ability,slope,lapse,rmse,r2] = EstimateAbility(obj,s);
+			d = GetNextProbe(obj,s);
+			sTask = GetNextTask(obj,varargin);
+			sEstimate = GetTaskEstimate(obj,varargin);
+			sHistory = GetTaskHistory(obj,varargin);
+			sPerformance = GetTaskPerformance(obj,varargin);
+			SetTaskEstimate(obj,kTask,sEstimate);
+			SetTaskHistory(obj,kTask,sHistory);
 		end
 %/METHODS-----------------------------------------------------------------------
 

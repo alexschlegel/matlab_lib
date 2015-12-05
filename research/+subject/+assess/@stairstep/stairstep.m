@@ -1,10 +1,9 @@
 classdef stairstep < subject.assess.base
 % subject.assess.stairstep
 % 
-% Description:	class for assessing subject performance on a task whose
-%				difficulty ranges from 0 to 1, using a stair stepping procedure.
-%				difficulty increases as subjects respond correctly and decreases
-%				as they respond incorrectly
+% Description:	class for assessing subject performance on a set of tasks, using
+%				a stair stepping procedure. difficulty increases as subjects
+%				respond correctly and decreases as they respond incorrectly.
 % 
 % Syntax: obj = subject.assess.stairstep(f,<options>)
 %
@@ -40,9 +39,9 @@ classdef stairstep < subject.assess.base
 	
 	%PRIVATE
 		properties (SetAccess=protected, GetAccess=protected)
-			position			= NaN;
-			speed				= 0;
-			stickinessCounter	= 0;
+			position			= [];
+			speed				= [];
+			stickinessCounter	= [];
 		end
 %/PROPERTIES--------------------------------------------------------------------
 
@@ -69,13 +68,16 @@ classdef stairstep < subject.assess.base
 				obj.stickiness		= opt.stickiness;
 				obj.maxweight		= opt.maxweight;
 				
-				obj.position	= obj.ability;
+				nTask					= numel(obj.f);
+				obj.position			= repmat(obj.ability,[nTask 1]);
+				obj.speed				= zeros(nTask,1);
+				obj.stickinessCounter	= zeros(nTask,1);
 			end
 		end
 	
 	%PRIVATE
 		methods (Access=protected)
-			d = GetNextProbe(obj);
+			d = GetNextProbe(obj,s);
 		end
 %/METHODS-----------------------------------------------------------------------
 

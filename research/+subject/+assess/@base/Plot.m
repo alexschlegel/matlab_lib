@@ -3,14 +3,15 @@ function h = Plot(obj,varargin)
 % 
 % Description:	plot the results of the assessment
 % 
-% Syntax: h = obj.Plot(<options>)
+% Syntax: h = obj.Plot([kTask]=1,<options>)
 % 
 % In:
+%	[kTask]	- the index of the task for which to plot results
 %	<options>:
 %		performance:	(true) true to plot the subject performance
 %		ability:		(true) true to plot the ability estimate as a function
 %						of probe number
-%		steepness:		(true) true to plot the steepness estimate as a function
+%		slope:			(true) true to plot the steepness estimate as a function
 %						of probe number
 %		rmse:			(true) true to plot the rmse as a function of probe
 %						number
@@ -20,28 +21,31 @@ function h = Plot(obj,varargin)
 % Out:
 %	h	- a struct of plot handles
 % 
-% Updated:	2015-12-02
+% Updated:	2015-12-04
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
 %parse the inputs
-	opt	= ParseArgs(varargin,...
-			'performance'	, true	, ...
-			'ability'		, true	, ...
-			'steepness'		, true	, ...
-			'rmse'			, true	, ...
-			'r2'			, true	  ...
-	);
+	[kTask,opt]	= ParseArgs(varargin,1,...
+					'performance'	, true	, ...
+					'ability'		, true	, ...
+					'slope'			, true	, ...
+					'rmse'			, true	, ...
+					'r2'			, true	  ...
+					);
 
 h	= struct;
 
 if opt.performance
-	d	= reshape(obj.history.d,[],1);
-	f	= reshape(100*obj.history.f,[],1);
-	n	= reshape(obj.history.n,[],1);
+	sPerformance	= obj.GetTaskPerformance(kTask);
+	sEstimate		= obj.GetTaskEstimate(kTask);
 	
-	fEstimate	= 100*weibull(1-d,1-obj.ability,obj.steepness,0,obj.chance,obj.target);
+	d	= sPerformance.d;
+	f	= 100*sPerformance.f;
+	n	= sPerformance.n;
+	
+	fEstimate	= 100*weibull(1-d,1-sEstimate.ability,sEstimate.slope,0,sEstimate.chance,sEstimate.target,sEstimate.lapse);
 	
 	nSample	= numel(d);
 	
@@ -75,19 +79,19 @@ if opt.performance
 	end
 end
 
-if opt.ability || opt.steepness || opt.rmse || opt.r2
+if opt.ability || opt.slope || opt.rmse || opt.r2
+	sHistory	= obj.GetTaskHistory(kTask);
+	
 	hMulti	= {};
 	
-	nPlot	= opt.ability + opt.steepness + opt.rmse + opt.r2;
+	nPlot	= opt.ability + opt.slope + opt.rmse + opt.r2;
 	hFigure	= switch2(nPlot,1,[],2,300,3,250,4,200);
 	
-	nProbe	= numel(obj.history.record);
+	nProbe	= numel(sHistory.d);
 	kProbe	= (1:nProbe)';
 	
 	if opt.ability
-		ability	= reshape([obj.history.record.ability],[],1);
-		
-		h.ability	= alexplot(kProbe,ability,...
+		h.ability	= alexplot(kProbe,sHistory.ability,...
 						'title'			, 'psychometric fit'	, ...
 						'xlabel'		, 'probe'				, ...
 						'ylabel'		, 'ability estimate'	, ...
@@ -101,24 +105,20 @@ if opt.ability || opt.steepness || opt.rmse || opt.r2
 		hMulti{end+1}	= h.ability;
 	end
 	
-	if opt.steepness
-		steepness	= reshape([obj.history.record.steepness],[],1);
-		
-		h.steepness	= alexplot(kProbe,steepness,...
-						'xlabel'		, 'probe'		, ...
-						'ylabel'		, 'steepness'	, ...
-						'linewidth'		, 1				, ...
-						'h'				, hFigure		, ...
-						'type'			, 'line'		  ...
+	if opt.slope
+		h.slope	= alexplot(kProbe,sHistory.slope,...
+						'xlabel'		, 'probe'	, ...
+						'ylabel'		, 'slope'	, ...
+						'linewidth'		, 1			, ...
+						'h'				, hFigure	, ...
+						'type'			, 'line'	  ...
 						);
 		
-		hMulti{end+1}	= h.steepness;
+		hMulti{end+1}	= h.slope;
 	end
 	
 	if opt.rmse
-		rmse	= reshape([obj.history.record.rmse],[],1);
-		
-		h.rmse	= alexplot(kProbe,rmse,...
+		h.rmse	= alexplot(kProbe,sHistory.rmse,...
 					'xlabel'		, 'probe'	, ...
 					'ylabel'		, 'RMSE'	, ...
 					'ymin'			, 0			, ...
@@ -132,9 +132,7 @@ if opt.ability || opt.steepness || opt.rmse || opt.r2
 	end
 	
 	if opt.r2
-		r2	= reshape([obj.history.record.r2],[],1);
-		
-		h.r2	= alexplot(kProbe,r2,...
+		h.r2	= alexplot(kProbe,sHistory.r2,...
 					'xlabel'		, 'probe'	, ...
 					'ylabel'		, 'r^2'		, ...
 					'ymin'			, 0			, ...

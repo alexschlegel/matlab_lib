@@ -1,54 +1,47 @@
-function AppendProbe(obj,d,b)
+function sEstimate = AppendProbe(obj,kTask,d,result)
 % subject.assess.base.AppendProbe
 % 
 % Description:	append a probe to the history
 % 
-% Syntax: obj.AppendProbe(d,b)
+% Syntax: sEstimate = obj.AppendProbe(kTask,d,result)
 % 
 % In:
-%	d	- the difficulty of the probe
-%	b	- true if the subject was correct
+%	kTask	- the index of the task that was probed
+%	d		- the difficulty of the probe
+%	result	- true if the subject was correct
+%
+% Out:
+%	sEstimate	- the new estimate for the assessed task (see GetTaskEstimate)
 % 
-% Updated:	2015-12-02
+% Updated:	2015-12-04
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
-%calculate the fit values
-	dAll	= [reshape([obj.history.record.d],[],1); d];
-	bAll	= [reshape([obj.history.record.result],[],1); b];
-	
-	[obj.history.d,obj.history.f,obj.history.n]	= obj.GetFitValues(dAll,bAll);
-
 %update the estimate
-	nD		= numel(obj.history.d);
-	nProbe	= numel(obj.history.record);
-	
-	if nD>1
-		[a,s,obj.rmse,obj.r2]	= obj.EstimateAbility(obj.history.d,obj.history.f,obj.history.n);
+	if obj.nProbe(kTask)>1
+	%wait until we have probes at more than one difficulty
+		sHistory		= obj.GetTaskHistory(kTask);
+		sPerformance	= obj.GetTaskPerformance([sHistory.d; d], [sHistory.result; result]);
 		
-		if nProbe>2
-			kMean	= max(2,nProbe-3):nProbe;
+		s	= obj.GetTaskInfo('history',sHistory,'performance',sPerformance);
+		
+		[ability,slope,lapse,s.estimate.rmse,s.estimate.r2]	= obj.EstimateAbility(s);
+		
+		%set the new estimate to the mean of the last 5 estimates
+			nProbe	= obj.nProbe(kTask);
+			kMean	= max(1,nProbe-3):nProbe;
 			
-			obj.ability		= mean([[obj.history.record(kMean).ability] a]);
-			obj.steepness	= mean([[obj.history.record(kMean).steepness] s]);
-		else
-			obj.ability		= a;
-			obj.steepness	= s;
-		end
+			s.estimate.ability	= mean([sHistory.ability(kMean); ability]);
+			s.estimate.slope		= mean([sHistory.slope(kMean); slope]);
+			s.estimate.lapse		= mean([sHistory.lapse(kMean); lapse]);
+		
+		obj.SetTaskEstimate(kTask,s.estimate);
 	else
-		a			= obj.ability;
-		s			= obj.steepness;
-		obj.rmse	= NaN;
-		obj.r2		= NaN;
+		s.estimate	= obj.GetTaskEstimate(kTask);
 	end
 
-%record the results
-	obj.history.record(end+1)	= struct(...
-									'd'			, d				, ...
-									'result'	, b				, ...
-									'ability'	, obj.ability	, ...
-									'steepness'	, obj.steepness	, ...
-									'rmse'		, obj.rmse		, ...
-									'r2'		, obj.r2		  ...
-									);
+%update the history
+	obj.AppendTaskHistory(kTask,d,result);
+
+sEstimate	= s.estimate;

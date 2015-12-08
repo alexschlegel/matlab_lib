@@ -1,5 +1,5 @@
 function d = GetNextProbe(obj,s)
-% subject.assess.base.GetNextProbe
+% subject.assess.stairstep.GetNextProbe
 % 
 % Description:	use a stair stepping procedure to calculate the next probe value
 %				for a task

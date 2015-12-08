@@ -140,13 +140,13 @@ classdef base < handle
 	%STATIC
 		methods (Access=public, Static)
 			b = SimulateProbe(d,varargin)
+			[ability,slope,lapse,rmse,r2] = EstimateAbility(s);
 		end
 	
 	%PRIVATE
 		methods (Access=protected)
 			sEstimate = AppendProbe(obj,kTask,d,result);
 			AppendTaskHistory(obj,kTask,d,result);
-			[ability,slope,lapse,rmse,r2] = EstimateAbility(obj,s);
 			d = GetNextProbe(obj,s);
 			sTask = GetNextTask(obj,varargin);
 			sEstimate = GetTaskEstimate(obj,varargin);

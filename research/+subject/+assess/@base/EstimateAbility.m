@@ -1,4 +1,4 @@
-function [ability,slope,lapse,rmse,r2] = EstimateAbility(obj,s)
+function [ability,slope,lapse,rmse,r2] = EstimateAbility(s)
 % subject.assess.base.EstimateAbility
 % 
 % Description:	estimate the subject's ability, given the probe history and
@@ -17,7 +17,7 @@ function [ability,slope,lapse,rmse,r2] = EstimateAbility(obj,s)
 %	r2		- the degree of freedom adjusted squared correlation between data
 %			  and fit
 % 
-% Updated:	2015-12-04
+% Updated:	2015-12-07
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

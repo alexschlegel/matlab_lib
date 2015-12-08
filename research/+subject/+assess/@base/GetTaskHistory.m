@@ -20,10 +20,15 @@ function sHistory = GetTaskHistory(obj,varargin)
 %						each probe
 %					r2:	the r^2 of the estimate after each probe
 % 
-% Updated:	2015-12-04
+% Updated:	2015-12-07
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 kTask	= ParseArgs(varargin,1);
 
-sHistory	= obj.history(kTask);
+sHistory	= restruct(obj.history([obj.history.task]==kTask));
+
+if isempty(sHistory)
+	cField		= fieldnames(sHistory);
+	sHistory	= dealstruct(cField{:},[]);
+end

@@ -13,6 +13,7 @@ function [sEstimate,kTask,d,result] = Step(obj,varargin)
 %					kProbe		- the probe number for the current task
 %					kProbeTotal	- the probe number over all tasks
 %				and returns a parameter struct
+%		task:	(<auto>) the index of the task to probe
 %		max:	(inf) the maximum number of probes to execute per task
 %
 % Out:
@@ -23,12 +24,13 @@ function [sEstimate,kTask,d,result] = Step(obj,varargin)
 %	d			- the probed difficulty level
 %	result		- the result of the probe
 % 
-% Updated:	2015-12-04
+% Updated:	2015-12-07
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 opt	= ParseArgs(varargin,...
 		'param'	, struct	, ...
+		'task'	, []		, ...
 		'max'	, inf		  ...
 		);
 
@@ -36,7 +38,7 @@ sEstimate			= [];
 [kTask,d,result]	= deal(NaN);
 
 %get the next task
-	sTask	= obj.GetNextTask('max',opt.max);
+	sTask	= obj.GetNextTask('task',opt.task,'max',opt.max);
 	
 	if isempty(sTask)
 	%must be finished

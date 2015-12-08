@@ -19,6 +19,10 @@ function s = restruct(s,varargin)
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
+if isempty(s)
+	return;
+end
+
 %parse the inputs
 	if numel(varargin)==1 && isstruct(varargin{1}) && isfield(varargin{1},'array_size')
 		opt	= varargin{1};

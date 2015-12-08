@@ -15,11 +15,11 @@ classdef base < handle
 %		d:			(0:0.05:1) the value of the <d> property
 % 
 % Methods:
-%	GetTaskInfo:	get information about a task
-%	Plot:			plot a task's assessment results
-%	Run:			run a full assessment
-%	SimulateProbe:	simulate a subject response
-%	Step:			run one step of the assessment
+%	GetTaskInfo:		get information about a task
+%	Plot:				plot a task's assessment results
+%	Run:				run a full assessment
+%	SimulateProbe:		simulate a subject response
+%	Step:				run one step of the assessment
 % 
 % Properties:
 %	f:	(r) the handle to a function that takes a difficulty value from 0 to 1
@@ -80,12 +80,11 @@ classdef base < handle
 			d			= [];
 			rmse		= NaN;
 			r2			= NaN;
+			history		= struct;
 		end
 	
 	%PRIVATE
 		properties (SetAccess=protected, GetAccess=protected)
-			history		= struct;
-			
 			taskSequence 	= [];
 			nProbe			= [];
 		end
@@ -131,7 +130,7 @@ classdef base < handle
 				obj.rmse	= repto(obj.rmse,[nTask 1]);
 				obj.r2		= repto(obj.r2,[nTask 1]);
 				
-				obj.history		= repmat(dealstruct('d','result','ability','slope','lapse','rmse','r2',[]),[nTask 1]);
+				obj.history		= repmat(dealstruct('task','d','result','ability','slope','lapse','rmse','r2',[]),[0 0]);
 				
 				obj.nProbe			= zeros(nTask,1);
 				obj.taskSequence	= zeros(nTask,1);
@@ -154,7 +153,6 @@ classdef base < handle
 			sHistory = GetTaskHistory(obj,varargin);
 			sPerformance = GetTaskPerformance(obj,varargin);
 			SetTaskEstimate(obj,kTask,sEstimate);
-			SetTaskHistory(obj,kTask,sHistory);
 		end
 %/METHODS-----------------------------------------------------------------------
 

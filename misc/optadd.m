@@ -14,7 +14,7 @@ function opt = optadd(opt,varargin)
 % Out:
 % 	opt	- the updated opt struct/varargin cell
 % 
-% Updated: 2015-03-19
+% Updated: 2015-12-09
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -56,7 +56,12 @@ switch class(opt)
 			end
 		end
 		
-		opt	= optstruct(opt);
+		if isfield(opt,'opt_extra')
+			opt_extra	= opt.opt_extra;
+		else
+			opt_extra	= struct;
+		end
+		opt	= optstruct(opt,opt_extra);
 	otherwise
 		error('Invalid opt argument');
 end

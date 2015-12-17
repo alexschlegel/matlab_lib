@@ -106,7 +106,7 @@ function h = alexplot_scatter(x,h,vargin)
 	end
 %plot the scatters!
 	opt				= h.opt;
-	cOpt			= optreplace(opt2cell(opt),'axistype','off');
+	cOpt			= optreplace(opt,'axistype','off');
 	h				= alexplot(h.data.x,h.data.y,cOpt{:});
 	h.opt			= opt;
 	

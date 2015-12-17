@@ -13,7 +13,7 @@ function sEstimate = AppendProbe(obj,kTask,d,result)
 % Out:
 %	sEstimate	- the new estimate for the assessed task (see GetTaskEstimate)
 % 
-% Updated:	2015-12-04
+% Updated:	2015-12-17
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -24,7 +24,7 @@ function sEstimate = AppendProbe(obj,kTask,d,result)
 		sHistory		= obj.GetTaskHistory(kTask);
 		sPerformance	= obj.GetTaskPerformance([sHistory.d; d], [sHistory.result; result]);
 		
-		s	= obj.GetTaskInfo('history',sHistory,'performance',sPerformance);
+		s	= obj.GetTaskInfo(kTask,'history',sHistory,'performance',sPerformance);
 		
 		[ability,slope,lapse,s.estimate.rmse,s.estimate.r2]	= obj.EstimateAbility(s);
 		

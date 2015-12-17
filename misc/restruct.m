@@ -14,7 +14,7 @@ function s = restruct(s,varargin)
 %				struct of arrays. this helps resolve ambiguity in cases of
 %				struct arrays with one element.
 % 
-% Updated: 2015-07-02
+% Updated: 2015-12-10
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -79,7 +79,8 @@ function s2 = Scalar2Array(s,opt)
 		x			= s.(strField);
 		
 		if isstruct(x)
-			x	= restruct(x,opt);
+			cOpt	= opt2cell(opt);
+			x		= restruct(x,cOpt{:});
 		end
 		
 		if isscalar(x) && ~iscell(x)
@@ -109,7 +110,8 @@ function s2 = Array2Scalar(s,opt)
 		
 		x	= reshape({s.(strField)},opt.array_size);
 		if all(reshape(cellfun(@isstruct,x),[],1))
-			x	= restruct(cell2mat(x),opt);
+			cOpt	= opt2cell(opt);
+			x		= restruct(cell2mat(x),cOpt{:});
 		elseif all(reshape(cellfun(@(y) isscalar(y) && ~ischar(y),x),[],1))
 			if any(reshape(cellfun(@iscell,x),[],1))
 				x	= cellfun(@UnwrapScalarCell,x,'uni',false);

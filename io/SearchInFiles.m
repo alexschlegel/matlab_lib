@@ -7,7 +7,7 @@ function [cPathFound,nFound] = SearchInFiles(cPathSearch,str,varargin)
 % 
 % In:
 % 	cPathSearch	- a cell of file paths to search in
-%	str			- the string to search for
+%	str			- the regexp pattern to search for
 %	<options>:
 %		silent:	(true) true to suppress status messages
 % 
@@ -16,7 +16,7 @@ function [cPathFound,nFound] = SearchInFiles(cPathSearch,str,varargin)
 %	nFound		- the number of instances of the search string found in each
 %				  file in cPathFound
 % 
-% Updated: 2015-06-09
+% Updated: 2015-12-10
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.

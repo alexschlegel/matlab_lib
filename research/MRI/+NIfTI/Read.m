@@ -25,7 +25,7 @@ function nii = Read(strPathNII,varargin)
 % Out:
 % 	nii	- the NIfTI struct
 % 
-% Updated: 2015-06-15
+% Updated: 2015-12-10
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -51,7 +51,7 @@ function nii = Read(strPathNII,varargin)
 		strDirTemp	= GetTempDir;
 		strPathTemp	= char(gunzip(strPathNII,strDirTemp));
 		
-		nii	= NIfTI.Read(strPathTemp,opt);
+		nii	= NIfTI.Read(strPathTemp,varargin{:});
 		
 		rmdir(strDirTemp,'s');
 		

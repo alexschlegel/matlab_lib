@@ -15,7 +15,7 @@ classdef base < handle
 %		d:			(0:0.05:1) the value of the <d> property
 % 
 % Methods:
-%	GetTaskInfo:		get information about a task
+%	GetTaskInfo:		get information about the tasks
 %	Plot:				plot a task's assessment results
 %	Run:				run a full assessment
 %	SimulateProbe:		simulate a subject response
@@ -145,14 +145,14 @@ classdef base < handle
 	
 	%PRIVATE
 		methods (Access=protected)
-			sEstimate = AppendProbe(obj,kTask,d,result);
-			AppendTaskHistory(obj,kTask,d,result);
-			d = GetNextProbe(obj,s);
-			sTask = GetNextTask(obj,varargin);
-			sEstimate = GetTaskEstimate(obj,varargin);
-			sHistory = GetTaskHistory(obj,varargin);
-			sPerformance = GetTaskPerformance(obj,varargin);
-			SetTaskEstimate(obj,kTask,sEstimate);
+			sEstimate		= AppendProbe(obj,kTask,d,result);
+							  AppendTaskHistory(obj,kTask,d,result);
+			d				= GetNextProbe(obj,s);
+			sTask			= GetNextTask(obj,varargin);
+			sEstimate		= GetTaskEstimate(obj,varargin);
+			sHistory		= GetTaskHistory(obj,varargin);
+			sPerformance	= GetTaskPerformance(obj,varargin);
+							  SetTaskEstimate(obj,kTask,sEstimate);
 		end
 %/METHODS-----------------------------------------------------------------------
 

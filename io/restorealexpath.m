@@ -49,7 +49,7 @@ function b = AddToPath(strDir,bSubDir,cREExclude)
 	
 	if b
 		if bSubDir
-			cDir	= FindDirectories(strDir,'subdir',true);
+			cDir	= [strDir; FindDirectories(strDir,'subdir',true)];
 		else
 			cDir	= ForceCell(strDir);
 		end

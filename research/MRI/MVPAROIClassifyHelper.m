@@ -52,7 +52,8 @@ function res = MVPAROIClassifyHelper(param,varargin)
 	opt_path	= optreplace(opt.opt_extra,...
 					'require'	, {'functional','mask'}	  ...
 					);
-	sPath		= ParseMRIDataPaths(opt_path);
+	cOptPath	= opt2cell(opt_path);
+	sPath		= ParseMRIDataPaths(cOptPath{:});
 
 %analysis-specific parameters
 	param	= optadd(param,...

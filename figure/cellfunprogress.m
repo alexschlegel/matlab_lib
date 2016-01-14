@@ -12,8 +12,8 @@ function varargout = cellfunprogress(f,varargin)
 %				an input argument index if each element of that input should be
 %				displayed as a status as that element is processed
 % 
-% Updated: 2015-07-02
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2016-01-14
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -57,7 +57,8 @@ function varargout = cellfunprogress(f,varargin)
 						'status'	, opt.status	  ...
 						);
 	
-	sProgress	= progress(opt_progress);
+	cOpt		= opt2cell(opt_progress);
+	sProgress	= progress(cOpt{:});
 
 %call cellfun
 	f			= repmat({f},s);

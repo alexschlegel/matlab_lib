@@ -85,7 +85,8 @@ function res = MVPAROIClassifyHelper(param,varargin)
 						'silent'			, opt.silent		  ...
 						);
 		
-		sMELODIC				= FSLMELODIC(opt_melodic);
+		cOptMELODIC				= opt2cell(opt_melodic);
+		sMELODIC				= FSLMELODIC(cOptMELODIC{:});
 		sPath.functional_roi	= sMELODIC.path.data;
 	else
 		opt_roi					= optreplace(sPath.opt_extra,...
@@ -95,7 +96,9 @@ function res = MVPAROIClassifyHelper(param,varargin)
 									'force'				, opt.force_pre		, ...
 									'silent'			, opt.silent		  ...
 									);
-		sPath.functional_roi	= fMRIROI(opt_roi);
+		
+		cOptROI					= opt2cell(opt_roi);
+		sPath.functional_roi	= fMRIROI(cOptROI{:});
 	end
 
 %parse the input data
@@ -134,7 +137,8 @@ function res = MVPAROIClassifyHelper(param,varargin)
 					'silent'	, opt.silent		  ...
 					);
 	
-	res			= MVPAClassify(sData.cPathDataROI,cTarget,kChunk,opt_mvpa);
+	cOptMVPA	= opt2cell(opt_mvpa);
+	res			= MVPAClassify(sData.cPathDataROI,cTarget,kChunk,cOptMVPA{:});
 	res.mask	= sData.cMask;
 
 %------------------------------------------------------------------------------%

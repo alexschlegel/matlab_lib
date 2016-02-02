@@ -36,8 +36,8 @@ function varargout = MultiTask(f,cIn,varargin)
 % Out:
 % 	cOutK	- a cell or array of the Kth set of outputs
 % 
-% Updated: 2015-06-09
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2016-01-15
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 

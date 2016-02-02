@@ -45,8 +45,8 @@ function res = CrossValidation(d,target,chunk,varargin)
 % Out:
 % 	res	- a struct of results
 % 
-% Updated: 2015-06-08
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2016-02-02
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 res	= struct('error',false);
@@ -278,6 +278,9 @@ function [acc,conf] = CVFold(kChunkTrain,kChunkTest)
 					kSampleTrain{kB}		= cat(1,cKSampleTrainBalanced{:});
 					kTargetTrain{kB}		= kTargetSample(kSampleTrain{kB});
 				end
+			else
+				kSampleTrain	= {kSampleTrain};
+				kTargetTrain	= {kTargetTrain};
 			end
 		else
 			kSampleTrain	= {kSampleTrain};

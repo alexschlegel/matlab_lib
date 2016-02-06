@@ -54,7 +54,14 @@ classdef stairstep < subject.assess.base
 		methods (Access=public)
 			function obj = stairstep(f,varargin)
 				obj = obj@subject.assess.base(f,varargin{:});
-				
+			end
+		end
+	
+	%PRIVATE
+		methods (Access=protected)
+			d = GetNextProbe(obj,s);
+			
+			function init(obj,varargin)
 				opt	= ParseArgs(varargin,...
 						'acceleration'	, 0.01	, ...
 						'stickiness'	, 1		, ...
@@ -73,11 +80,6 @@ classdef stairstep < subject.assess.base
 				obj.speed				= zeros(nTask,1);
 				obj.stickinessCounter	= zeros(nTask,1);
 			end
-		end
-	
-	%PRIVATE
-		methods (Access=protected)
-			d = GetNextProbe(obj,s);
 		end
 %/METHODS-----------------------------------------------------------------------
 

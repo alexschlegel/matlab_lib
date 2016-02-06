@@ -45,7 +45,16 @@ classdef psi < subject.assess.base
 		methods (Access=public)
 			function obj = psi(f,varargin)
 				obj = obj@subject.assess.base(f,varargin{:});
-				
+			end
+		end
+	
+	%PRIVATE
+		methods (Access=protected)
+			sEstimate = AppendProbe(obj,kTask,d,result);
+			d = GetNextProbe(obj,s);
+			y = PAL_WeibullExt(obj,params,x,varargin);
+			
+			function init(obj,varargin)
 				%process the inputs
 					opt	= ParseArgs(varargin,...
 							'marginal'	, {'slope','lapse'}	  ...
@@ -75,13 +84,6 @@ classdef psi < subject.assess.base
 								'marginalize'		, marginal				  ...
 								),[nTask 1]);
 			end
-		end
-	
-	%PRIVATE
-		methods (Access=protected)
-			sEstimate = AppendProbe(obj,kTask,d,result);
-			d = GetNextProbe(obj,s);
-			y = PAL_WeibullExt(obj,params,x,varargin);
 		end
 %/METHODS-----------------------------------------------------------------------
 

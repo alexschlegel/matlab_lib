@@ -13,6 +13,13 @@ classdef base < handle
 %		chance:		(0.5) the value of the <chance> property
 %		lapse:		(0.03) the initial estimate of the <lapse> property
 %		d:			(0:0.05:1) the value of the <d> property
+%		d_hist:		([]) an array specifying the difficulties of a set of probes
+%					that have already been administered
+%		res_hist:	([]) an array the same size as <d_hist> specifying the
+%					results of the probes (true/false)
+%		task_hist:	([]) an array the same size as <d_hist> specifying the index
+%					of the task administered in each probe. must be specified
+%					only if multiple tasks are defined (see <f>).
 % 
 % Methods:
 %	GetTaskInfo:		get information about the tasks
@@ -62,9 +69,15 @@ classdef base < handle
 %	a = subject.assess.base(f,'chance',chance);
 %	sEstimate = a.Run('max',50,'rmse',0.2,'silent',false);
 %	h = a.Plot(1);
+%	
+%	chance = 0.25;
+%	ability = 0.45;
+%	f = @(d,varargin) subject.assess.base.SimulateProbe(d,varargin{:},'ability',ability,'chance',chance);
+%	n=100; d=rand(n,1); res=arrayfun(f,d);
+%	a = subject.assess.base(f,'chance',chance,'d_hist',d,'res_hist',res);
 % 
-% Updated:	2015-12-04
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com). This work is licensed
+% Updated:	2016-02-06
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com). This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -112,7 +125,10 @@ classdef base < handle
 						'target'	, 0.75		, ...
 						'chance'	, 0.5		, ...
 						'lapse'		, 0.03		, ...
-						'd'			, 0:0.05:1	  ...
+						'd'			, 0:0.05:1	, ...
+						'd_hist'	, []		, ...
+						'res_hist'	, []		, ...
+						'task_hist'	, []		  ...
 						);
 				
 				f		= reshape(ForceCell(f),[],1);
@@ -134,6 +150,32 @@ classdef base < handle
 				
 				obj.nProbe			= zeros(nTask,1);
 				obj.taskSequence	= zeros(nTask,1);
+				
+				%child-class-specific initialization
+					obj.init(varargin{:});
+				
+				%add the manual history if specified
+					if ~isempty(opt.d_hist)
+						nHist	= numel(opt.d_hist);
+						
+						%error checking
+							assert(numel(opt.res_hist)==nHist,'<d_hist> and <res_hist> options must have the same number of elements');
+							
+							if nTask==1 && isempty(opt.task_hist)
+								opt.task_hist	= ones(size(opt.d_hist));
+							else
+								assert(numel(opt.task_hist)==nHist,'<d_hist> and <task_hist> options must have the same number of elements');
+							end
+						
+						%add the probes
+							for kH=1:nHist
+								kTask	= opt.task_hist(kH);
+								d		= opt.d_hist(kH);
+								result	= opt.res_hist(kH);
+								
+								obj.AppendProbe(kTask,d,result);
+							end
+					end
 			end
 		end
 	
@@ -153,6 +195,12 @@ classdef base < handle
 			sHistory		= GetTaskHistory(obj,varargin);
 			sPerformance	= GetTaskPerformance(obj,varargin);
 							  SetTaskEstimate(obj,kTask,sEstimate);
+			
+			function init(obj,varargin)
+			%child classes should use this function to initialize class-specific
+			%stuff before a possible manual history dump
+				
+			end
 		end
 %/METHODS-----------------------------------------------------------------------
 

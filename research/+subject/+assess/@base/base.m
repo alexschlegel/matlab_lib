@@ -69,12 +69,6 @@ classdef base < handle
 %	a = subject.assess.base(f,'chance',chance);
 %	sEstimate = a.Run('max',50,'rmse',0.2,'silent',false);
 %	h = a.Plot(1);
-%	
-%	chance = 0.25;
-%	ability = 0.45;
-%	f = @(d,varargin) subject.assess.base.SimulateProbe(d,varargin{:},'ability',ability,'chance',chance);
-%	n=100; d=rand(n,1); res=arrayfun(f,d);
-%	a = subject.assess.base(f,'chance',chance,'d_hist',d,'res_hist',res);
 % 
 % Updated:	2016-02-06
 % Copyright 2016 Alex Schlegel (schlegel@gmail.com). This work is licensed

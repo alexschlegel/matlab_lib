@@ -41,7 +41,7 @@ function nii = Read(strPathNII,varargin)
 	opt.return	= CheckInput(opt.return,'return value',{'struct','data'});
 	
 	strExt	= PathGetExt(strPathNII,'favor','nii.gz');
-	strExt	= CheckInput(strExt,'extension',{'nii','nii.gz'});
+	strExt	= CheckInput(strExt,'extension',{'hdr','nii','nii.gz'});
 
 %for spm and load_nii methods, we have to ungzip and load if we have a gzipped
 %NIfTI file

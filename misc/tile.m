@@ -1,7 +1,7 @@
 function x = tile(x,varargin)
 % tile
 % 
-% Description:	tile a ND array into a (N-1)D grid
+% Description:	tile an ND array into a (N-1)D grid
 % 
 % Syntax:	t = tile(x,[dim]=<last>,<options>)
 % 
@@ -14,10 +14,13 @@ function x = tile(x,varargin)
 % Out:
 % 	t	- the tiled array
 % 
-% Example:	
-%	x 		= gaussian([50 50 56],'sigma',40);
-%	xTile	= tile(x);
-%	imagesc(xTile);
+% Example:
+%~ 	n		= 100;
+%~ 	t		= linspace(-1,1,n);
+%~ 	[x,y,z]	= ndgrid(t,t,t);
+%~ 	r		= sqrt(x.^2 + y.^2 + z.^2);
+%~ 	im		= normalize(tile(r));
+%~ 	imshow(im);
 % 
 % Updated: 2012-07-07
 % Copyright 2012 Alex Schlegel (schlegel@gmail.com).  This work is licensed

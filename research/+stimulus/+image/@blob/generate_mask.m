@@ -44,7 +44,8 @@ function [mask,ifo] = generate_mask(obj,ifo)
 	%map between aInterp and p to get an even step along the path for each point
 		[pPx,kU]	= unique(pPx);
 		aInterp		= aInterp(kU);
-		aInterp		= interp1(pPx,aInterp,(1:L)');
+		pInterp		= linspace(0,L,ceil(L))';
+		aInterp		= interp1(pPx,aInterp,pInterp);
 
 %generate the full path
 	[x,y]	= Blob_Interpolate(a,r,aInterp,ifo.param.interp,ifo.param.interp_space);

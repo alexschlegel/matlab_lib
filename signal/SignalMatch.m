@@ -42,7 +42,8 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 	
 	[nSample,nSignal]	= size(x);
 	
-	if isempty(opt.chunk)
+	bChunk	= ~isempty(opt.chunk);
+	if ~bChunk
 		opt.chunk	= ones(nSample,1);
 	end
 
@@ -52,8 +53,6 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 	
 	xMatch	= x;
 	yMatch	= NaN(nSample,nSignal);
-	
-	sMatch	= dealstruct('D','negate','idx_y2x',cell(nChunk));
 	
 	progress('action','init','total',nChunk,'label','Processing each chunk','silent',opt.silent);
 	for kC=1:nChunk
@@ -72,7 +71,7 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 			yComp	= y(bComplement,:);
 		%calculate the distance between each pair of signals
 			D				= pdist2(xComp',yComp','correlation');
-			sMatch.D{kC}	= D;
+			s.D				= D;
 		%make negative correlations positive, and mark them for negating if they
 		%end up being matches
 			if opt.anticorrelated
@@ -84,7 +83,6 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 			else
 				bNeg	= false(size(D));
 			end
-			sMatch.negate{kC}	= bNeg;
 		%minimize the correlation distances
 			try
 				kY2X	= mintrace(D);
@@ -100,15 +98,32 @@ function [xMatch,yMatch,sMatch] = SignalMatch(x,y,varargin)
 					rethrow(me);
 				end
 			end
-			sMatch.idx_y2x{kC}	= kY2X;
+			s.idx_y2x	= kY2X;
+			
+			kX2Y		= zeros(nSignal,1);
+			kX2Y(kY2X)	= 1:nSignal;
+			s.idx_x2y	= kX2Y;
 		%match up y with x
 			yMatch(bChunk,:)	= y(bChunk,kY2X);
 		%negate the components with negative correlations
+			
 			bNeg	= bNeg(:,kY2X);
 			bDiag	= logical(eye(nSignal));
 			kNeg	= find(bNeg(bDiag));
 			
+			bNeg				= false(nSignal,1);
+			bNeg(kNeg)			= true;
+			s.negate			= bNeg;
+			
+			s.negate_orig	= s.negate(s.idx_x2y);
+			
 			yMatch(bChunk,kNeg)	= -yMatch(bChunk,kNeg);
+		
+		if kC==1
+			sMatch	= s;
+		else
+			sMatch(end+1)	= s;
+		end
 		
 		progress;
 	end

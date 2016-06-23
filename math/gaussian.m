@@ -8,7 +8,7 @@ function y = gaussian(x,varargin)
 %								S  = a covariance matrix
 %								mu = the mean of the distribution.
 %				note that for 1D input, this simplifies to:
-%					f(x) = (1/sqrt(2*pi*S))*exp(-(x-mu)/(2*S)).
+%					f(x) = (1/sqrt(2*pi*S))*exp(-(x-mu).^2/(2*S)).
 %				
 %				NOTE also that for 1D S is the variance, not the standard
 %				deviation.

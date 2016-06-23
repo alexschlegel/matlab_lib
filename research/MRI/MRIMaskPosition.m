@@ -17,7 +17,7 @@ function [p,m] = MRIMaskPosition(strPathMask,varargin)
 %	m	- the mass (i.e. number of voxels) of the mask, or NaN if the mask
 %		  doesn't exist
 % 
-% Updated: 2015-04-13
+% Updated: 2015-12-01
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -43,7 +43,7 @@ elseif FileExists(strPathMask)
 		nMask		= numel(kMask);
 		[kX,kY,kZ]	= ind2sub(size(nii.data),kMask);
 	%convert to standard NIfTI space
-		p	= nii.mat*[kX kY kZ ones(nMask,1)]';
+		p	= nii.hdr.mat*[kX kY kZ ones(nMask,1)]';
 		p	= p(1:3,:)';
 	%get the weighted mean of the mask positions
 		w	= repmat(nii.data(kMask),[1 3]);

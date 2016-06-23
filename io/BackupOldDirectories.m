@@ -18,7 +18,7 @@ function [cDirBackup,cDirBackupErr,cDirDelete,cDirDeleteErr] = BackupOldDirector
 %	cDirDelete		- a cell of directories successfully deleted
 %	cDirDeleteErr	- a cell of directories not successfully deleted
 % 
-% Updated: 2015-04-08
+% Updated: 2015-11-12
 % Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
@@ -78,8 +78,8 @@ strDirDst	= DirAppend('/home/alex',strDirOld);
 	nDirBackup		= numel(cDirBackup);
 	nDirBackupErr	= numel(cDirBackupErr);
 	
-	strPluralB	= GetPlural(nDirBackup,'ies','y');
-	strPluralBE	= GetPlural(nDirBackupErr,'s','');
+	strPluralB	= plural(nDirBackup,'y','ies');
+	strPluralBE	= plural(nDirBackupErr,'','s');
 %delete
 	cDirDelete		= {};
 	cDirDeleteErr	= {};
@@ -94,7 +94,7 @@ strDirDst	= DirAppend('/home/alex',strDirOld);
 		nDirToDelete	= numel(cDirToDelete);
 		
 		if opt.prompt
-			strPlural	= GetPlural(nDirToDelete,'ies','y');
+			strPlural	= plural(nDirToDelete,'y','ies');
 			res			= ask([num2str(nDirToDelete) ' director' strPlural ' found to delete.  List?'],'title','List Directories?','choice',{'Yes','No'},'default','Yes');
 			if isequal(res,'Yes')
 				disp(char(cDirToDelete));
@@ -118,8 +118,8 @@ strDirDst	= DirAppend('/home/alex',strDirOld);
 	nDirDelete		= numel(cDirDelete);
 	nDirDeleteErr	= numel(cDirDeleteErr);
 	
-	strPluralD	= GetPlural(nDirDelete,'ies','y');
-	strPluralDE	= GetPlural(nDirDeleteErr,'s','');
+	strPluralD	= plural(nDirDelete,'y','ies');
+	strPluralDE	= plural(nDirDeleteErr,'','s');
 %finished!
 	n	= status('Done!');
 	if bCopy

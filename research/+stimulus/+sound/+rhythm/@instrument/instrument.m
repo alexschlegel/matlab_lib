@@ -13,7 +13,7 @@ classdef instrument < stimulus.sound.rhythm
 % Properties:
 %	param:	a property collection of parameters that the generator function will
 %			use to generate the stimulus. includes:
-%				instrument: ({'sin' 'sawtooth'}) see stimulus.sound.rhythm
+%				instrument: ({1,2}) see stimulus.sound.rhythm
 %				pattern: ('uniform') see stimulus.sound.rhythm
 %			<see also stimulus.sound.rhythm>
 % 

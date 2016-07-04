@@ -22,8 +22,8 @@ function varargout = ImageGridOrientation(nii)
 % 
 % Assumptions:	assumes the NIfTI data are not aligned obliquely
 % 
-% Updated: 2015-04-28
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2016-04-12
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 
@@ -36,7 +36,7 @@ function varargout = ImageGridOrientation(nii)
 			error('What is this?');
 	end
 
-mOrient	= sign(nii.mat(1:3,1:3)');
+mOrient	= sign(nii.hdr.mat(1:3,1:3)');
 
 %output
 	if nargout>0

@@ -32,8 +32,8 @@ function [bSuccess,cPathNII] = PARREC2NIfTI(cPathPAR,varargin)
 %				  converted
 % 	cPathNII	- the path to the output NIfTI file, or a cell of paths
 % 
-% Updated: 2015-05-01
-% Copyright 2015 Alex Schlegel (schlegel@gmail.com).  This work is licensed
+% Updated: 2016-07-04
+% Copyright 2016 Alex Schlegel (schlegel@gmail.com).  This work is licensed
 % under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 % License.
 [cPathNII,opt]	= ParseArgs(varargin,[],...
@@ -138,13 +138,15 @@ function b = ConvertOne(strPathPAR,strPathNII)
 			save(strPathMAT,'-struct','hdr');
 		end
 	%the scanner has been randomly saving functional scans with a weird slice
-	%order (all slice 1, then all slice 2, etc.). fix this.
+	%order (e.g. all slice 1, then all slice 2, etc.). fix this.
 		if ismember(strType,{'functional','diffusion'})
-			nSlice	= hdr.general.max_number_of_slices;
-			nVol	= numel(hdr.imageinfo.slice_number)/nSlice;
+			nSlice		= hdr.general.max_number_of_slices;
+			nVol		= numel(hdr.imageinfo.slice_number)/nSlice;
+			kSliceStart	= hdr.imageinfo.slice_number(1);
 			
-			if all(reshape(repmat(1:nSlice,[nVol 1]),[],1)==hdr.imageinfo.slice_number)
-			%wtf?
+			%first check for grouped slices
+			kBadOrder	= reshape(repmat(1:nSlice,[nVol 1]),[],1);
+			if all(hdr.imageinfo.slice_number==kBadOrder)
 				%load the NIfTI file
 					nii	= NIfTI.Read(strPathNII);
 					s	= size(nii.data);
@@ -152,16 +154,40 @@ function b = ConvertOne(strPathPAR,strPathNII)
 				%find the slice dimension
 					dimSlice	= find(s==nSlice);
 					if numel(dimSlice)~=1
-						warning('Weird fMRI data set, cannot fix slice order bug!');
-						return;
+						error('Weird fMRI data set, cannot fix slice order bug!');
 					end
 				%reorder the slices
 					nii.data	= permute(nii.data,[1:dimSlice-1 dimSlice+1:nd-1 dimSlice nd]);
 					sTemp		= size(nii.data);
 					nii.data	= reshape(nii.data,[sTemp(1:end-2) nVol nSlice]);
 					nii.data	= permute(nii.data,[1:dimSlice-1 nd dimSlice:nd-2 nd-1]);
+				%functional and diffusion data have been coming through with
+				%top half and bottom half reversed. fix this.
+					if kSliceStart~=1
+						nii.data	= cat(3,nii.data(:,:,kSliceStart:nSlice, :), nii.data(:,:,1:kSliceStart-1,:));
+					end
 				%save the NIfTI file
 					NIfTI.Write(nii,strPathNII);
+			else
+			%now check for Kevin's weird interleaved order
+				nSliceJump	= ceil(sqrt(nSlice));
+				
+				kVolFirst			= reshape([kSliceStart:nSlice 1:kSliceStart-1],[],1);
+				kVolOther			= NaN(ceil(nSlice/nSliceJump),nSliceJump);
+				kVolOther(1:nSlice)	= 1:nSlice;
+				kVolOther			= reshape(kVolOther',[],1);
+				kVolOther			= kVolOther(~isnan(kVolOther));
+				
+				kBadOrder	= [kVolFirst; repmat(kVolOther,[nVol-1 1])];
+				if all(hdr.imageinfo.slice_number==kBadOrder)
+					%load the NIfTI file
+						nii		= NIfTI.Read(strPathNII);
+					%reorder the slices
+						nii.data(:,:,kVolFirst,1)		= nii.data(:,:,:,1);
+						nii.data(:,:,kVolOther,2:end)	= nii.data(:,:,:,2:end);
+					%save the NIfTI file                    
+						NIfTI.Write(nii,strPathNII);
+				end
 			end
 		end
 	%process diffusion data

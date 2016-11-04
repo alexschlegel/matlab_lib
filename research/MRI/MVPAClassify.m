@@ -597,7 +597,7 @@ function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
 			%calculate a t-test across subjects
 				nd			= unless(find(size(stat.r)>1,1,'last'),1);
 				stat.mr		= nanmean(stat.r,nd);
-				stat.ser	= nanstderrJK(stat.r,[],nd);
+				stat.ser	= nanstderr(stat.r,[],nd);
 				stat.mz		= nanmean(stat.z,nd);
 				stat.sez	= nanstderr(stat.z,[],nd);
 				

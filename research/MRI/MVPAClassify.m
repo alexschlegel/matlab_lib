@@ -133,7 +133,9 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %								the accuracies and confusion matrices (<combine>
 %								must also be true)
 %		confusion_model:		([]) the confusion model or cell of models to
-%								compare with the actual confusion matrices
+%								compare with the actual confusion matrices.
+%								If <matched_confmodels> is true, there are
+%								additional requirements (see below).
 %		confcorr_method:		('subjectjk') the method to use for calculating
 %								confusion correlation stats. one of the
 %								following:
@@ -146,11 +148,23 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 %												jackknifed group mean confusion
 %												matrices and perform a jackknife
 %												t-test
-%									persubject: confusion_model input must be a
-%												cell of models, one per	subject.
-%												correlate each model with the
-%												corresponding subject's confusion
-%												matrix and perform a t-test
+%		matched_confmodels:		(false) true to indicate that each
+%								subject's confusion matrices should be
+%								correlated with their own confusion model.
+%								If true, <confusion_model> must be a cell
+%								of models with numel equal to the last 
+%								non-singleton dimension of cPathData.
+%								<confusion_model> can also be a cell of
+%								such cells of models, in which case multiple
+%								sets of models will be tested. If <confusion_model>
+%								is a cell containing a mixture of
+%								individual models and at least one
+%								nSubject-length cell of models, the
+%								individual models will be tested against
+%								the results from all classifications.
+%								If <confcorr_method> = 'group', sets of
+%								models will be meaned before correlating
+%								with the group mean confusion matrix.
 %		cores:					(1) the number of processor cores to use
 %		force:					(true) true to force the analysis to run even if
 %								the output results files already exist
@@ -214,6 +228,7 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 			'stats'					, []				, ...
 			'confusion_model'		, {}				, ...
 			'confcorr_method'		, 'subjectjk'		, ...
+			'matched_confmodels'	, false				, ...
 			'cores'					, 1					, ...
 			'force'					, true				, ...
 			'force_each'			, []				, ...
@@ -228,13 +243,11 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 	opt.path_script	= PathAddSuffix(mfilename('fullpath'),'','py');
 	opt.stats		= unless(opt.stats,opt.combine);
 	opt.force_each	= unless(opt.force_each,opt.force);
-	
-	opt.confusion_model	= ForceCell(opt.confusion_model);
-	
+		
 	%make sure we got proper option values
 		opt.mask_balancer	= CheckInput(opt.mask_balancer,'mask_balancer',{'none','bootstrap','erode'});
 		opt.nan_remove		= CheckInput(opt.nan_remove,'nan_remove',{'none','sample','feature'});
-		opt.confcorr_method	= CheckInput(opt.confcorr_method,'confusion correlation method',{'group','subject','subjectjk','persubject'});
+		opt.confcorr_method	= CheckInput(opt.confcorr_method,'confusion correlation method',{'group','subject','subjectjk'});
 		
 		assert(opt.selection>=0 && (opt.selection<1 || isint(opt.selection)),'uninterpretable selection parameter.');
 	
@@ -242,9 +255,27 @@ function res = MVPAClassify(cPathData,cTarget,kChunk,varargin)
 		cPathData	= ForceCell(cPathData);
 		cPathData	= cellfun(@ForceCell,cPathData,'uni',false);
 		
-	% validate confusion_model
-		if strcmp(opt.confcorr_method,'persubject') && (length(opt.confusion_model) ~= length(cPathData))
-			error('must input one confusion model per classification when using persubject');
+	% format confusion_model and validate
+		opt.confusion_model	= ForceCell(opt.confusion_model);
+		if opt.matched_confmodels
+			% get nSubject
+			nd	= find(size(cPathData)~=1,1,'last');
+			bModelCell = cellfun(@iscell, opt.confusion_model);
+			if any(bModelCell)
+				% cell of sets of models
+				assert(all(cellfun(@(c) isequal(numel(c),size(cPathData,nd)), ...
+					opt.confusion_model(bModelCell))), 'length of some confusion model set(s) does not match nSubject.');
+				opt.confusion_model(bModelCell) = cellfun(@(c) reshape(c,[],1), opt.confusion_model(bModelCell), 'uni', false);
+				% expand any singleton models
+				opt.confusion_model = cellfun(@ForceCell,opt.confusion_model,'uni',false);
+				[opt.confusion_model{:}] = FillSingletonArrays(opt.confusion_model{:});
+			else
+				% set of models
+				assert(isequal(numel(opt.confusion_model), size(cPathData,nd)), ...
+					'length of confusion model set does not match nSubject.');
+				reshape(opt.confusion_model,[],1);
+				opt.confusion_model = {opt.confusion_model};
+			end
 		end
 	
 	%make sure we have a classification-specific parameter for each classification
@@ -558,12 +589,8 @@ function res = DoIndividualStats(res,opt)
 					res.stats.confusion.mean	= nanmean(conf,nd);
 					res.stats.confusion.se		= nanstderr(conf,[],nd);
 					
-					if ~isempty(opt.confusion_model)
-						if strcmp(opt.confcorr_method,'persubject')
-							res.stats.confusion.corr	= ConfusionCorrelation(conf,nd,opt.confusion_model,opt.confcorr_method);
-						else
-							res.stats.confusion.corr	= cellfun(@(cm) ConfusionCorrelation(conf,nd,cm,opt.confcorr_method),opt.confusion_model);
-						end
+					if ~isempty(opt.confusion_model)						
+						res.stats.confusion.corr	= cellfun(@(cm) ConfusionCorrelation(conf,nd,cm,opt.confcorr_method),opt.confusion_model);
 					end
 				end
 		else
@@ -575,21 +602,25 @@ function b = IsClassificationResult(res)
 	b	= isstruct(res) && isfield(res,'accuracy') && isfield(res,'confusion');
 %------------------------------------------------------------------------------%
 function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
+	bMatchedConf = iscell(confModel);
 	switch strMethod
 		case 'group'
 			confGroup	= squeeze(nanmean(conf,dimSubject));
+			if bMatchedConf
+				confModel = mean(cat(3,confModel{:}),3);
+			end
 			stat		= ConfCorr(confGroup,confModel);
-		case {'subject','persubject'}
+		case 'subject'
 			%extract each matrix
 				cK				= num2cell(size(conf));
 				cK{dimSubject}	= ones(size(conf,dimSubject),1);
 				cConf			= squeeze(mat2cell(conf,cK{:}));
 				cConf			= cellfun(@squeeze,cConf,'uni',false);
 			%calculate the correlation for each confusion matrix
-				if strcmp(strMethod,'subject')
-					stat	= cellfun(@(conf) ConfCorr(conf,confModel),cConf);
-				else
+				if bMatchedConf
 					stat	= cellfun(@ConfCorr, cConf, confModel);
+				else
+					stat	= cellfun(@(conf) ConfCorr(conf,confModel),cConf);
 				end
 				stat		= restruct(stat);
 				stat		= structfun2(@StackCell,stat);
@@ -614,8 +645,14 @@ function stat = ConfusionCorrelation(conf,dimSubject,confModel,strMethod)
 				cConf			= cellfun(@squeeze,cConf,'uni',false);
 			%compute jackknifed means
 				cConfJK	= jackknife(@(x) {nanmean(cat(dimSubject,x{:}),dimSubject)},cConf);
+				if bMatchedConf
+					confModelJK = jackknife(@(x) {mean(cat(3,x{:}),3)}, confModel);
+				
 			%calculate the correlation for each confusion matrix
-				stat		= cellfun(@(conf) ConfCorr(conf,confModel),cConfJK);
+					stat	= cellfun(@ConfCorr, cConfJK, confModelJK);
+				else
+					stat		= cellfun(@(conf) ConfCorr(conf,confModel),cConfJK);
+				end
 				stat		= restruct(stat);
 				stat		= structfun2(@StackCell,stat);
 				stat		= rmfield(stat,{'tails','df','t','p','cutoff','m','b'});
